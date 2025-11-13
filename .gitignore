@@ -1,0 +1,5 @@
+# Ignore Docker WordPress volume and other transient data
+docker/wordpress/
+.DS_Store
+*.log
+

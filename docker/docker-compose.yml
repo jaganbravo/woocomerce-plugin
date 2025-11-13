@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  db:
+    image: mariadb:11.3
+    container_name: wp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp
+      MYSQL_PASSWORD: wppass
+    volumes:
+      - db_data:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:6.6-php8.2-apache
+    container_name: wp_app
+    depends_on:
+      - db
+    restart: unless-stopped
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wppass
+      WORDPRESS_DEBUG: "1"
+    ports:
+      - "8080:80"
+    volumes:
+      - ./wordpress:/var/www/html
+
+  wpcli:
+    image: wordpress:cli-php8.2
+    container_name: wp_cli
+    depends_on:
+      - wordpress
+    volumes:
+      - ./wordpress:/var/www/html
+    entrypoint: ["sleep", "infinity"]
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5
+    container_name: wp_pma
+    depends_on:
+      - db
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_USER: wp
+      PMA_PASSWORD: wppass
+    ports:
+      - "8081:80"
+
+volumes:
+  db_data:
+
