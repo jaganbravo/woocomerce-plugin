@@ -22,6 +22,13 @@ class Dataviz_AI_API_Client {
 	private $option_key = 'dataviz_ai_wc_settings';
 
 	/**
+	 * Default OpenAI chat endpoint.
+	 *
+	 * @var string
+	 */
+	private $default_openai_url = 'https://api.openai.com/v1/chat/completions';
+
+	/**
 	 * Retrieve stored plugin settings.
 	 *
 	 * @return array
@@ -53,6 +60,15 @@ class Dataviz_AI_API_Client {
 	}
 
 	/**
+	 * Determine if a custom backend URL is configured.
+	 *
+	 * @return bool
+	 */
+	public function has_custom_backend() {
+		return ! empty( $this->get_api_url() );
+	}
+
+	/**
 	 * Return configured API key.
 	 *
 	 * @return string
@@ -64,7 +80,7 @@ class Dataviz_AI_API_Client {
 	}
 
 	/**
-	 * Send a POST request to the backend.
+	 * Send a POST request to the configured backend.
 	 *
 	 * @param string $endpoint Endpoint path (e.g., /api/woocommerce/ask).
 	 * @param array  $body     Payload to send.
@@ -115,6 +131,66 @@ class Dataviz_AI_API_Client {
 		}
 
 		return is_array( $data ) ? $data : array();
+	}
+
+	/**
+	 * Send a simple chat completion request to OpenAI.
+	 *
+	 * @param array $messages Chat messages in OpenAI format.
+	 * @param array $options  Additional options (model, temperature, etc.).
+	 *
+	 * @return array|WP_Error
+	 */
+	public function send_openai_chat( array $messages, array $options = array() ) {
+		$api_key = $this->get_api_key();
+
+		if ( empty( $api_key ) ) {
+			return new WP_Error(
+				'dataviz_ai_missing_api_key',
+				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-woocommerce' )
+			);
+		}
+
+		$request_body = array_merge(
+			array(
+				'model'       => isset( $options['model'] ) ? sanitize_text_field( $options['model'] ) : 'gpt-4o-mini',
+				'temperature' => isset( $options['temperature'] ) ? (float) $options['temperature'] : 0.6,
+				'messages'    => $messages,
+			),
+			array_diff_key( $options, array_flip( array( 'model', 'temperature' ) ) )
+		);
+
+		$response = wp_remote_post(
+			$this->default_openai_url,
+			array(
+				'headers' => array(
+					'Content-Type'  => 'application/json',
+					'Authorization' => 'Bearer ' . $api_key,
+				),
+				'body'    => wp_json_encode( $request_body ),
+				'timeout' => 30,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$body        = json_decode( wp_remote_retrieve_body( $response ), true );
+		$status_code = wp_remote_retrieve_response_code( $response );
+
+		if ( $status_code >= 400 || ! is_array( $body ) ) {
+			return new WP_Error(
+				'dataviz_ai_openai_error',
+				__( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' ),
+				array(
+					'status' => $status_code,
+					'body'   => $body,
+				)
+			);
+		}
+
+		return $body;
 	}
 }
 

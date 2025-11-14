@@ -110,26 +110,68 @@ class Dataviz_AI_AJAX_Handler {
 			)
 		);
 
-		$payload = array(
-			'question' => $question,
-			'context'  => array(
-				'orders' => array_map( array( $this, 'format_order' ), $orders ),
-			),
+		if ( $this->api_client->has_custom_backend() ) {
+			$payload = array(
+				'question' => $question,
+				'context'  => array(
+					'orders' => array_map( array( $this, 'format_order' ), $orders ),
+				),
+			);
+
+			$response = $this->api_client->post( 'api/chat', $payload );
+
+			if ( is_wp_error( $response ) ) {
+				wp_send_json_error(
+					array(
+						'message' => $response->get_error_message(),
+						'data'    => $response->get_error_data(),
+					),
+					400
+				);
+			}
+
+			wp_send_json_success( $response );
+		}
+
+		$messages = $this->build_openai_messages( $question, $orders );
+		$result   = $this->api_client->send_openai_chat(
+			$messages,
+			array(
+				'model' => 'gpt-4o-mini',
+			)
 		);
 
-		$response = $this->api_client->post( 'api/chat', $payload );
-
-		if ( is_wp_error( $response ) ) {
+		if ( is_wp_error( $result ) ) {
 			wp_send_json_error(
 				array(
-					'message' => $response->get_error_message(),
-					'data'    => $response->get_error_data(),
+					'message' => $result->get_error_message(),
+					'data'    => $result->get_error_data(),
 				),
 				400
 			);
 		}
 
-		wp_send_json_success( $response );
+		$content = '';
+
+		if ( isset( $result['choices'][0]['message']['content'] ) ) {
+			$content = trim( (string) $result['choices'][0]['message']['content'] );
+		}
+
+		if ( empty( $content ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'The AI response was empty. Try again.', 'dataviz-ai-woocommerce' ),
+					'data'    => $result,
+				),
+				400
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'message' => $content,
+			)
+		);
 	}
 
 	/**
@@ -182,6 +224,49 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		return $items;
+	}
+
+	/**
+	 * Prepare chat messages for OpenAI.
+	 *
+	 * @param string   $question User query.
+	 * @param WC_Order $orders   Orders array.
+	 *
+	 * @return array
+	 */
+	protected function build_openai_messages( $question, $orders ) {
+		$orders_summary = array();
+
+		foreach ( $orders as $order ) {
+			if ( ! is_a( $order, 'WC_Order' ) ) {
+				continue;
+			}
+
+			$orders_summary[] = sprintf(
+				'#%1$d — %2$s — %3$s — %4$s items',
+				$order->get_id(),
+				wc_price( $order->get_total() ),
+				$order->get_date_created() ? $order->get_date_created()->date_i18n( 'Y-m-d' ) : __( 'N/A', 'dataviz-ai-woocommerce' ),
+				count( $order->get_items() )
+			);
+		}
+
+		$context_block = $orders_summary ? implode( "\n", $orders_summary ) : __( 'No recent orders available.', 'dataviz-ai-woocommerce' );
+
+		return array(
+			array(
+				'role'    => 'system',
+				'content' => __( 'You are a helpful WooCommerce analytics assistant. Answer clearly and concisely based on the provided store data.', 'dataviz-ai-woocommerce' ),
+			),
+			array(
+				'role'    => 'user',
+				'content' => sprintf(
+					"%s\n\nRecent orders snapshot:\n%s",
+					$question,
+					$context_block
+				),
+			),
+		);
 	}
 }
 
