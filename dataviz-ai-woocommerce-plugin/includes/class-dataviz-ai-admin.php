@@ -186,6 +186,41 @@ class Dataviz_AI_Admin {
 			return;
 		}
 
+		wp_register_script(
+			'dataviz-ai-chartjs',
+			'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+			array(),
+			'4.4.4',
+			true
+		);
+
+		$chart_orders = array_map(
+			static function( $order ) {
+				if ( ! is_a( $order, 'WC_Order' ) ) {
+					return array();
+				}
+
+				return array(
+					'id'    => $order->get_id(),
+					'total' => (float) $order->get_total(),
+				);
+			},
+			$this->data_fetcher->get_recent_orders(
+				array(
+					'limit' => 8,
+				)
+			)
+		);
+
+		$chart_orders = array_values(
+			array_filter(
+				$chart_orders,
+				static function( $order ) {
+					return isset( $order['id'], $order['total'] );
+				}
+			)
+		);
+
 		wp_enqueue_style(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/admin.css',
@@ -193,10 +228,12 @@ class Dataviz_AI_Admin {
 			$this->version
 		);
 
+		wp_enqueue_script( 'dataviz-ai-chartjs' );
+
 		wp_enqueue_script(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/admin.js',
-			array( 'jquery' ),
+			array( 'jquery', 'dataviz-ai-chartjs' ),
 			$this->version,
 			true
 		);
@@ -207,6 +244,7 @@ class Dataviz_AI_Admin {
 			array(
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'dataviz_ai_admin' ),
+				'recentOrders' => $chart_orders,
 			)
 		);
 	}
@@ -259,6 +297,7 @@ class Dataviz_AI_Admin {
 					<?php if ( empty( $orders ) ) : ?>
 						<p><?php esc_html_e( 'No orders found. Import sample data to get started.', 'dataviz-ai-woocommerce' ); ?></p>
 					<?php else : ?>
+						<canvas id="dataviz-ai-orders-chart" width="400" height="400"></canvas>
 						<ul class="dataviz-ai-list">
 							<?php foreach ( $orders as $order ) : ?>
 								<li>
