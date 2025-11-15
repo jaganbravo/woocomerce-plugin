@@ -109,5 +109,55 @@ class Dataviz_AI_Data_Fetcher {
 
 		return $summary;
 	}
+
+	/**
+	 * Get list of customers with their information.
+	 *
+	 * @param int $limit Number of customers to return.
+	 *
+	 * @return array
+	 */
+	public function get_customers( $limit = 10 ) {
+		$query = new WP_User_Query(
+			array(
+				'role'   => 'customer',
+				'number' => $limit,
+				'orderby' => 'registered',
+				'order'   => 'DESC',
+			)
+		);
+
+		$customers = array();
+
+		if ( ! empty( $query->results ) ) {
+			foreach ( $query->results as $user ) {
+				$customer_data = array(
+					'id'         => $user->ID,
+					'email'      => $user->user_email,
+					'username'   => $user->user_login,
+					'first_name' => get_user_meta( $user->ID, 'first_name', true ),
+					'last_name'  => get_user_meta( $user->ID, 'last_name', true ),
+					'city'       => get_user_meta( $user->ID, 'billing_city', true ),
+					'state'      => get_user_meta( $user->ID, 'billing_state', true ),
+					'country'    => get_user_meta( $user->ID, 'billing_country', true ),
+					'phone'      => get_user_meta( $user->ID, 'billing_phone', true ),
+					'company'    => get_user_meta( $user->ID, 'billing_company', true ),
+					'registered' => $user->user_registered,
+				);
+
+				if ( function_exists( 'wc_get_customer_total_spent' ) ) {
+					$customer_data['total_spent'] = (float) wc_get_customer_total_spent( $user->ID );
+					$customer_data['order_count'] = (int) wc_get_customer_order_count( $user->ID );
+				} else {
+					$customer_data['total_spent'] = 0;
+					$customer_data['order_count'] = 0;
+				}
+
+				$customers[] = $customer_data;
+			}
+		}
+
+		return $customers;
+	}
 }
 

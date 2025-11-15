@@ -220,8 +220,10 @@ class Dataviz_AI_Admin {
 	 * @return void
 	 */
 	public function render_admin_page() {
-		$api_url = $this->api_client->get_api_url();
-		$api_key = $this->api_client->get_api_key();
+		$api_url   = $this->api_client->get_api_url();
+		$api_key   = $this->api_client->get_api_key();
+		$customers = $this->data_fetcher->get_customers( 10 );
+		$summary   = $this->data_fetcher->get_customer_summary();
 		?>
 		<div class="wrap dataviz-ai-admin">
 			<h1><?php esc_html_e( 'Dataviz AI for WooCommerce', 'dataviz-ai-woocommerce' ); ?></h1>
@@ -241,6 +243,74 @@ class Dataviz_AI_Admin {
 						</p>
 						<pre class="dataviz-ai-analysis-output" aria-live="polite"></pre>
 					</form>
+				</section>
+
+				<section class="dataviz-ai-card">
+					<h2><?php esc_html_e( 'Customer Summary', 'dataviz-ai-woocommerce' ); ?></h2>
+					<ul class="dataviz-ai-stats">
+						<li>
+							<span class="label"><?php esc_html_e( 'Total Customers', 'dataviz-ai-woocommerce' ); ?></span>
+							<span class="value"><?php echo esc_html( number_format_i18n( $summary['total_customers'] ) ); ?></span>
+						</li>
+						<li>
+							<span class="label"><?php esc_html_e( 'Avg. Lifetime Spend', 'dataviz-ai-woocommerce' ); ?></span>
+							<span class="value"><?php echo function_exists( 'wc_price' ) ? wp_kses_post( wc_price( $summary['avg_lifetime_spent'] ) ) : esc_html( number_format_i18n( $summary['avg_lifetime_spent'], 2 ) ); ?></span>
+						</li>
+					</ul>
+				</section>
+
+				<section class="dataviz-ai-card dataviz-ai-card--wide">
+					<h2><?php esc_html_e( 'Customer Information', 'dataviz-ai-woocommerce' ); ?></h2>
+					<?php if ( empty( $customers ) ) : ?>
+						<p><?php esc_html_e( 'No customers found.', 'dataviz-ai-woocommerce' ); ?></p>
+					<?php else : ?>
+						<div class="dataviz-ai-customers-table">
+							<table class="wp-list-table widefat fixed striped">
+								<thead>
+									<tr>
+										<th><?php esc_html_e( 'ID', 'dataviz-ai-woocommerce' ); ?></th>
+										<th><?php esc_html_e( 'Name', 'dataviz-ai-woocommerce' ); ?></th>
+										<th><?php esc_html_e( 'Email', 'dataviz-ai-woocommerce' ); ?></th>
+										<th><?php esc_html_e( 'Location', 'dataviz-ai-woocommerce' ); ?></th>
+										<th><?php esc_html_e( 'Phone', 'dataviz-ai-woocommerce' ); ?></th>
+										<th><?php esc_html_e( 'Total Spent', 'dataviz-ai-woocommerce' ); ?></th>
+										<th><?php esc_html_e( 'Orders', 'dataviz-ai-woocommerce' ); ?></th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ( $customers as $customer ) : ?>
+										<tr>
+											<td><?php echo esc_html( $customer['id'] ); ?></td>
+											<td>
+												<strong><?php echo esc_html( trim( $customer['first_name'] . ' ' . $customer['last_name'] ) ?: $customer['username'] ); ?></strong>
+												<?php if ( ! empty( $customer['company'] ) ) : ?>
+													<br><small><?php echo esc_html( $customer['company'] ); ?></small>
+												<?php endif; ?>
+											</td>
+											<td><?php echo esc_html( $customer['email'] ); ?></td>
+											<td>
+												<?php
+												$location_parts = array_filter( array( $customer['city'], $customer['state'], $customer['country'] ) );
+												echo esc_html( implode( ', ', $location_parts ) ?: '—' );
+												?>
+											</td>
+											<td><?php echo esc_html( $customer['phone'] ?: '—' ); ?></td>
+											<td>
+												<?php
+												if ( function_exists( 'wc_price' ) ) {
+													echo wp_kses_post( wc_price( $customer['total_spent'] ) );
+												} else {
+													echo esc_html( number_format_i18n( $customer['total_spent'], 2 ) );
+												}
+												?>
+											</td>
+											<td><?php echo esc_html( $customer['order_count'] ); ?></td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						</div>
+					<?php endif; ?>
 				</section>
 			</div>
 

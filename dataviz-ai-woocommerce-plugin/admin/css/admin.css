@@ -80,3 +80,36 @@
 	display: none;
 }
 
+.dataviz-ai-admin .dataviz-ai-customers-table {
+	margin-top: 1rem;
+	overflow-x: auto;
+}
+
+.dataviz-ai-admin .dataviz-ai-customers-table table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.dataviz-ai-admin .dataviz-ai-customers-table th {
+	text-align: left;
+	padding: 0.75rem;
+	border-bottom: 2px solid #dcdcde;
+	font-weight: 600;
+	background: #f6f7f7;
+}
+
+.dataviz-ai-admin .dataviz-ai-customers-table td {
+	padding: 0.75rem;
+	border-bottom: 1px solid #f0f0f1;
+	vertical-align: top;
+}
+
+.dataviz-ai-admin .dataviz-ai-customers-table tbody tr:hover {
+	background: #f9f9f9;
+}
+
+.dataviz-ai-admin .dataviz-ai-customers-table small {
+	color: #757575;
+	font-size: 0.85em;
+}
+
