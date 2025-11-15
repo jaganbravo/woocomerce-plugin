@@ -68,14 +68,49 @@ class Dataviz_AI_AJAX_Handler {
 		$products  = $this->data_fetcher->get_top_products( 10 );
 		$customers = $this->data_fetcher->get_customer_summary();
 
-		$payload = array(
-			'question'  => isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' ),
-			'orders'    => array_map( array( $this, 'format_order' ), $orders ),
-			'products'  => $products,
-			'customers' => $customers,
-		);
+		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
 
-		$response = $this->api_client->post( 'api/woocommerce/ask', $payload );
+		// If custom backend is configured, use it; otherwise use OpenAI directly.
+		if ( $this->api_client->has_custom_backend() ) {
+			$payload = array(
+				'question'  => $question,
+				'orders'    => array_map( array( $this, 'format_order' ), $orders ),
+				'products'  => $products,
+				'customers' => $customers,
+			);
+
+			$response = $this->api_client->post( 'api/woocommerce/ask', $payload );
+		} else {
+			// Build context for OpenAI.
+			$context = sprintf(
+				"Recent orders:\n%s\n\nTop products:\n%s\n\nCustomer summary:\nTotal customers: %d, Average lifetime spend: %s",
+				wp_json_encode( array_map( array( $this, 'format_order' ), $orders ), JSON_PRETTY_PRINT ),
+				wp_json_encode( $products, JSON_PRETTY_PRINT ),
+				$customers['total_customers'],
+				function_exists( 'wc_price' ) ? wc_price( $customers['avg_lifetime_spent'] ) : number_format( $customers['avg_lifetime_spent'], 2 )
+			);
+
+			$messages = array(
+				array(
+					'role'    => 'system',
+					'content' => 'You are a helpful data analyst for WooCommerce stores. Provide clear, actionable insights based on the store data provided.',
+				),
+				array(
+					'role'    => 'user',
+					'content' => sprintf( "%s\n\nStore data:\n%s", $question, $context ),
+				),
+			);
+
+			$response = $this->api_client->send_openai_chat( $messages );
+
+			// Transform OpenAI response to match expected format.
+			if ( ! is_wp_error( $response ) && isset( $response['choices'][0]['message']['content'] ) ) {
+				$response = array(
+					'answer'   => $response['choices'][0]['message']['content'],
+					'provider' => 'openai',
+				);
+			}
+		}
 
 		if ( is_wp_error( $response ) ) {
 			wp_send_json_error(

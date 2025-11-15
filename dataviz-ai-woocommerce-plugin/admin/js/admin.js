@@ -2,6 +2,17 @@
 	'use strict';
 
 	$( document ).ready( function() {
+		// Enable/disable the Run Analysis button based on API key availability.
+		if ( typeof DatavizAIAdmin !== 'undefined' ) {
+			const $button = $( '.dataviz-ai-analysis-form button[type="submit"]' );
+			if ( $button.length ) {
+				if ( DatavizAIAdmin.hasApiKey ) {
+					$button.prop( 'disabled', false ).removeAttr( 'disabled' );
+				} else {
+					$button.prop( 'disabled', true );
+				}
+			}
+		}
 		const $chartCanvas = $( '#dataviz-ai-orders-chart' );
 
 		if ( $chartCanvas.length && typeof DatavizAIAdmin !== 'undefined' && Array.isArray( DatavizAIAdmin.recentOrders ) ) {
@@ -58,7 +69,19 @@
 		)
 			.done( function( response ) {
 				if ( response.success ) {
-					$output.text( JSON.stringify( response.data, null, 2 ) );
+					const data = response.data;
+					
+					// Extract answer text if available, otherwise format the response nicely.
+					if ( data.answer ) {
+						$output.text( data.answer );
+					} else if ( typeof data === 'string' ) {
+						$output.text( data );
+					} else if ( data.message ) {
+						$output.text( data.message );
+					} else {
+						// Fallback: show formatted JSON for debugging.
+						$output.text( JSON.stringify( data, null, 2 ) );
+					}
 				} else if ( response.data && response.data.message ) {
 					$output.text( response.data.message );
 				}

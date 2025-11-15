@@ -238,12 +238,15 @@ class Dataviz_AI_Admin {
 			true
 		);
 
+		$api_key = $this->api_client->get_api_key();
+
 		wp_localize_script(
 			$this->plugin_name . '-admin',
 			'DatavizAIAdmin',
 			array(
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'dataviz_ai_admin' ),
+				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
+				'nonce'     => wp_create_nonce( 'dataviz_ai_admin' ),
+				'hasApiKey' => ! empty( $api_key ),
 				'recentOrders' => $chart_orders,
 			)
 		);
@@ -316,13 +319,13 @@ class Dataviz_AI_Admin {
 					<h2><?php esc_html_e( 'Run a Quick Analysis', 'dataviz-ai-woocommerce' ); ?></h2>
 					<p><?php esc_html_e( 'Send a short prompt to the Dataviz AI backend using the latest store data sample.', 'dataviz-ai-woocommerce' ); ?></p>
 					<form method="post" class="dataviz-ai-analysis-form" data-action="analyze">
-						<?php if ( ! $api_url || ! $api_key ) : ?>
-							<p class="notice inline notice-warning"><strong><?php esc_html_e( 'API credentials required.', 'dataviz-ai-woocommerce' ); ?></strong> <?php esc_html_e( 'Configure your API URL and key below to enable AI responses.', 'dataviz-ai-woocommerce' ); ?></p>
+						<?php if ( ! $api_key ) : ?>
+							<p class="notice inline notice-warning"><strong><?php esc_html_e( 'API key required.', 'dataviz-ai-woocommerce' ); ?></strong> <?php esc_html_e( 'Configure your API key below to enable AI responses. Leave API URL empty to use OpenAI directly.', 'dataviz-ai-woocommerce' ); ?></p>
 						<?php endif; ?>
 						<label for="dataviz-ai-question" class="screen-reader-text"><?php esc_html_e( 'Prompt', 'dataviz-ai-woocommerce' ); ?></label>
 						<textarea id="dataviz-ai-question" name="question" rows="3" class="widefat" placeholder="<?php esc_attr_e( 'What are the key trends from the last 20 orders?', 'dataviz-ai-woocommerce' ); ?>"></textarea>
 						<p>
-							<button type="submit" class="button button-primary"<?php disabled( ! $api_url || ! $api_key ); ?>><?php esc_html_e( 'Run Analysis', 'dataviz-ai-woocommerce' ); ?></button>
+							<button type="submit" class="button button-primary"<?php disabled( ! $api_key ); ?>><?php esc_html_e( 'Run Analysis', 'dataviz-ai-woocommerce' ); ?></button>
 						</p>
 						<pre class="dataviz-ai-analysis-output" aria-live="polite"></pre>
 					</form>
