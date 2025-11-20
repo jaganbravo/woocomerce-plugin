@@ -186,6 +186,15 @@ class Dataviz_AI_Admin {
 			return;
 		}
 
+		// Enqueue Chart.js library (load in header to ensure it's available)
+		wp_enqueue_script(
+			'dataviz-ai-chartjs',
+			'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+			array(),
+			'4.4.4',
+			false
+		);
+
 		wp_enqueue_style(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/admin.css',
@@ -193,10 +202,40 @@ class Dataviz_AI_Admin {
 			$this->version
 		);
 
+		// Get order data for charts
+		$orders = $this->data_fetcher->get_recent_orders( array( 'limit' => 10 ) );
+		$order_chart_data = array_map(
+			static function( $order ) {
+				if ( ! is_a( $order, 'WC_Order' ) ) {
+					return null;
+				}
+				return array(
+					'id'    => $order->get_id(),
+					'total' => (float) $order->get_total(),
+					'status' => $order->get_status(),
+				);
+			},
+			$orders
+		);
+		$order_chart_data = array_values( array_filter( $order_chart_data ) );
+
+		// Get product data for charts
+		$products = $this->data_fetcher->get_top_products( 10 );
+		$product_chart_data = array_map(
+			static function( $product ) {
+				return array(
+					'name'  => $product['name'],
+					'sales' => $product['total_sales'],
+					'price' => (float) $product['price'],
+				);
+			},
+			$products
+		);
+
 		wp_enqueue_script(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/admin.js',
-			array( 'jquery' ),
+			array( 'jquery', 'dataviz-ai-chartjs' ),
 			$this->version,
 			true
 		);
@@ -207,9 +246,11 @@ class Dataviz_AI_Admin {
 			$this->plugin_name . '-admin',
 			'DatavizAIAdmin',
 			array(
-				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
-				'nonce'     => wp_create_nonce( 'dataviz_ai_admin' ),
-				'hasApiKey' => ! empty( $api_key ),
+				'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
+				'nonce'          => wp_create_nonce( 'dataviz_ai_admin' ),
+				'hasApiKey'      => ! empty( $api_key ),
+				'orderChartData' => $order_chart_data,
+				'productChartData' => $product_chart_data,
 			)
 		);
 	}
@@ -231,7 +272,7 @@ class Dataviz_AI_Admin {
 			<div class="dataviz-ai-grid">
 				<section class="dataviz-ai-card dataviz-ai-card--wide">
 					<h2><?php esc_html_e( 'AI Chat Assistant', 'dataviz-ai-woocommerce' ); ?></h2>
-					<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights.', 'dataviz-ai-woocommerce' ); ?></p>
+					<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights with visualizations.', 'dataviz-ai-woocommerce' ); ?></p>
 					<form method="post" class="dataviz-ai-analysis-form" data-action="analyze">
 						<?php if ( ! $api_key ) : ?>
 							<p class="notice inline notice-warning"><strong><?php esc_html_e( 'API key required.', 'dataviz-ai-woocommerce' ); ?></strong> <?php esc_html_e( 'Configure your API key below to enable AI responses. Leave API URL empty to use OpenAI directly.', 'dataviz-ai-woocommerce' ); ?></p>
@@ -241,7 +282,10 @@ class Dataviz_AI_Admin {
 						<p>
 							<button type="submit" class="button button-primary"<?php disabled( ! $api_key ); ?>><?php esc_html_e( 'Ask AI', 'dataviz-ai-woocommerce' ); ?></button>
 						</p>
-						<pre class="dataviz-ai-analysis-output" aria-live="polite"></pre>
+						<div class="dataviz-ai-response-container">
+							<div class="dataviz-ai-charts-container"></div>
+							<pre class="dataviz-ai-analysis-output" aria-live="polite"></pre>
+						</div>
 					</form>
 				</section>
 
