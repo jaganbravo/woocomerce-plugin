@@ -232,6 +232,21 @@ class Dataviz_AI_Admin {
 			$products
 		);
 
+		// Get customer data for charts
+		$customers = $this->data_fetcher->get_customers( 10 );
+		$customer_chart_data = array_map(
+			static function( $customer ) {
+				return array(
+					'id'         => $customer['id'],
+					'name'       => trim( $customer['first_name'] . ' ' . $customer['last_name'] ) ?: $customer['username'],
+					'total_spent' => (float) $customer['total_spent'],
+					'order_count' => (int) $customer['order_count'],
+					'country'    => $customer['country'] ?: 'Unknown',
+				);
+			},
+			$customers
+		);
+
 		wp_enqueue_script(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/admin.js',
@@ -251,6 +266,7 @@ class Dataviz_AI_Admin {
 				'hasApiKey'      => ! empty( $api_key ),
 				'orderChartData' => $order_chart_data,
 				'productChartData' => $product_chart_data,
+				'customerChartData' => $customer_chart_data,
 			)
 		);
 	}
