@@ -32,6 +32,12 @@ class Dataviz_AI_Data_Fetcher {
 			'order'   => 'DESC',
 		);
 
+		// Support date_created range format: "timestamp1...timestamp2"
+		if ( isset( $args['date_created'] ) && is_string( $args['date_created'] ) && strpos( $args['date_created'], '...' ) !== false ) {
+			list( $from, $to ) = explode( '...', $args['date_created'], 2 );
+			$args['date_created'] = absint( $from ) . '...' . absint( $to );
+		}
+
 		return wc_get_orders( wp_parse_args( $args, $defaults ) );
 	}
 

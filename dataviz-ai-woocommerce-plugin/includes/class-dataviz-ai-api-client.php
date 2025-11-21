@@ -160,6 +160,13 @@ class Dataviz_AI_API_Client {
 			array_diff_key( $options, array_flip( array( 'model', 'temperature' ) ) )
 		);
 
+		// Fix empty properties arrays in tools to be objects for OpenAI API.
+		$body_json = wp_json_encode( $request_body );
+		if ( isset( $request_body['tools'] ) && is_array( $request_body['tools'] ) ) {
+			// Replace "properties":[] with "properties":{}
+			$body_json = preg_replace( '/"properties"\s*:\s*\[\s*\]/', '"properties":{}', $body_json );
+		}
+
 		$response = wp_remote_post(
 			$this->default_openai_url,
 			array(
@@ -167,7 +174,7 @@ class Dataviz_AI_API_Client {
 					'Content-Type'  => 'application/json',
 					'Authorization' => 'Bearer ' . $api_key,
 				),
-				'body'    => wp_json_encode( $request_body ),
+				'body'    => $body_json,
 				'timeout' => 30,
 			)
 		);
