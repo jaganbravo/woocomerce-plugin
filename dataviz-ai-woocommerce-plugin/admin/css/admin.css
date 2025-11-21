@@ -154,3 +154,7 @@
 	margin: 0;
 }
 
+.dataviz-ai-admin .dataviz-ai-charts-container {
+	transition: all 0.3s ease;
+}
+

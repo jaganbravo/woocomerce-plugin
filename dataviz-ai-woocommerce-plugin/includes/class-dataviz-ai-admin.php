@@ -283,7 +283,7 @@ class Dataviz_AI_Admin {
 							<button type="submit" class="button button-primary"<?php disabled( ! $api_key ); ?>><?php esc_html_e( 'Ask AI', 'dataviz-ai-woocommerce' ); ?></button>
 						</p>
 						<div class="dataviz-ai-response-container">
-							<div class="dataviz-ai-charts-container"></div>
+							<div class="dataviz-ai-charts-container" style="display: none;"></div>
 							<pre class="dataviz-ai-analysis-output" aria-live="polite"></pre>
 						</div>
 					</form>
