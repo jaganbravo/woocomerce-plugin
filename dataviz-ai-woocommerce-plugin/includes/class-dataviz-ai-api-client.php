@@ -199,5 +199,112 @@ class Dataviz_AI_API_Client {
 
 		return $body;
 	}
+
+	/**
+	 * Send a streaming chat completion request to OpenAI.
+	 *
+	 * @param array    $messages Chat messages in OpenAI format.
+	 * @param callable $callback Callback function to handle each chunk.
+	 * @param array    $options  Additional options (model, temperature, etc.).
+	 *
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	public function send_openai_chat_stream( array $messages, callable $callback, array $options = array() ) {
+		$api_key = $this->get_api_key();
+
+		if ( empty( $api_key ) ) {
+			return new WP_Error(
+				'dataviz_ai_missing_api_key',
+				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-woocommerce' )
+			);
+		}
+
+		$request_body = array_merge(
+			array(
+				'model'       => isset( $options['model'] ) ? sanitize_text_field( $options['model'] ) : 'gpt-4o-mini',
+				'temperature' => isset( $options['temperature'] ) ? (float) $options['temperature'] : 0.6,
+				'messages'    => $messages,
+				'stream'      => true, // Enable streaming.
+			),
+			array_diff_key( $options, array_flip( array( 'model', 'temperature', 'stream' ) ) )
+		);
+
+		// Fix empty properties arrays in tools to be objects for OpenAI API.
+		$body_json = wp_json_encode( $request_body );
+		if ( isset( $request_body['tools'] ) && is_array( $request_body['tools'] ) ) {
+			$body_json = preg_replace( '/"properties"\s*:\s*\[\s*\]/', '"properties":{}', $body_json );
+		}
+
+		// Use cURL for proper streaming support.
+		$ch = curl_init();
+		
+		curl_setopt_array(
+			$ch,
+			array(
+				CURLOPT_URL            => $this->default_openai_url,
+				CURLOPT_RETURNTRANSFER => false,
+				CURLOPT_POST           => true,
+				CURLOPT_POSTFIELDS     => $body_json,
+				CURLOPT_HTTPHEADER     => array(
+					'Content-Type: application/json',
+					'Authorization: Bearer ' . $api_key,
+				),
+				CURLOPT_WRITEFUNCTION  => function( $ch, $data ) use ( &$buffer, $callback ) {
+					$buffer .= $data;
+					$lines   = explode( "\n", $buffer );
+					$buffer  = array_pop( $lines ); // Keep incomplete line.
+
+					foreach ( $lines as $line ) {
+						$line = trim( $line );
+						if ( empty( $line ) || substr( $line, 0, 6 ) !== 'data: ' ) {
+							continue;
+						}
+
+						$data_str = substr( $line, 6 ); // Remove "data: " prefix.
+
+						if ( '[DONE]' === $data_str ) {
+							return strlen( $data );
+						}
+
+						$chunk = json_decode( $data_str, true );
+						if ( ! is_array( $chunk ) || ! isset( $chunk['choices'][0]['delta']['content'] ) ) {
+							continue;
+						}
+
+						$content = $chunk['choices'][0]['delta']['content'];
+						if ( ! empty( $content ) ) {
+							call_user_func( $callback, $content );
+						}
+					}
+
+					return strlen( $data );
+				},
+			)
+		);
+
+		$result = curl_exec( $ch );
+		$status_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		$error = curl_error( $ch );
+		curl_close( $ch );
+
+		if ( false === $result || ! empty( $error ) ) {
+			return new WP_Error(
+				'dataviz_ai_curl_error',
+				sprintf( __( 'cURL error: %s', 'dataviz-ai-woocommerce' ), $error )
+			);
+		}
+
+		if ( $status_code >= 400 ) {
+			return new WP_Error(
+				'dataviz_ai_openai_error',
+				__( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' ),
+				array(
+					'status' => $status_code,
+				)
+			);
+		}
+
+		return true;
+	}
 }
 

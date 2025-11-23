@@ -61,6 +61,13 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
+		$stream   = isset( $_POST['stream'] ) && filter_var( $_POST['stream'], FILTER_VALIDATE_BOOLEAN );
+
+		// If streaming is requested, use streaming handler.
+		if ( $stream ) {
+			$this->handle_streaming_analysis( $question );
+			return;
+		}
 
 		// If custom backend is configured, use it; otherwise use OpenAI with function calling.
 		if ( $this->api_client->has_custom_backend() ) {
@@ -92,6 +99,191 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		wp_send_json_success( $response );
+	}
+
+	/**
+	 * Handle streaming analysis request.
+	 *
+	 * @param string $question User's question.
+	 * @return void
+	 */
+	protected function handle_streaming_analysis( $question ) {
+		// Disable output buffering for streaming.
+		if ( ob_get_level() ) {
+			ob_end_clean();
+		}
+
+		// Set headers for streaming.
+		header( 'Content-Type: text/event-stream' );
+		header( 'Cache-Control: no-cache' );
+		header( 'Connection: keep-alive' );
+		header( 'X-Accel-Buffering: no' ); // Disable nginx buffering.
+
+		// For custom backend, fall back to non-streaming.
+		if ( $this->api_client->has_custom_backend() ) {
+			$orders    = $this->data_fetcher->get_recent_orders( array( 'limit' => 20 ) );
+			$products  = $this->data_fetcher->get_top_products( 10 );
+			$customers = $this->data_fetcher->get_customer_summary();
+
+			$payload = array(
+				'question'  => $question,
+				'orders'    => array_map( array( $this, 'format_order' ), $orders ),
+				'products'  => $products,
+				'customers' => $customers,
+			);
+
+			$response = $this->api_client->post( 'api/woocommerce/ask', $payload );
+			if ( is_wp_error( $response ) ) {
+				$this->send_stream_error( $response->get_error_message() );
+				return;
+			}
+
+			$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'dataviz-ai-woocommerce' );
+			// Simulate streaming for custom backend.
+			$this->stream_text( $answer );
+			return;
+		}
+
+		// Use smart analysis with streaming.
+		$messages = $this->build_smart_analysis_messages( $question );
+		$tools    = $this->get_available_tools();
+
+		// First, check if LLM wants to call tools.
+		$first_response = $this->api_client->send_openai_chat(
+			$messages,
+			array(
+				'model' => 'gpt-4o-mini',
+				'tools' => $tools,
+			)
+		);
+
+		if ( is_wp_error( $first_response ) ) {
+			$this->send_stream_error( $first_response->get_error_message() );
+			return;
+		}
+
+		$assistant_message = $first_response['choices'][0]['message'] ?? array();
+		$tool_calls        = $assistant_message['tool_calls'] ?? array();
+
+		// If LLM wants to call tools, execute them and then stream the final response.
+		if ( ! empty( $tool_calls ) ) {
+			$messages[] = $assistant_message;
+
+			foreach ( $tool_calls as $tool_call ) {
+				$function_name = $tool_call['function']['name'] ?? '';
+				$arguments     = json_decode( $tool_call['function']['arguments'] ?? '{}', true );
+
+				$tool_result = $this->execute_tool( $function_name, $arguments );
+				$messages[]  = array(
+					'role'       => 'tool',
+					'tool_call_id' => $tool_call['id'],
+					'content'    => wp_json_encode( $tool_result ),
+				);
+			}
+
+			// Now get the final streaming response.
+			$messages[] = array(
+				'role'    => 'user',
+				'content' => $question . ' ' . __( 'Please provide a comprehensive answer based on the data retrieved.', 'dataviz-ai-woocommerce' ),
+			);
+		}
+
+		// Stream the final response.
+		$stream_result = $this->api_client->send_openai_chat_stream(
+			$messages,
+			function( $chunk ) {
+				$this->send_stream_chunk( $chunk );
+			},
+			array(
+				'model' => 'gpt-4o-mini',
+			)
+		);
+
+		if ( is_wp_error( $stream_result ) ) {
+			$this->send_stream_error( $stream_result->get_error_message() );
+			return;
+		}
+
+		$this->send_stream_end();
+	}
+
+	/**
+	 * Send a chunk in the stream.
+	 *
+	 * @param string $chunk Text chunk.
+	 * @return void
+	 */
+	protected function send_stream_chunk( $chunk ) {
+		echo "data: " . wp_json_encode( array( 'chunk' => $chunk ) ) . "\n\n";
+		if ( ob_get_level() ) {
+			ob_flush();
+		}
+		flush();
+	}
+
+	/**
+	 * Send an error in the stream.
+	 *
+	 * @param string $error Error message.
+	 * @return void
+	 */
+	protected function send_stream_error( $error ) {
+		echo "data: " . wp_json_encode( array( 'error' => $error ) ) . "\n\n";
+		echo "data: [DONE]\n\n";
+		if ( ob_get_level() ) {
+			ob_flush();
+		}
+		flush();
+		exit;
+	}
+
+	/**
+	 * Send stream end marker.
+	 *
+	 * @return void
+	 */
+	protected function send_stream_end() {
+		echo "data: [DONE]\n\n";
+		if ( ob_get_level() ) {
+			ob_flush();
+		}
+		flush();
+		exit;
+	}
+
+	/**
+	 * Stream text character by character (fallback for non-streaming APIs).
+	 *
+	 * @param string $text Text to stream.
+	 * @return void
+	 */
+	protected function stream_text( $text ) {
+		$words = explode( ' ', $text );
+		foreach ( $words as $index => $word ) {
+			$chunk = $word . ( $index < count( $words ) - 1 ? ' ' : '' );
+			$this->send_stream_chunk( $chunk );
+			usleep( 30000 ); // Small delay to simulate streaming (30ms per word).
+		}
+		$this->send_stream_end();
+	}
+
+	/**
+	 * Build messages for smart analysis.
+	 *
+	 * @param string $question User's question.
+	 * @return array
+	 */
+	protected function build_smart_analysis_messages( $question ) {
+		return array(
+			array(
+				'role'    => 'system',
+				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. Use the available tools to fetch relevant data, then provide insights based on the retrieved information.', 'dataviz-ai-woocommerce' ),
+			),
+			array(
+				'role'    => 'user',
+				'content' => $question,
+			),
+		);
 	}
 
 	/**
