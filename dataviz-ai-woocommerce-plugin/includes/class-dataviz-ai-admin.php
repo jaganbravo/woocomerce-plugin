@@ -193,23 +193,60 @@ class Dataviz_AI_Admin {
 			$this->version
 		);
 
+		// Enqueue Chart.js library
+		wp_enqueue_script(
+			'dataviz-ai-chartjs',
+			'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+			array(),
+			'4.4.4',
+			false
+		);
+
 		wp_enqueue_script(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/admin.js',
-			array( 'jquery' ),
+			array( 'jquery', 'dataviz-ai-chartjs' ),
 			$this->version,
 			true
 		);
 
 		$api_key = $this->api_client->get_api_key();
 
+		// Get chart data for rendering
+		$orders    = $this->data_fetcher->get_recent_orders( array( 'limit' => 50 ) );
+		$products  = $this->data_fetcher->get_top_products( 10 );
+		$order_chart_data = array();
+		
+		foreach ( $orders as $order ) {
+			if ( is_a( $order, 'WC_Order' ) ) {
+				$order_chart_data[] = array(
+					'id'     => $order->get_id(),
+					'total'  => (float) $order->get_total(),
+					'status' => $order->get_status(),
+					'date'   => $order->get_date_created()->date( 'Y-m-d' ),
+				);
+			}
+		}
+
+		$product_chart_data = array();
+		foreach ( $products as $product ) {
+			$product_chart_data[] = array(
+				'name'        => $product['name'],
+				'sales'       => isset( $product['total_sales'] ) ? (int) $product['total_sales'] : 0,
+				'price'       => isset( $product['price'] ) ? (float) $product['price'] : 0,
+				'product_id'  => isset( $product['id'] ) ? (int) $product['id'] : 0,
+			);
+		}
+
 		wp_localize_script(
 			$this->plugin_name . '-admin',
 			'DatavizAIAdmin',
 			array(
-				'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
-				'nonce'          => wp_create_nonce( 'dataviz_ai_admin' ),
-				'hasApiKey'      => ! empty( $api_key ),
+				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
+				'nonce'           => wp_create_nonce( 'dataviz_ai_admin' ),
+				'hasApiKey'       => ! empty( $api_key ),
+				'orderChartData'  => $order_chart_data,
+				'productChartData' => $product_chart_data,
 			)
 		);
 	}

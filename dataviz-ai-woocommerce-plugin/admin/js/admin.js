@@ -64,7 +64,7 @@
 	}
 
 	// Add message to chat
-	function addMessage( text, type, forceScroll = true ) {
+	function addMessage( text, type, forceScroll = true, questionForChart = null ) {
 		const $messages = $( '#dataviz-ai-chat-messages' );
 		const $welcome = $messages.find( '.dataviz-ai-chat-welcome' );
 		
@@ -85,6 +85,14 @@
 
 		$message.append( $content );
 		$messages.append( $message );
+		
+		// Render charts if this is an AI response and question mentions charts
+		if ( type === 'ai' && questionForChart && mentionsChart( questionForChart ) ) {
+			setTimeout( function() {
+				renderChartForQuestion( questionForChart, $message );
+				scrollToBottom( forceScroll );
+			}, 100 );
+		}
 		
 		// Only scroll if forced (new messages) or if user is near bottom
 		scrollToBottom( forceScroll );
@@ -122,6 +130,205 @@
 		$loading.fadeOut( 300, function() {
 			$( this ).remove();
 		} );
+	}
+
+	// Check if question mentions charts
+	function mentionsChart( text ) {
+		const chartKeywords = [ 'chart', 'pie', 'bar', 'graph', 'visualize', 'visualization', 'plot', 'show me', 'display' ];
+		const lowerText = text.toLowerCase();
+		return chartKeywords.some( keyword => lowerText.includes( keyword ) );
+	}
+
+	// Detect chart type from question
+	function detectChartType( question ) {
+		const lowerQuestion = question.toLowerCase();
+		if ( lowerQuestion.includes( 'pie' ) ) {
+			return 'pie';
+		} else if ( lowerQuestion.includes( 'bar' ) ) {
+			return 'bar';
+		}
+		// Default based on context
+		return 'pie'; // Default to pie chart
+	}
+
+	// Detect what data to chart from question
+	function detectChartData( question ) {
+		const lowerQuestion = question.toLowerCase();
+		if ( lowerQuestion.includes( 'order' ) || lowerQuestion.includes( 'sale' ) || lowerQuestion.includes( 'revenue' ) ) {
+			return 'orders';
+		} else if ( lowerQuestion.includes( 'product' ) || lowerQuestion.includes( 'item' ) ) {
+			return 'products';
+		}
+		return 'orders'; // Default to orders
+	}
+
+	// Render pie chart
+	function renderPieChart( $container, data, labels, title ) {
+		if ( typeof Chart === 'undefined' ) {
+			return;
+		}
+
+		const canvas = document.createElement( 'canvas' );
+		$container.append( canvas );
+
+		new Chart( canvas, {
+			type: 'pie',
+			data: {
+				labels: labels,
+				datasets: [ {
+					data: data,
+					backgroundColor: [
+						'#2271b1',
+						'#135e96',
+						'#0a4b78',
+						'#10b981',
+						'#059669',
+						'#047857',
+						'#f59e0b',
+						'#d97706',
+						'#b45309',
+						'#ef4444',
+						'#dc2626',
+						'#b91c1c',
+						'#8b5cf6',
+						'#7c3aed',
+						'#6d28d9',
+					],
+				} ],
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					title: {
+						display: !!title,
+						text: title || '',
+					},
+					legend: {
+						position: 'bottom',
+					},
+				},
+			},
+		} );
+	}
+
+	// Render bar chart
+	function renderBarChart( $container, data, labels, title, yAxisLabel = 'Value' ) {
+		if ( typeof Chart === 'undefined' ) {
+			return;
+		}
+
+		const canvas = document.createElement( 'canvas' );
+		$container.append( canvas );
+
+		new Chart( canvas, {
+			type: 'bar',
+			data: {
+				labels: labels,
+				datasets: [ {
+					label: yAxisLabel,
+					data: data,
+					backgroundColor: '#2271b1',
+					borderColor: '#135e96',
+					borderWidth: 1,
+				} ],
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					title: {
+						display: !!title,
+						text: title || '',
+					},
+					legend: {
+						display: false,
+					},
+				},
+				scales: {
+					y: {
+						beginAtZero: true,
+					},
+				},
+			},
+		} );
+	}
+
+	// Render chart based on question and data
+	function renderChartForQuestion( question, $messageContainer ) {
+		if ( ! mentionsChart( question ) || typeof DatavizAIAdmin === 'undefined' ) {
+			return;
+		}
+
+		const chartType = detectChartType( question );
+		const dataType = detectChartData( question );
+
+		// Create chart container
+		const $chartContainer = $( '<div class="dataviz-ai-chart-wrapper"></div>' );
+		$messageContainer.append( $chartContainer );
+
+		if ( dataType === 'orders' && DatavizAIAdmin.orderChartData && DatavizAIAdmin.orderChartData.length > 0 ) {
+			const orders = DatavizAIAdmin.orderChartData;
+			
+			if ( chartType === 'pie' ) {
+				// Order status pie chart
+				const statusCounts = {};
+				orders.forEach( function( order ) {
+					const status = order.status || 'unknown';
+					statusCounts[ status ] = ( statusCounts[ status ] || 0 ) + 1;
+				} );
+
+				const labels = Object.keys( statusCounts );
+				const data = Object.values( statusCounts );
+
+				if ( labels.length > 0 ) {
+					renderPieChart( $chartContainer, data, labels, 'Order Status Distribution' );
+				}
+			} else if ( chartType === 'bar' ) {
+				// Order totals bar chart (top 10)
+				const sortedOrders = orders
+					.filter( o => o.total > 0 )
+					.sort( ( a, b ) => b.total - a.total )
+					.slice( 0, 10 );
+
+				const labels = sortedOrders.map( o => 'Order #' + o.id );
+				const data = sortedOrders.map( o => o.total );
+
+				if ( labels.length > 0 ) {
+					renderBarChart( $chartContainer, data, labels, 'Top Orders by Value', 'Total ($)' );
+				}
+			}
+		} else if ( dataType === 'products' && DatavizAIAdmin.productChartData && DatavizAIAdmin.productChartData.length > 0 ) {
+			const products = DatavizAIAdmin.productChartData;
+			
+			if ( chartType === 'pie' ) {
+				// Product sales pie chart (top 8)
+				const topProducts = products
+					.filter( p => p.sales > 0 )
+					.sort( ( a, b ) => b.sales - a.sales )
+					.slice( 0, 8 );
+
+				const labels = topProducts.map( p => p.name.length > 20 ? p.name.substring( 0, 20 ) + '...' : p.name );
+				const data = topProducts.map( p => p.sales );
+
+				if ( labels.length > 0 ) {
+					renderPieChart( $chartContainer, data, labels, 'Top Products by Sales' );
+				}
+			} else if ( chartType === 'bar' ) {
+				// Product sales bar chart
+				const topProducts = products
+					.filter( p => p.sales > 0 )
+					.sort( ( a, b ) => b.sales - a.sales )
+					.slice( 0, 10 );
+
+				const labels = topProducts.map( p => p.name.length > 15 ? p.name.substring( 0, 15 ) + '...' : p.name );
+				const data = topProducts.map( p => p.sales );
+
+				if ( labels.length > 0 ) {
+					renderBarChart( $chartContainer, data, labels, 'Top Products by Sales', 'Units Sold' );
+				}
+			}
+		}
 	}
 
 	$( document ).ready( function() {
@@ -225,6 +432,14 @@
 						if ( result.done ) {
 							// Stream complete
 							conversationHistory.push( { role: 'assistant', content: fullResponse } );
+							
+							// Render charts if question mentions charts
+							if ( mentionsChart( question ) ) {
+								setTimeout( function() {
+									renderChartForQuestion( question, $aiMessage );
+								}, 300 );
+							}
+							
 							$input.prop( 'disabled', false );
 							$sendButton.prop( 'disabled', false );
 							$input.focus();

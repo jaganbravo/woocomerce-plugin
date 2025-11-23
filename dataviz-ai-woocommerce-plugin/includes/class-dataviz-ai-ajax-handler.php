@@ -149,12 +149,20 @@ class Dataviz_AI_AJAX_Handler {
 		$tools    = $this->get_available_tools();
 
 		// First, check if LLM wants to call tools.
+		// If question clearly requires data, suggest tools more strongly.
+		$options = array(
+			'model' => 'gpt-4o-mini',
+			'tools' => $tools,
+		);
+		
+		// For data-related questions, prefer tool usage.
+		if ( $this->question_requires_data( $question ) ) {
+			$options['tool_choice'] = 'auto'; // Let LLM decide, but strongly hint
+		}
+		
 		$first_response = $this->api_client->send_openai_chat(
 			$messages,
-			array(
-				'model' => 'gpt-4o-mini',
-				'tools' => $tools,
-			)
+			$options
 		);
 
 		if ( is_wp_error( $first_response ) ) {
@@ -165,27 +173,53 @@ class Dataviz_AI_AJAX_Handler {
 		$assistant_message = $first_response['choices'][0]['message'] ?? array();
 		$tool_calls        = $assistant_message['tool_calls'] ?? array();
 
-		// If LLM wants to call tools, execute them and then stream the final response.
+		// If LLM doesn't call tools but question is clearly about data, proactively fetch data.
+		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
+			// Automatically fetch relevant data based on question keywords.
+			$tool_calls = $this->auto_detect_tool_calls( $question );
+		}
+
+		// If LLM wants to call tools (or we auto-detected), execute them and then stream the final response.
 		if ( ! empty( $tool_calls ) ) {
-			$messages[] = $assistant_message;
+			// If we have LLM tool calls, add the assistant message. Otherwise, we're using auto-detected calls.
+			if ( isset( $assistant_message['tool_calls'] ) ) {
+				$messages[] = $assistant_message;
+			}
 
 			foreach ( $tool_calls as $tool_call ) {
-				$function_name = $tool_call['function']['name'] ?? '';
-				$arguments     = json_decode( $tool_call['function']['arguments'] ?? '{}', true );
+				// Handle both OpenAI format and auto-detected format.
+				if ( isset( $tool_call['function']['name'] ) ) {
+					$function_name = $tool_call['function']['name'];
+					$arguments_json = isset( $tool_call['function']['arguments'] ) ? $tool_call['function']['arguments'] : '{}';
+					$arguments = is_string( $arguments_json ) ? json_decode( $arguments_json, true ) : $arguments_json;
+					$tool_call_id = isset( $tool_call['id'] ) ? $tool_call['id'] : 'auto-' . uniqid();
+				} else {
+					// Skip invalid tool calls.
+					continue;
+				}
 
-				$tool_result = $this->execute_tool( $function_name, $arguments );
+				if ( empty( $function_name ) ) {
+					continue;
+				}
+
+				$tool_result = $this->execute_tool( $function_name, is_array( $arguments ) ? $arguments : array() );
 				$messages[]  = array(
-					'role'       => 'tool',
-					'tool_call_id' => $tool_call['id'],
-					'content'    => wp_json_encode( $tool_result ),
+					'role'         => 'tool',
+					'tool_call_id' => $tool_call_id,
+					'content'      => wp_json_encode( $tool_result ),
 				);
 			}
 
 			// Now get the final streaming response.
 			$messages[] = array(
 				'role'    => 'user',
-				'content' => $question . ' ' . __( 'Please provide a comprehensive answer based on the data retrieved.', 'dataviz-ai-woocommerce' ),
+				'content' => 'Based on the WooCommerce store data that was just fetched using the tools, please answer the user\'s question: ' . $question . "\n\nProvide a comprehensive and helpful answer using the actual data that was retrieved. If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.",
 			);
+		} else {
+			// No tools needed, add the assistant message and ask for answer.
+			if ( isset( $assistant_message['content'] ) ) {
+				$messages[] = $assistant_message;
+			}
 		}
 
 		// Stream the final response.
@@ -268,6 +302,97 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
+	 * Check if question requires data from WooCommerce.
+	 *
+	 * @param string $question User's question.
+	 * @return bool
+	 */
+	protected function question_requires_data( $question ) {
+		$data_keywords = array(
+			'order', 'product', 'customer', 'sale', 'revenue', 'transaction',
+			'purchase', 'buy', 'item', 'inventory', 'stock', 'buyer',
+			'client', 'purchased', 'sold', 'total', 'recent', 'list',
+			'show me', 'display', 'what are', 'how many', 'tell me about',
+		);
+		
+		$lower_question = strtolower( $question );
+		foreach ( $data_keywords as $keyword ) {
+			if ( strpos( $lower_question, $keyword ) !== false ) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+	/**
+	 * Auto-detect which tools to call based on question.
+	 *
+	 * @param string $question User's question.
+	 * @return array Array of tool call structures.
+	 */
+	protected function auto_detect_tool_calls( $question ) {
+		$tool_calls = array();
+		$lower_question = strtolower( $question );
+		
+		// Check for orders/sales/revenue keywords.
+		if ( preg_match( '/\b(order|orders|sale|sales|revenue|transaction|purchase|recent)\b/i', $question ) ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_recent_orders',
+					'arguments' => wp_json_encode( array( 'limit' => 20 ) ),
+				),
+				'id' => 'auto-orders-' . uniqid(),
+			);
+		}
+		
+		// Check for product keywords.
+		if ( preg_match( '/\b(product|products|item|items|inventory|stock|top|best|popular)\b/i', $question ) ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_top_products',
+					'arguments' => wp_json_encode( array( 'limit' => 10 ) ),
+				),
+				'id' => 'auto-products-' . uniqid(),
+			);
+		}
+		
+		// Check for customer keywords.
+		if ( preg_match( '/\b(customer|customers|buyer|buyers|client|clients)\b/i', $question ) ) {
+			if ( preg_match( '/\b(list|all|show)\b/i', $question ) ) {
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_customers',
+						'arguments' => wp_json_encode( array( 'limit' => 10 ) ),
+					),
+					'id' => 'auto-customers-' . uniqid(),
+				);
+			} else {
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_customer_summary',
+						'arguments' => wp_json_encode( array() ),
+					),
+					'id' => 'auto-customer-summary-' . uniqid(),
+				);
+			}
+		}
+		
+		// If no specific match but question is about data, default to getting orders.
+		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_recent_orders',
+					'arguments' => wp_json_encode( array( 'limit' => 20 ) ),
+				),
+				'id' => 'auto-default-' . uniqid(),
+			);
+		}
+		
+		return $tool_calls;
+	}
+
+	/**
 	 * Build messages for smart analysis.
 	 *
 	 * @param string $question User's question.
@@ -277,7 +402,7 @@ class Dataviz_AI_AJAX_Handler {
 		return array(
 			array(
 				'role'    => 'system',
-				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. Use the available tools to fetch relevant data, then provide insights based on the retrieved information.', 'dataviz-ai-woocommerce' ),
+				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, etc.), you MUST use the available tools to fetch that data. Do not say you don\'t have access - use the tools provided to get the actual data from the store. Only provide answers after you have retrieved the relevant data using the tools.', 'dataviz-ai-woocommerce' ),
 			),
 			array(
 				'role'    => 'user',
@@ -452,7 +577,7 @@ class Dataviz_AI_AJAX_Handler {
 		$messages = array(
 			array(
 				'role'    => 'system',
-				'content' => 'You are a helpful WooCommerce data analyst. Analyze the user\'s question and decide which data operations to fetch. Use the available tools to request the data you need.',
+				'content' => 'You are a helpful WooCommerce data analyst. You have direct access to the WooCommerce store database through tools. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, etc.), you MUST use the available tools to fetch that data. Never say you don\'t have access - use the tools provided to get real data from the store. Analyze the user\'s question and use the appropriate tools to fetch the required data.',
 			),
 			array(
 				'role'    => 'user',
