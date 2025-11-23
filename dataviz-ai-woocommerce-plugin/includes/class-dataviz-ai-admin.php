@@ -289,6 +289,15 @@ class Dataviz_AI_Admin {
 								aria-label="<?php esc_attr_e( 'Type your message', 'dataviz-ai-woocommerce' ); ?>"
 							></textarea>
 							<button 
+								type="button" 
+								class="dataviz-ai-chat-stop" 
+								aria-label="<?php esc_attr_e( 'Stop generating', 'dataviz-ai-woocommerce' ); ?>"
+							>
+								<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+									<rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor"/>
+								</svg>
+							</button>
+							<button 
 								type="submit" 
 								class="dataviz-ai-chat-send" 
 								aria-label="<?php esc_attr_e( 'Send message', 'dataviz-ai-woocommerce' ); ?>"

@@ -278,6 +278,45 @@
 	height: 16px;
 }
 
+/* Stop button */
+.dataviz-ai-admin .dataviz-ai-chat-stop {
+	background: #dc3232;
+	color: #fff;
+	border: none;
+	border-radius: 50%;
+	width: 32px;
+	height: 32px;
+	display: none; /* Hidden by default */
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: background 0.2s, transform 0.1s;
+	flex-shrink: 0;
+	margin-right: 0.5rem;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-stop.show {
+	display: flex;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-stop:hover:not(:disabled) {
+	background: #a00;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-stop:active:not(:disabled) {
+	transform: scale(0.95);
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-stop:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-stop svg {
+	width: 12px;
+	height: 12px;
+}
+
 /* Chart Wrapper in Chat Messages */
 .dataviz-ai-admin .dataviz-ai-chart-wrapper {
 	margin-top: 1rem;

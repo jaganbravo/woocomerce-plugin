@@ -4,6 +4,9 @@
 	let conversationHistory = [];
 	let userScrolledUp = false;
 	let shouldAutoScroll = true;
+	let currentStreamController = null;
+	let currentStreamReader = null;
+	let streamStopped = false;
 
 	// Auto-resize textarea
 	function autoResizeTextarea( $textarea ) {
@@ -331,10 +334,36 @@
 		}
 	}
 
+	// Stop the current stream
+	function stopStreaming() {
+		streamStopped = true;
+		
+		if ( currentStreamController ) {
+			currentStreamController.abort();
+			currentStreamController = null;
+		}
+		if ( currentStreamReader ) {
+			currentStreamReader.cancel();
+			currentStreamReader = null;
+		}
+		
+		// Hide stop button, show send button
+		const $stopButton = $( '.dataviz-ai-chat-stop' );
+		const $sendButton = $( '.dataviz-ai-chat-send' );
+		const $input = $( '#dataviz-ai-question' );
+		
+		$stopButton.removeClass( 'show' );
+		$sendButton.show();
+		$input.prop( 'disabled', false );
+		$sendButton.prop( 'disabled', false );
+		$input.focus();
+	}
+
 	$( document ).ready( function() {
 		const $form = $( '.dataviz-ai-chat-form' );
 		const $input = $( '#dataviz-ai-question' );
 		const $sendButton = $( '.dataviz-ai-chat-send' );
+		const $stopButton = $( '.dataviz-ai-chat-stop' );
 
 		// Setup scroll monitoring to detect user scroll
 		setupScrollMonitoring();
@@ -346,6 +375,11 @@
 				$input.prop( 'disabled', true );
 			}
 		}
+
+		// Handle stop button click (use event delegation in case button is dynamically shown/hidden)
+		$( document ).on( 'click', '.dataviz-ai-chat-stop', function() {
+			stopStreaming();
+		} );
 
 		// Auto-resize textarea on input
 		$input.on( 'input', function() {
@@ -393,12 +427,21 @@
 		$input.val( '' );
 		$input.css( 'height', 'auto' );
 
-		// Disable input and button
+		// Disable input and send button, show stop button
 		$input.prop( 'disabled', true );
 		$sendButton.prop( 'disabled', true );
+		$sendButton.hide();
+		
+		const $stopButton = $( '.dataviz-ai-chat-stop' );
+		if ( $stopButton.length ) {
+			$stopButton.addClass( 'show' );
+		}
 
 		// Remove loading indicator and create streaming message
 		removeLoadingMessage( showLoadingMessage() );
+		
+		// Reset stream stopped flag
+		streamStopped = false;
 		
 		// Create AI message container for streaming
 		const $aiMessage = addMessage( '', 'ai' );
@@ -412,11 +455,15 @@
 		formData.append( 'question', question );
 		formData.append( 'stream', 'true' );
 
+		// Create AbortController for cancellation
+		currentStreamController = new AbortController();
+
 		// Use fetch with streaming
 		fetch( DatavizAIAdmin.ajaxUrl, {
 			method: 'POST',
 			body: formData,
 			credentials: 'same-origin',
+			signal: currentStreamController.signal,
 		} )
 			.then( function( response ) {
 				if ( ! response.ok ) {
@@ -424,22 +471,39 @@
 				}
 
 				const reader = response.body.getReader();
+				currentStreamReader = reader;
 				const decoder = new TextDecoder();
 				let buffer = '';
 
 				function readChunk() {
 					return reader.read().then( function( result ) {
+						// Check if stream was stopped
+						if ( streamStopped ) {
+							reader.cancel();
+							currentStreamReader = null;
+							currentStreamController = null;
+							return;
+						}
+
 						if ( result.done ) {
 							// Stream complete
-							conversationHistory.push( { role: 'assistant', content: fullResponse } );
+							currentStreamReader = null;
+							currentStreamController = null;
 							
-							// Render charts if question mentions charts
-							if ( mentionsChart( question ) ) {
-								setTimeout( function() {
-									renderChartForQuestion( question, $aiMessage );
-								}, 300 );
+							if ( ! streamStopped && fullResponse.trim() ) {
+								conversationHistory.push( { role: 'assistant', content: fullResponse } );
+								
+								// Render charts if question mentions charts
+								if ( mentionsChart( question ) ) {
+									setTimeout( function() {
+										renderChartForQuestion( question, $aiMessage );
+									}, 300 );
+								}
 							}
 							
+							// Hide stop button, show send button
+							$stopButton.removeClass( 'show' );
+							$sendButton.show();
 							$input.prop( 'disabled', false );
 							$sendButton.prop( 'disabled', false );
 							$input.focus();
@@ -454,8 +518,17 @@
 							if ( line.startsWith( 'data: ' ) ) {
 								const dataStr = line.substring( 6 );
 								
-								if ( dataStr === '[DONE]' ) {
-									conversationHistory.push( { role: 'assistant', content: fullResponse } );
+								if ( dataStr === '[DONE]' || streamStopped ) {
+									currentStreamReader = null;
+									currentStreamController = null;
+									
+									if ( ! streamStopped && fullResponse.trim() ) {
+										conversationHistory.push( { role: 'assistant', content: fullResponse } );
+									}
+									
+									// Hide stop button, show send button
+									$stopButton.hide();
+									$sendButton.show();
 									$input.prop( 'disabled', false );
 									$sendButton.prop( 'disabled', false );
 									$input.focus();
@@ -467,13 +540,17 @@
 									
 									if ( data.error ) {
 										$aiContent.html( '<span style="color: #d63638;">' + data.error + '</span>' );
+										$stopButton.hide();
+										$sendButton.show();
 										$input.prop( 'disabled', false );
 										$sendButton.prop( 'disabled', false );
 										$input.focus();
+										currentStreamReader = null;
+										currentStreamController = null;
 										return;
 									}
 
-									if ( data.chunk ) {
+									if ( data.chunk && ! streamStopped ) {
 										fullResponse += data.chunk;
 										// Update message content with accumulated text
 										const formattedText = fullResponse.replace( /\n/g, '<br>' );
@@ -493,8 +570,30 @@
 				return readChunk();
 			} )
 			.catch( function( error ) {
-				const errorMessage = 'An unexpected error occurred. Please try again.';
-				$aiContent.html( '<span style="color: #d63638;">' + errorMessage + '</span>' );
+				// Ignore abort errors (user stopped the stream)
+				if ( error.name === 'AbortError' || streamStopped ) {
+					streamStopped = true;
+					if ( fullResponse.trim() ) {
+						// Add "(stopped)" indicator
+						const formattedText = fullResponse.replace( /\n/g, '<br>' ) + '<br><br><em style="color: #646970; font-size: 0.9em;">Response stopped by user.</em>';
+						$aiContent.html( formattedText );
+					} else {
+						$aiContent.html( '<em style="color: #646970;">Response stopped.</em>' );
+					}
+				} else {
+					const errorMessage = 'An unexpected error occurred. Please try again.';
+					$aiContent.html( '<span style="color: #d63638;">' + errorMessage + '</span>' );
+				}
+				
+				currentStreamReader = null;
+				currentStreamController = null;
+				
+				// Hide stop button, show send button
+				const $stopButton = $( '.dataviz-ai-chat-stop' );
+				const $sendButton = $( '.dataviz-ai-chat-send' );
+				const $input = $( '#dataviz-ai-question' );
+				$stopButton.removeClass( 'show' );
+				$sendButton.show();
 				$input.prop( 'disabled', false );
 				$sendButton.prop( 'disabled', false );
 				$input.focus();
