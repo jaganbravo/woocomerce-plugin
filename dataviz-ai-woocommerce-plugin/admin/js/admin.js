@@ -21,14 +21,10 @@
 		const $form = $( this );
 		const $button = $form.find( 'button[type="submit"]' );
 		const $output = $form.find( '.dataviz-ai-analysis-output' );
-		const $chartsContainer = $form.find( '.dataviz-ai-charts-container' );
 		const question = $form.find( 'textarea[name="question"]' ).val();
 
 		$button.prop( 'disabled', true );
 		$output.text( '' );
-		// Hide charts container on new question
-		$chartsContainer.slideUp( 300 );
-		$chartsContainer.empty();
 
 		$.post(
 			DatavizAIAdmin.ajaxUrl,
@@ -55,51 +51,6 @@
 						answerText = JSON.stringify( data, null, 2 );
 					}
 					$output.text( answerText );
-
-					// Try to extract structured data from AI response for interactive charts
-					const extractedData = extractDataFromResponse( answerText, data );
-					
-					// Determine which chart to show based on question content and available data
-					const chartType = determineRelevantChart( question );
-					
-					if ( chartType ) {
-						// Show only the relevant chart
-						$chartsContainer.slideDown( 300 );
-						
-						// Render interactive chart with extracted data if available
-						if ( typeof window.Chart !== 'undefined' ) {
-							if ( extractedData && extractedData.hasData ) {
-								renderInteractiveChartFromData( $chartsContainer, extractedData, chartType );
-							} else {
-								renderSingleChart( $chartsContainer, chartType );
-							}
-						} else {
-							// Wait for Chart.js to load
-							setTimeout( function() {
-								if ( typeof window.Chart !== 'undefined' ) {
-									if ( extractedData && extractedData.hasData ) {
-										renderInteractiveChartFromData( $chartsContainer, extractedData, chartType );
-									} else {
-										renderSingleChart( $chartsContainer, chartType );
-									}
-								}
-							}, 500 );
-						}
-					} else {
-						// No chart requested, but check if we should show one based on data
-						// This handles cases where user asks for data but might benefit from visualization
-						const autoChartType = determineChartFromData( question );
-						if ( autoChartType ) {
-							$chartsContainer.slideDown( 300 );
-							if ( typeof window.Chart !== 'undefined' ) {
-								if ( extractedData && extractedData.hasData ) {
-									renderInteractiveChartFromData( $chartsContainer, extractedData, autoChartType );
-								} else {
-									renderSingleChart( $chartsContainer, autoChartType );
-								}
-							}
-						}
-					}
 				} else if ( response.data && response.data.message ) {
 					$output.text( response.data.message );
 				}
@@ -114,45 +65,11 @@
 	} );
 
 	/**
-	 * Determine chart type based on available data when no explicit chart request
+	 * This function is no longer used - charts are only shown when explicitly requested
+	 * Keeping for reference but not called
 	 */
 	function determineChartFromData( question ) {
-		const questionLower = question.toLowerCase().trim();
-		
-		// Check what data type is being asked about
-		const wantsCustomer = questionLower.match( /customer|customers|client|clients|buyer|buyers/i );
-		const wantsOrder = questionLower.match( /order|orders/i );
-		const wantsProduct = questionLower.match( /product|products/i );
-		
-		// Check available data
-		const hasCustomerData = Array.isArray( DatavizAIAdmin.customerChartData ) && DatavizAIAdmin.customerChartData.length > 0;
-		const hasOrderData = Array.isArray( DatavizAIAdmin.orderChartData ) && DatavizAIAdmin.orderChartData.length > 0;
-		const hasProductData = Array.isArray( DatavizAIAdmin.productChartData ) && DatavizAIAdmin.productChartData.length > 0;
-		
-		// If user asks about specific data type, show appropriate chart if data exists
-		if ( wantsCustomer && hasCustomerData ) {
-			return 'customer-spending-bar';
-		}
-		
-		if ( wantsOrder && hasOrderData ) {
-			// Check if asking about status
-			if ( questionLower.match( /status|state/i ) ) {
-				return 'order-status-pie';
-			}
-			// Check if asking about value/revenue
-			if ( questionLower.match( /value|total|revenue|amount|worth/i ) ) {
-				return 'order-value-bar';
-			}
-			// Default order chart
-			return 'order-status-pie';
-		}
-		
-		if ( wantsProduct && hasProductData ) {
-			return 'product-sales-bar';
-		}
-		
-		// If no specific request but data exists, don't auto-show chart
-		// User explicitly didn't ask for chart, so respect that
+		// Charts are now only shown when explicitly requested via determineRelevantChart()
 		return null;
 	}
 
@@ -390,17 +307,19 @@
 	function determineRelevantChart( question ) {
 		const questionLower = question.toLowerCase().trim();
 		
-		// Check for explicit chart requests - if user asks for chart, show one
+		// Check for explicit chart requests - STRICT: only show chart if user explicitly asks
 		const chartKeywords = [
 			'chart', 'charts', 'graph', 'graphs', 'visualization', 'visualizations',
 			'visualize', 'plot', 'plots', 'diagram', 'diagrams',
-			'visual', 'graphic', 'picture', 'illustration'
+			'visual', 'graphic', 'picture', 'illustration', 'show me a', 'display a',
+			'create a chart', 'generate a chart', 'draw a chart', 'make a chart'
 		];
 		
 		const hasChartKeyword = chartKeywords.some( function( keyword ) {
 			return questionLower.includes( keyword );
 		} );
 		
+		// STRICT: Only show chart if user explicitly requests it
 		if ( ! hasChartKeyword ) {
 			return null; // No chart requested - show only data/text
 		}
