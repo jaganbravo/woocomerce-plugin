@@ -76,7 +76,7 @@ class Dataviz_AI_Admin {
 			'manage_woocommerce',
 			$this->menu_slug,
 			array( $this, 'render_admin_page' ),
-			'dashicons-chart-line',
+			'dashicons-admin-comments',
 			56
 		);
 	}
@@ -193,23 +193,60 @@ class Dataviz_AI_Admin {
 			$this->version
 		);
 
+		// Enqueue Chart.js library
+		wp_enqueue_script(
+			'dataviz-ai-chartjs',
+			'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+			array(),
+			'4.4.4',
+			false
+		);
+
 		wp_enqueue_script(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/admin.js',
-			array( 'jquery' ),
+			array( 'jquery', 'dataviz-ai-chartjs' ),
 			$this->version,
 			true
 		);
 
 		$api_key = $this->api_client->get_api_key();
 
+		// Get chart data for rendering
+		$orders    = $this->data_fetcher->get_recent_orders( array( 'limit' => 50 ) );
+		$products  = $this->data_fetcher->get_top_products( 10 );
+		$order_chart_data = array();
+		
+		foreach ( $orders as $order ) {
+			if ( is_a( $order, 'WC_Order' ) ) {
+				$order_chart_data[] = array(
+					'id'     => $order->get_id(),
+					'total'  => (float) $order->get_total(),
+					'status' => $order->get_status(),
+					'date'   => $order->get_date_created()->date( 'Y-m-d' ),
+				);
+			}
+		}
+
+		$product_chart_data = array();
+		foreach ( $products as $product ) {
+			$product_chart_data[] = array(
+				'name'        => $product['name'],
+				'sales'       => isset( $product['total_sales'] ) ? (int) $product['total_sales'] : 0,
+				'price'       => isset( $product['price'] ) ? (float) $product['price'] : 0,
+				'product_id'  => isset( $product['id'] ) ? (int) $product['id'] : 0,
+			);
+		}
+
 		wp_localize_script(
 			$this->plugin_name . '-admin',
 			'DatavizAIAdmin',
 			array(
-				'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
-				'nonce'          => wp_create_nonce( 'dataviz_ai_admin' ),
-				'hasApiKey'      => ! empty( $api_key ),
+				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
+				'nonce'           => wp_create_nonce( 'dataviz_ai_admin' ),
+				'hasApiKey'       => ! empty( $api_key ),
+				'orderChartData'  => $order_chart_data,
+				'productChartData' => $product_chart_data,
 			)
 		);
 	}
@@ -222,97 +259,56 @@ class Dataviz_AI_Admin {
 	public function render_admin_page() {
 		$api_url   = $this->api_client->get_api_url();
 		$api_key   = $this->api_client->get_api_key();
-		$customers = $this->data_fetcher->get_customers( 10 );
-		$summary   = $this->data_fetcher->get_customer_summary();
 		?>
 		<div class="wrap dataviz-ai-admin">
 			<h1><?php esc_html_e( 'Dataviz AI for WooCommerce', 'dataviz-ai-woocommerce' ); ?></h1>
 
 			<div class="dataviz-ai-grid">
-				<section class="dataviz-ai-card dataviz-ai-card--wide">
-					<h2><?php esc_html_e( 'AI Chat Assistant', 'dataviz-ai-woocommerce' ); ?></h2>
-					<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights with visualizations.', 'dataviz-ai-woocommerce' ); ?></p>
-					<form method="post" class="dataviz-ai-analysis-form" data-action="analyze">
-						<?php if ( ! $api_key ) : ?>
+				<section class="dataviz-ai-card dataviz-ai-card--wide dataviz-ai-chat-container">
+					<?php if ( ! $api_key ) : ?>
+						<div class="dataviz-ai-chat-warning">
 							<p class="notice inline notice-warning"><strong><?php esc_html_e( 'API key required.', 'dataviz-ai-woocommerce' ); ?></strong> <?php esc_html_e( 'Configure your API key below to enable AI responses. Leave API URL empty to use OpenAI directly.', 'dataviz-ai-woocommerce' ); ?></p>
-						<?php endif; ?>
-						<label for="dataviz-ai-question" class="screen-reader-text"><?php esc_html_e( 'Question', 'dataviz-ai-woocommerce' ); ?></label>
-						<textarea id="dataviz-ai-question" name="question" rows="5" class="widefat" placeholder="<?php esc_attr_e( 'What are the key trends from my recent orders?', 'dataviz-ai-woocommerce' ); ?>"></textarea>
-						<p>
-							<button type="submit" class="button button-primary"<?php disabled( ! $api_key ); ?>><?php esc_html_e( 'Ask AI', 'dataviz-ai-woocommerce' ); ?></button>
-						</p>
-						<div class="dataviz-ai-response-container">
-							<pre class="dataviz-ai-analysis-output" aria-live="polite"></pre>
-						</div>
-					</form>
-				</section>
-
-				<section class="dataviz-ai-card">
-					<h2><?php esc_html_e( 'Customer Summary', 'dataviz-ai-woocommerce' ); ?></h2>
-					<ul class="dataviz-ai-stats">
-						<li>
-							<span class="label"><?php esc_html_e( 'Total Customers', 'dataviz-ai-woocommerce' ); ?></span>
-							<span class="value"><?php echo esc_html( number_format_i18n( $summary['total_customers'] ) ); ?></span>
-						</li>
-						<li>
-							<span class="label"><?php esc_html_e( 'Avg. Lifetime Spend', 'dataviz-ai-woocommerce' ); ?></span>
-							<span class="value"><?php echo function_exists( 'wc_price' ) ? wp_kses_post( wc_price( $summary['avg_lifetime_spent'] ) ) : esc_html( number_format_i18n( $summary['avg_lifetime_spent'], 2 ) ); ?></span>
-						</li>
-					</ul>
-				</section>
-
-				<section class="dataviz-ai-card dataviz-ai-card--wide">
-					<h2><?php esc_html_e( 'Customer Information', 'dataviz-ai-woocommerce' ); ?></h2>
-					<?php if ( empty( $customers ) ) : ?>
-						<p><?php esc_html_e( 'No customers found.', 'dataviz-ai-woocommerce' ); ?></p>
-					<?php else : ?>
-						<div class="dataviz-ai-customers-table">
-							<table class="wp-list-table widefat fixed striped">
-								<thead>
-									<tr>
-										<th><?php esc_html_e( 'ID', 'dataviz-ai-woocommerce' ); ?></th>
-										<th><?php esc_html_e( 'Name', 'dataviz-ai-woocommerce' ); ?></th>
-										<th><?php esc_html_e( 'Email', 'dataviz-ai-woocommerce' ); ?></th>
-										<th><?php esc_html_e( 'Location', 'dataviz-ai-woocommerce' ); ?></th>
-										<th><?php esc_html_e( 'Phone', 'dataviz-ai-woocommerce' ); ?></th>
-										<th><?php esc_html_e( 'Total Spent', 'dataviz-ai-woocommerce' ); ?></th>
-										<th><?php esc_html_e( 'Orders', 'dataviz-ai-woocommerce' ); ?></th>
-									</tr>
-								</thead>
-								<tbody>
-									<?php foreach ( $customers as $customer ) : ?>
-										<tr>
-											<td><?php echo esc_html( $customer['id'] ); ?></td>
-											<td>
-												<strong><?php echo esc_html( trim( $customer['first_name'] . ' ' . $customer['last_name'] ) ?: $customer['username'] ); ?></strong>
-												<?php if ( ! empty( $customer['company'] ) ) : ?>
-													<br><small><?php echo esc_html( $customer['company'] ); ?></small>
-												<?php endif; ?>
-											</td>
-											<td><?php echo esc_html( $customer['email'] ); ?></td>
-											<td>
-												<?php
-												$location_parts = array_filter( array( $customer['city'], $customer['state'], $customer['country'] ) );
-												echo esc_html( implode( ', ', $location_parts ) ?: '—' );
-												?>
-											</td>
-											<td><?php echo esc_html( $customer['phone'] ?: '—' ); ?></td>
-											<td>
-												<?php
-												if ( function_exists( 'wc_price' ) ) {
-													echo wp_kses_post( wc_price( $customer['total_spent'] ) );
-												} else {
-													echo esc_html( number_format_i18n( $customer['total_spent'], 2 ) );
-												}
-												?>
-											</td>
-											<td><?php echo esc_html( $customer['order_count'] ); ?></td>
-										</tr>
-									<?php endforeach; ?>
-								</tbody>
-							</table>
 						</div>
 					<?php endif; ?>
+					
+					<div class="dataviz-ai-chat-messages" id="dataviz-ai-chat-messages" role="log" aria-live="polite" aria-atomic="false">
+						<div class="dataviz-ai-chat-welcome">
+							<h2><?php esc_html_e( 'AI Chat Assistant', 'dataviz-ai-woocommerce' ); ?></h2>
+							<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights.', 'dataviz-ai-woocommerce' ); ?></p>
+						</div>
+					</div>
+					
+					<form method="post" class="dataviz-ai-chat-form" data-action="analyze">
+						<div class="dataviz-ai-chat-input-wrapper">
+							<textarea 
+								id="dataviz-ai-question" 
+								name="question" 
+								rows="1" 
+								class="dataviz-ai-chat-input" 
+								placeholder="<?php esc_attr_e( 'Message AI assistant...', 'dataviz-ai-woocommerce' ); ?>"
+								aria-label="<?php esc_attr_e( 'Type your message', 'dataviz-ai-woocommerce' ); ?>"
+							></textarea>
+							<button 
+								type="button" 
+								class="dataviz-ai-chat-stop" 
+								aria-label="<?php esc_attr_e( 'Stop generating', 'dataviz-ai-woocommerce' ); ?>"
+							>
+								<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+									<rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor"/>
+								</svg>
+							</button>
+							<button 
+								type="submit" 
+								class="dataviz-ai-chat-send" 
+								aria-label="<?php esc_attr_e( 'Send message', 'dataviz-ai-woocommerce' ); ?>"
+								<?php disabled( ! $api_key ); ?>
+							>
+								<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+									<path d="M.5 1.163A1 1 0 0 1 1.97.28l12.868 6.837a1 1 0 0 1 0 1.766L1.969 15.72A1 1 0 0 1 .5 14.836V10.33a1 1 0 0 1 .816-.983L8.5 8 1.316 6.653A1 1 0 0 1 .5 5.67V1.163Z" fill="currentColor"/>
+								</svg>
+							</button>
+						</div>
+					</form>
 				</section>
 			</div>
 

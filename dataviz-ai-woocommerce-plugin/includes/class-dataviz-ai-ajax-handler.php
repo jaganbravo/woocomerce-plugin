@@ -61,6 +61,13 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
+		$stream   = isset( $_POST['stream'] ) && filter_var( $_POST['stream'], FILTER_VALIDATE_BOOLEAN );
+
+		// If streaming is requested, use streaming handler.
+		if ( $stream ) {
+			$this->handle_streaming_analysis( $question );
+			return;
+		}
 
 		// If custom backend is configured, use it; otherwise use OpenAI with function calling.
 		if ( $this->api_client->has_custom_backend() ) {
@@ -92,6 +99,316 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		wp_send_json_success( $response );
+	}
+
+	/**
+	 * Handle streaming analysis request.
+	 *
+	 * @param string $question User's question.
+	 * @return void
+	 */
+	protected function handle_streaming_analysis( $question ) {
+		// Disable output buffering for streaming.
+		if ( ob_get_level() ) {
+			ob_end_clean();
+		}
+
+		// Set headers for streaming.
+		header( 'Content-Type: text/event-stream' );
+		header( 'Cache-Control: no-cache' );
+		header( 'Connection: keep-alive' );
+		header( 'X-Accel-Buffering: no' ); // Disable nginx buffering.
+
+		// For custom backend, fall back to non-streaming.
+		if ( $this->api_client->has_custom_backend() ) {
+			$orders    = $this->data_fetcher->get_recent_orders( array( 'limit' => 20 ) );
+			$products  = $this->data_fetcher->get_top_products( 10 );
+			$customers = $this->data_fetcher->get_customer_summary();
+
+			$payload = array(
+				'question'  => $question,
+				'orders'    => array_map( array( $this, 'format_order' ), $orders ),
+				'products'  => $products,
+				'customers' => $customers,
+			);
+
+			$response = $this->api_client->post( 'api/woocommerce/ask', $payload );
+			if ( is_wp_error( $response ) ) {
+				$this->send_stream_error( $response->get_error_message() );
+				return;
+			}
+
+			$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'dataviz-ai-woocommerce' );
+			// Simulate streaming for custom backend.
+			$this->stream_text( $answer );
+			return;
+		}
+
+		// Use smart analysis with streaming.
+		$messages = $this->build_smart_analysis_messages( $question );
+		$tools    = $this->get_available_tools();
+
+		// First, check if LLM wants to call tools.
+		// If question clearly requires data, suggest tools more strongly.
+		$options = array(
+			'model' => 'gpt-4o-mini',
+			'tools' => $tools,
+		);
+		
+		// For data-related questions, prefer tool usage.
+		if ( $this->question_requires_data( $question ) ) {
+			$options['tool_choice'] = 'auto'; // Let LLM decide, but strongly hint
+		}
+		
+		$first_response = $this->api_client->send_openai_chat(
+			$messages,
+			$options
+		);
+
+		if ( is_wp_error( $first_response ) ) {
+			$this->send_stream_error( $first_response->get_error_message() );
+			return;
+		}
+
+		$assistant_message = $first_response['choices'][0]['message'] ?? array();
+		$tool_calls        = $assistant_message['tool_calls'] ?? array();
+
+		// If LLM doesn't call tools but question is clearly about data, proactively fetch data.
+		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
+			// Automatically fetch relevant data based on question keywords.
+			$tool_calls = $this->auto_detect_tool_calls( $question );
+		}
+
+		// If LLM wants to call tools (or we auto-detected), execute them and then stream the final response.
+		if ( ! empty( $tool_calls ) ) {
+			// If we have LLM tool calls, add the assistant message. Otherwise, we're using auto-detected calls.
+			if ( isset( $assistant_message['tool_calls'] ) ) {
+				$messages[] = $assistant_message;
+			}
+
+			foreach ( $tool_calls as $tool_call ) {
+				// Handle both OpenAI format and auto-detected format.
+				if ( isset( $tool_call['function']['name'] ) ) {
+					$function_name = $tool_call['function']['name'];
+					$arguments_json = isset( $tool_call['function']['arguments'] ) ? $tool_call['function']['arguments'] : '{}';
+					$arguments = is_string( $arguments_json ) ? json_decode( $arguments_json, true ) : $arguments_json;
+					$tool_call_id = isset( $tool_call['id'] ) ? $tool_call['id'] : 'auto-' . uniqid();
+				} else {
+					// Skip invalid tool calls.
+					continue;
+				}
+
+				if ( empty( $function_name ) ) {
+					continue;
+				}
+
+				$tool_result = $this->execute_tool( $function_name, is_array( $arguments ) ? $arguments : array() );
+				$messages[]  = array(
+					'role'         => 'tool',
+					'tool_call_id' => $tool_call_id,
+					'content'      => wp_json_encode( $tool_result ),
+				);
+			}
+
+			// Now get the final streaming response.
+			$messages[] = array(
+				'role'    => 'user',
+				'content' => 'Based on the WooCommerce store data that was just fetched using the tools, please answer the user\'s question: ' . $question . "\n\nProvide a comprehensive and helpful answer using the actual data that was retrieved. If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.",
+			);
+		} else {
+			// No tools needed, add the assistant message and ask for answer.
+			if ( isset( $assistant_message['content'] ) ) {
+				$messages[] = $assistant_message;
+			}
+		}
+
+		// Stream the final response.
+		$stream_result = $this->api_client->send_openai_chat_stream(
+			$messages,
+			function( $chunk ) {
+				$this->send_stream_chunk( $chunk );
+			},
+			array(
+				'model' => 'gpt-4o-mini',
+			)
+		);
+
+		if ( is_wp_error( $stream_result ) ) {
+			$this->send_stream_error( $stream_result->get_error_message() );
+			return;
+		}
+
+		$this->send_stream_end();
+	}
+
+	/**
+	 * Send a chunk in the stream.
+	 *
+	 * @param string $chunk Text chunk.
+	 * @return void
+	 */
+	protected function send_stream_chunk( $chunk ) {
+		echo "data: " . wp_json_encode( array( 'chunk' => $chunk ) ) . "\n\n";
+		if ( ob_get_level() ) {
+			ob_flush();
+		}
+		flush();
+	}
+
+	/**
+	 * Send an error in the stream.
+	 *
+	 * @param string $error Error message.
+	 * @return void
+	 */
+	protected function send_stream_error( $error ) {
+		echo "data: " . wp_json_encode( array( 'error' => $error ) ) . "\n\n";
+		echo "data: [DONE]\n\n";
+		if ( ob_get_level() ) {
+			ob_flush();
+		}
+		flush();
+		exit;
+	}
+
+	/**
+	 * Send stream end marker.
+	 *
+	 * @return void
+	 */
+	protected function send_stream_end() {
+		echo "data: [DONE]\n\n";
+		if ( ob_get_level() ) {
+			ob_flush();
+		}
+		flush();
+		exit;
+	}
+
+	/**
+	 * Stream text character by character (fallback for non-streaming APIs).
+	 *
+	 * @param string $text Text to stream.
+	 * @return void
+	 */
+	protected function stream_text( $text ) {
+		$words = explode( ' ', $text );
+		foreach ( $words as $index => $word ) {
+			$chunk = $word . ( $index < count( $words ) - 1 ? ' ' : '' );
+			$this->send_stream_chunk( $chunk );
+			usleep( 30000 ); // Small delay to simulate streaming (30ms per word).
+		}
+		$this->send_stream_end();
+	}
+
+	/**
+	 * Check if question requires data from WooCommerce.
+	 *
+	 * @param string $question User's question.
+	 * @return bool
+	 */
+	protected function question_requires_data( $question ) {
+		$data_keywords = array(
+			'order', 'product', 'customer', 'sale', 'revenue', 'transaction',
+			'purchase', 'buy', 'item', 'inventory', 'stock', 'buyer',
+			'client', 'purchased', 'sold', 'total', 'recent', 'list',
+			'show me', 'display', 'what are', 'how many', 'tell me about',
+		);
+		
+		$lower_question = strtolower( $question );
+		foreach ( $data_keywords as $keyword ) {
+			if ( strpos( $lower_question, $keyword ) !== false ) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+	/**
+	 * Auto-detect which tools to call based on question.
+	 *
+	 * @param string $question User's question.
+	 * @return array Array of tool call structures.
+	 */
+	protected function auto_detect_tool_calls( $question ) {
+		$tool_calls = array();
+		$lower_question = strtolower( $question );
+		
+		// Check for orders/sales/revenue keywords.
+		if ( preg_match( '/\b(order|orders|sale|sales|revenue|transaction|purchase|recent)\b/i', $question ) ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_recent_orders',
+					'arguments' => wp_json_encode( array( 'limit' => 20 ) ),
+				),
+				'id' => 'auto-orders-' . uniqid(),
+			);
+		}
+		
+		// Check for product keywords.
+		if ( preg_match( '/\b(product|products|item|items|inventory|stock|top|best|popular)\b/i', $question ) ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_top_products',
+					'arguments' => wp_json_encode( array( 'limit' => 10 ) ),
+				),
+				'id' => 'auto-products-' . uniqid(),
+			);
+		}
+		
+		// Check for customer keywords.
+		if ( preg_match( '/\b(customer|customers|buyer|buyers|client|clients)\b/i', $question ) ) {
+			if ( preg_match( '/\b(list|all|show)\b/i', $question ) ) {
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_customers',
+						'arguments' => wp_json_encode( array( 'limit' => 10 ) ),
+					),
+					'id' => 'auto-customers-' . uniqid(),
+				);
+			} else {
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_customer_summary',
+						'arguments' => wp_json_encode( array() ),
+					),
+					'id' => 'auto-customer-summary-' . uniqid(),
+				);
+			}
+		}
+		
+		// If no specific match but question is about data, default to getting orders.
+		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_recent_orders',
+					'arguments' => wp_json_encode( array( 'limit' => 20 ) ),
+				),
+				'id' => 'auto-default-' . uniqid(),
+			);
+		}
+		
+		return $tool_calls;
+	}
+
+	/**
+	 * Build messages for smart analysis.
+	 *
+	 * @param string $question User's question.
+	 * @return array
+	 */
+	protected function build_smart_analysis_messages( $question ) {
+		return array(
+			array(
+				'role'    => 'system',
+				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, etc.), you MUST use the available tools to fetch that data. Do not say you don\'t have access - use the tools provided to get the actual data from the store. Only provide answers after you have retrieved the relevant data using the tools.', 'dataviz-ai-woocommerce' ),
+			),
+			array(
+				'role'    => 'user',
+				'content' => $question,
+			),
+		);
 	}
 
 	/**
@@ -260,7 +577,7 @@ class Dataviz_AI_AJAX_Handler {
 		$messages = array(
 			array(
 				'role'    => 'system',
-				'content' => 'You are a helpful WooCommerce data analyst. Analyze the user\'s question and decide which data operations to fetch. Use the available tools to request the data you need.',
+				'content' => 'You are a helpful WooCommerce data analyst. You have direct access to the WooCommerce store database through tools. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, etc.), you MUST use the available tools to fetch that data. Never say you don\'t have access - use the tools provided to get real data from the store. Analyze the user\'s question and use the appropriate tools to fetch the required data.',
 			),
 			array(
 				'role'    => 'user',

@@ -35,6 +35,12 @@ services:
     container_name: wp_cli
     depends_on:
       - wordpress
+      - db
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wppass
     volumes:
       - ./wordpress:/var/www/html
     entrypoint: ["sleep", "infinity"]
