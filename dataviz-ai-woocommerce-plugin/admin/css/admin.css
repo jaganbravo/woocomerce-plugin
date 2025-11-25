@@ -292,11 +292,10 @@
 	cursor: pointer;
 	transition: background 0.2s, transform 0.1s;
 	flex-shrink: 0;
-	margin-right: 0.5rem;
 }
 
 .dataviz-ai-admin .dataviz-ai-chat-stop.show {
-	display: flex;
+	display: flex !important;
 }
 
 .dataviz-ai-admin .dataviz-ai-chat-stop:hover:not(:disabled) {

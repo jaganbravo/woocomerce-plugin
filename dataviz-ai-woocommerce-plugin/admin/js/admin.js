@@ -352,7 +352,7 @@
 		const $sendButton = $( '.dataviz-ai-chat-send' );
 		const $input = $( '#dataviz-ai-question' );
 		
-		$stopButton.removeClass( 'show' );
+		$stopButton.removeClass( 'show' ).hide();
 		$sendButton.show();
 		$input.prop( 'disabled', false );
 		$sendButton.prop( 'disabled', false );
@@ -434,7 +434,7 @@
 		
 		const $stopButton = $( '.dataviz-ai-chat-stop' );
 		if ( $stopButton.length ) {
-			$stopButton.addClass( 'show' );
+			$stopButton.addClass( 'show' ).show();
 		}
 
 		// Remove loading indicator and create streaming message
@@ -502,7 +502,7 @@
 							}
 							
 							// Hide stop button, show send button
-							$stopButton.removeClass( 'show' );
+							$stopButton.removeClass( 'show' ).hide();
 							$sendButton.show();
 							$input.prop( 'disabled', false );
 							$sendButton.prop( 'disabled', false );
@@ -527,7 +527,7 @@
 									}
 									
 									// Hide stop button, show send button
-									$stopButton.hide();
+									$stopButton.removeClass( 'show' ).hide();
 									$sendButton.show();
 									$input.prop( 'disabled', false );
 									$sendButton.prop( 'disabled', false );
@@ -540,7 +540,7 @@
 									
 									if ( data.error ) {
 										$aiContent.html( '<span style="color: #d63638;">' + data.error + '</span>' );
-										$stopButton.hide();
+										$stopButton.removeClass( 'show' ).hide();
 										$sendButton.show();
 										$input.prop( 'disabled', false );
 										$sendButton.prop( 'disabled', false );
@@ -592,7 +592,7 @@
 				const $stopButton = $( '.dataviz-ai-chat-stop' );
 				const $sendButton = $( '.dataviz-ai-chat-send' );
 				const $input = $( '#dataviz-ai-question' );
-				$stopButton.removeClass( 'show' );
+				$stopButton.removeClass( 'show' ).hide();
 				$sendButton.show();
 				$input.prop( 'disabled', false );
 				$sendButton.prop( 'disabled', false );
