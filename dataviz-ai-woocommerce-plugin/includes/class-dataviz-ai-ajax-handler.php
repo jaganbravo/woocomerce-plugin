@@ -744,25 +744,72 @@ class Dataviz_AI_AJAX_Handler {
 	 */
 	protected function get_available_tools() {
 		return array(
+			// Flexible tool that can handle many entity types
 			array(
 				'type' => 'function',
 				'function' => array(
-					'name'        => 'get_recent_orders',
-					'description' => 'Fetch recent orders from the WooCommerce store. Use this when the user asks about orders, sales, revenue, or recent transactions.',
+					'name'        => 'get_woocommerce_data',
+					'description' => 'Get any WooCommerce data dynamically. Can fetch orders, products, customers, categories, tags, coupons, refunds, stock levels, etc. Specify what you need in the parameters. USE THIS TOOL when user asks about: product categories, product tags, coupons, low stock products, refunds, or any data type not covered by specialized tools below.',
 					'parameters'  => array(
 						'type'       => 'object',
 						'properties' => array(
-							'limit'     => array(
-								'type'        => 'integer',
-								'description' => 'Number of orders to retrieve (1-100). Default is 20.',
-								'minimum'     => 1,
-								'maximum'     => 100,
-							),
-							'status'    => array(
+							'entity_type' => array(
 								'type'        => 'string',
-								'description' => 'Filter by order status (e.g., completed, processing, pending, cancelled). Optional.',
-								'enum'        => array( 'completed', 'processing', 'pending', 'cancelled', 'refunded', 'failed', 'on-hold' ),
+								'description' => 'What type of data to fetch: orders, products, customers, categories, tags, coupons, refunds, stock',
+								'enum'        => array( 'orders', 'products', 'customers', 'categories', 'tags', 'coupons', 'refunds', 'stock' ),
 							),
+							'query_type'  => array(
+								'type'        => 'string',
+								'description' => 'How to fetch data: list (individual items), statistics (aggregated totals/averages), sample (representative sample), by_period (time-series grouped by hour/day/week/month)',
+								'enum'        => array( 'list', 'statistics', 'sample', 'by_period' ),
+							),
+							'filters'     => array(
+								'type'        => 'object',
+								'description' => 'Filters to apply. Can include: date_from, date_to, status, stock_threshold, limit, category_id, etc.',
+								'properties'  => array(
+									'date_from'      => array(
+										'type'   => 'string',
+										'format' => 'date',
+									),
+									'date_to'        => array(
+										'type'   => 'string',
+										'format' => 'date',
+									),
+									'status'         => array(
+										'type' => 'string',
+									),
+									'stock_threshold' => array(
+										'type' => 'integer',
+									),
+									'limit'          => array(
+										'type' => 'integer',
+									),
+									'category_id'    => array(
+										'type' => 'integer',
+									),
+									'period'         => array(
+										'type' => 'string',
+										'enum' => array( 'hour', 'day', 'week', 'month' ),
+									),
+									'sample_size'    => array(
+										'type' => 'integer',
+									),
+								),
+							),
+						),
+						'required'   => array( 'entity_type', 'query_type' ),
+					),
+				),
+			),
+			// Specialized tool for order statistics (optimized for large datasets)
+			array(
+				'type' => 'function',
+				'function' => array(
+					'name'        => 'get_order_statistics',
+					'description' => 'Get aggregated order statistics (totals, averages, counts, status breakdown). USE THIS TOOL when user asks for totals like "total revenue", "how many orders", "average order value", "revenue by status". This is optimized for large datasets (millions of orders).',
+					'parameters'  => array(
+						'type'       => 'object',
+						'properties' => array(
 							'date_from' => array(
 								'type'        => 'string',
 								'description' => 'Start date in YYYY-MM-DD format. Optional.',
@@ -773,52 +820,10 @@ class Dataviz_AI_AJAX_Handler {
 								'description' => 'End date in YYYY-MM-DD format. Optional.',
 								'format'      => 'date',
 							),
-						),
-					),
-				),
-			),
-			array(
-				'type' => 'function',
-				'function' => array(
-					'name'        => 'get_top_products',
-					'description' => 'Get top selling products. Use this when the user asks about best sellers, popular products, or product performance.',
-					'parameters'  => array(
-						'type'       => 'object',
-						'properties' => array(
-							'limit' => array(
-								'type'        => 'integer',
-								'description' => 'Number of top products to retrieve (1-50). Default is 10.',
-								'minimum'     => 1,
-								'maximum'     => 50,
-							),
-						),
-					),
-				),
-			),
-			array(
-				'type' => 'function',
-				'function' => array(
-					'name'        => 'get_customer_summary',
-					'description' => 'Get overall customer metrics including total customer count and average lifetime value. Use this for general customer insights.',
-					'parameters'  => array(
-						'type'       => 'object',
-						'properties' => array(),
-					),
-				),
-			),
-			array(
-				'type' => 'function',
-				'function' => array(
-					'name'        => 'get_customers',
-					'description' => 'Get list of customers with their details. Use this when the user asks about specific customers or customer lists.',
-					'parameters'  => array(
-						'type'       => 'object',
-						'properties' => array(
-							'limit' => array(
-								'type'        => 'integer',
-								'description' => 'Number of customers to retrieve (1-100). Default is 10.',
-								'minimum'     => 1,
-								'maximum'     => 100,
+							'status'    => array(
+								'type'        => 'string',
+								'description' => 'Filter by order status. Optional.',
+								'enum'        => array( 'completed', 'processing', 'pending', 'cancelled', 'refunded', 'failed', 'on-hold' ),
 							),
 						),
 					),
@@ -837,6 +842,13 @@ class Dataviz_AI_AJAX_Handler {
 	 */
 	protected function execute_tool( $function_name, array $arguments ) {
 		switch ( $function_name ) {
+			case 'get_woocommerce_data':
+				return $this->execute_flexible_query( $arguments );
+
+			case 'get_order_statistics':
+				return $this->data_fetcher->get_order_statistics( $arguments );
+
+			// Legacy tools for backward compatibility
 			case 'get_recent_orders':
 				$args = array(
 					'limit' => isset( $arguments['limit'] ) ? (int) $arguments['limit'] : 20,
@@ -847,7 +859,6 @@ class Dataviz_AI_AJAX_Handler {
 				}
 
 				if ( isset( $arguments['date_from'] ) && isset( $arguments['date_to'] ) ) {
-					// Convert dates to timestamps (start of day for from, end of day for to).
 					$from_timestamp = strtotime( $arguments['date_from'] . ' 00:00:00' );
 					$to_timestamp   = strtotime( $arguments['date_to'] . ' 23:59:59' );
 					
@@ -859,7 +870,6 @@ class Dataviz_AI_AJAX_Handler {
 				$orders = $this->data_fetcher->get_recent_orders( $args );
 				$formatted_orders = array_map( array( $this, 'format_order' ), $orders );
 				
-				// Add metadata if no orders found.
 				if ( empty( $formatted_orders ) ) {
 					return array(
 						'orders' => array(),
@@ -887,6 +897,201 @@ class Dataviz_AI_AJAX_Handler {
 					sprintf( __( 'Unknown tool: %s', 'dataviz-ai-woocommerce' ), $function_name )
 				);
 		}
+	}
+
+	/**
+	 * Execute flexible query based on entity type and query type.
+	 *
+	 * @param array $arguments Tool arguments.
+	 * @return array|WP_Error
+	 */
+	protected function execute_flexible_query( array $arguments ) {
+		$entity_type = isset( $arguments['entity_type'] ) ? sanitize_text_field( $arguments['entity_type'] ) : 'orders';
+		$query_type  = isset( $arguments['query_type'] ) ? sanitize_text_field( $arguments['query_type'] ) : 'list';
+		$filters      = isset( $arguments['filters'] ) && is_array( $arguments['filters'] ) ? $arguments['filters'] : array();
+
+		switch ( $entity_type ) {
+			case 'orders':
+				return $this->handle_orders_query( $query_type, $filters );
+
+			case 'products':
+				return $this->handle_products_query( $query_type, $filters );
+
+			case 'customers':
+				return $this->handle_customers_query( $query_type, $filters );
+
+			case 'categories':
+				return $this->handle_categories_query( $filters );
+
+			case 'tags':
+				return $this->handle_tags_query( $filters );
+
+			case 'coupons':
+				return $this->handle_coupons_query( $filters );
+
+			case 'refunds':
+				return $this->handle_refunds_query( $filters );
+
+			case 'stock':
+				return $this->handle_stock_query( $filters );
+
+			default:
+				return new WP_Error(
+					'dataviz_ai_unknown_entity',
+					sprintf( __( 'Unknown entity type: %s', 'dataviz-ai-woocommerce' ), $entity_type )
+				);
+		}
+	}
+
+	/**
+	 * Handle orders queries.
+	 *
+	 * @param string $query_type Query type.
+	 * @param array  $filters    Filters.
+	 * @return array|WP_Error
+	 */
+	protected function handle_orders_query( $query_type, array $filters ) {
+		switch ( $query_type ) {
+			case 'statistics':
+				return $this->data_fetcher->get_order_statistics( $filters );
+
+			case 'by_period':
+				$period = isset( $filters['period'] ) ? sanitize_text_field( $filters['period'] ) : 'day';
+				return $this->data_fetcher->get_orders_by_period( $period, $filters );
+
+			case 'sample':
+				$sample_size = isset( $filters['sample_size'] ) ? (int) $filters['sample_size'] : 100;
+				$filters['sample_size'] = min( 500, max( 50, $sample_size ) );
+				$orders = $this->data_fetcher->get_sampled_orders( $filters );
+				return array_map( array( $this, 'format_order' ), $orders );
+
+			case 'list':
+			default:
+				$args = array(
+					'limit' => isset( $filters['limit'] ) ? min( 100, max( 1, (int) $filters['limit'] ) ) : 20,
+				);
+
+				if ( isset( $filters['status'] ) ) {
+					$args['status'] = sanitize_text_field( $filters['status'] );
+				}
+
+				if ( isset( $filters['date_from'] ) && isset( $filters['date_to'] ) ) {
+					$from_timestamp = strtotime( $filters['date_from'] . ' 00:00:00' );
+					$to_timestamp   = strtotime( $filters['date_to'] . ' 23:59:59' );
+					
+					if ( $from_timestamp && $to_timestamp ) {
+						$args['date_created'] = $from_timestamp . '...' . $to_timestamp;
+					}
+				}
+
+				$orders = $this->data_fetcher->get_recent_orders( $args );
+				$formatted_orders = array_map( array( $this, 'format_order' ), $orders );
+				
+				if ( empty( $formatted_orders ) ) {
+					return array(
+						'orders' => array(),
+						'message' => 'No orders found matching the criteria.',
+					);
+				}
+				
+				return $formatted_orders;
+		}
+	}
+
+	/**
+	 * Handle products queries.
+	 *
+	 * @param string $query_type Query type.
+	 * @param array  $filters    Filters.
+	 * @return array|WP_Error
+	 */
+	protected function handle_products_query( $query_type, array $filters ) {
+		$limit = isset( $filters['limit'] ) ? min( 50, max( 1, (int) $filters['limit'] ) ) : 10;
+
+		switch ( $query_type ) {
+			case 'list':
+			default:
+				if ( isset( $filters['category_id'] ) ) {
+					return $this->data_fetcher->get_products_by_category( (int) $filters['category_id'], $limit );
+				} else {
+					return $this->data_fetcher->get_top_products( $limit );
+				}
+
+			case 'statistics':
+				// For now, return top products as statistics
+				// Can be enhanced later with actual product statistics
+				return $this->data_fetcher->get_top_products( $limit );
+		}
+	}
+
+	/**
+	 * Handle customers queries.
+	 *
+	 * @param string $query_type Query type.
+	 * @param array  $filters    Filters.
+	 * @return array|WP_Error
+	 */
+	protected function handle_customers_query( $query_type, array $filters ) {
+		switch ( $query_type ) {
+			case 'statistics':
+				return $this->data_fetcher->get_customer_summary();
+
+			case 'list':
+			default:
+				$limit = isset( $filters['limit'] ) ? min( 100, max( 1, (int) $filters['limit'] ) ) : 10;
+				return $this->data_fetcher->get_customers( $limit );
+		}
+	}
+
+	/**
+	 * Handle categories queries.
+	 *
+	 * @param array $filters Filters.
+	 * @return array|WP_Error
+	 */
+	protected function handle_categories_query( array $filters ) {
+		return $this->data_fetcher->get_product_categories();
+	}
+
+	/**
+	 * Handle tags queries.
+	 *
+	 * @param array $filters Filters.
+	 * @return array|WP_Error
+	 */
+	protected function handle_tags_query( array $filters ) {
+		return $this->data_fetcher->get_product_tags();
+	}
+
+	/**
+	 * Handle coupons queries.
+	 *
+	 * @param array $filters Filters.
+	 * @return array|WP_Error
+	 */
+	protected function handle_coupons_query( array $filters ) {
+		return $this->data_fetcher->get_coupons( $filters );
+	}
+
+	/**
+	 * Handle refunds queries.
+	 *
+	 * @param array $filters Filters.
+	 * @return array|WP_Error
+	 */
+	protected function handle_refunds_query( array $filters ) {
+		return $this->data_fetcher->get_refunds( $filters );
+	}
+
+	/**
+	 * Handle stock queries.
+	 *
+	 * @param array $filters Filters.
+	 * @return array|WP_Error
+	 */
+	protected function handle_stock_query( array $filters ) {
+		$threshold = isset( $filters['stock_threshold'] ) ? (int) $filters['stock_threshold'] : 10;
+		return $this->data_fetcher->get_low_stock_products( $threshold );
 	}
 
 	/**
