@@ -7,6 +7,7 @@
 	let currentStreamController = null;
 	let currentStreamReader = null;
 	let streamStopped = false;
+	let sessionId = '';
 
 	// Auto-resize textarea
 	function autoResizeTextarea( $textarea ) {
@@ -448,12 +449,20 @@
 		const $aiContent = $aiMessage.find( '.dataviz-ai-message-content' );
 		let fullResponse = '';
 
+		// Ensure session ID is set (should already be set from page load, but double-check)
+		if ( ! sessionId ) {
+			initializeSessionId();
+		}
+		
+		console.log( 'Sending message with session ID:', sessionId );
+
 		// Prepare form data
 		const formData = new FormData();
 		formData.append( 'action', 'dataviz_ai_analyze' );
 		formData.append( 'nonce', DatavizAIAdmin.nonce );
 		formData.append( 'question', question );
 		formData.append( 'stream', 'true' );
+		formData.append( 'session_id', sessionId );
 
 		// Create AbortController for cancellation
 		currentStreamController = new AbortController();
@@ -598,5 +607,142 @@
 				$sendButton.prop( 'disabled', false );
 				$input.focus();
 			} );
+	} );
+
+	// Initialize session ID on page load
+	function initializeSessionId() {
+		// Get session ID - prefer server-side (user meta) which persists across logins
+		// Fall back to localStorage, then generate new one
+		if ( DatavizAIAdmin.userSessionId ) {
+			sessionId = DatavizAIAdmin.userSessionId;
+			// Sync to localStorage for consistency
+			localStorage.setItem( 'dataviz_ai_session_id', sessionId );
+		} else {
+			sessionId = localStorage.getItem( 'dataviz_ai_session_id' ) || '';
+			if ( ! sessionId ) {
+				// Generate a simple session ID (UUID-like)
+				sessionId = 'session_' + Date.now() + '_' + Math.random().toString( 36 ).substr( 2, 9 );
+				localStorage.setItem( 'dataviz_ai_session_id', sessionId );
+			}
+		}
+		console.log( 'Session ID initialized:', sessionId );
+	}
+
+	// Load chat history on page load
+	function loadChatHistory() {
+		// Ensure session ID is initialized
+		if ( ! sessionId ) {
+			initializeSessionId();
+		}
+
+		// Fetch ALL chat history for the user (across all sessions) from last 5 days
+		// This ensures history persists across logout/login
+		console.log( 'Loading chat history...' );
+		console.log( 'AJAX URL:', DatavizAIAdmin.ajaxUrl );
+		console.log( 'Session ID:', sessionId );
+		
+		$.ajax( {
+			url: DatavizAIAdmin.ajaxUrl,
+			method: 'GET',
+			data: {
+				action: 'dataviz_ai_get_history',
+				nonce: DatavizAIAdmin.nonce,
+				all_sessions: true, // Get all sessions for this user
+				limit: 200, // Get up to 200 messages
+				days: 5, // Only get messages from last 5 days
+			},
+			success: function( response ) {
+				console.log( 'Chat history response:', response );
+				
+				if ( response.success && response.data && response.data.history ) {
+					const history = response.data.history;
+					console.log( 'Found', history.length, 'messages in history' );
+					
+					const $messages = $( '#dataviz-ai-chat-messages' );
+					
+					if ( ! $messages.length ) {
+						console.error( 'Chat messages container #dataviz-ai-chat-messages not found' );
+						return;
+					}
+
+					console.log( 'Chat messages container found' );
+					const $welcome = $messages.find( '.dataviz-ai-chat-welcome' );
+
+					if ( history.length > 0 ) {
+						console.log( 'Displaying', history.length, 'history messages' );
+						// Hide welcome message immediately
+						if ( $welcome.length ) {
+							$welcome.fadeOut( 200, function() {
+								$( this ).remove();
+							} );
+						}
+
+						// Don't clear existing messages - just ensure welcome is hidden
+						// This allows history to load properly
+
+						// Add messages to conversation history first (so welcome message logic works)
+						history.forEach( function( msg ) {
+							const messageType = msg.message_type === 'user' ? 'user' : 'ai';
+							const messageContent = msg.message_content || '';
+							
+							if ( messageContent.trim() ) {
+								if ( messageType === 'user' ) {
+									conversationHistory.push( { role: 'user', content: messageContent } );
+								} else {
+									conversationHistory.push( { role: 'assistant', content: messageContent } );
+								}
+							}
+						} );
+
+						// Now display history messages in chronological order
+						history.forEach( function( msg ) {
+							const messageType = msg.message_type === 'user' ? 'user' : 'ai';
+							const messageContent = msg.message_content || '';
+							
+							if ( messageContent.trim() ) {
+								// Add message without forcing scroll (we'll scroll at the end)
+								addMessage( messageContent, messageType, false );
+							}
+						} );
+
+						// Scroll to bottom after all messages are loaded
+						setTimeout( function() {
+							scrollToBottom( true );
+						}, 300 );
+					} else {
+						// No history found - keep welcome message visible
+						console.log( 'No chat history found for the last 5 days' );
+					}
+				} else {
+					console.log( 'No chat history in response:', response );
+				}
+			},
+			error: function( xhr, status, error ) {
+				// Log error for debugging
+				console.error( 'Error loading chat history:', status, error );
+				console.error( 'Response:', xhr.responseText );
+			}
+		} );
+	}
+
+	// Initialize on document ready
+	$( document ).ready( function() {
+		// Setup scroll monitoring first
+		setupScrollMonitoring();
+		
+		// Initialize session ID immediately
+		if ( typeof DatavizAIAdmin !== 'undefined' ) {
+			initializeSessionId();
+		}
+		
+		// Load chat history after DOM is fully ready
+		// Use a longer delay to ensure all scripts are loaded
+		setTimeout( function() {
+			if ( typeof DatavizAIAdmin !== 'undefined' ) {
+				loadChatHistory();
+			} else {
+				console.error( 'DatavizAIAdmin not defined - chat history will not load' );
+			}
+		}, 500 );
 	} );
 }( window.jQuery ) );

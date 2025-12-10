@@ -260,6 +260,9 @@ class Dataviz_AI_Admin {
 			);
 		}
 
+			// Get user's session ID from user meta (persists across logins)
+			$user_session_id = get_user_meta( get_current_user_id(), 'dataviz_ai_session_id', true );
+
 			wp_localize_script(
 				$this->plugin_name . '-admin',
 				'DatavizAIAdmin',
@@ -269,6 +272,7 @@ class Dataviz_AI_Admin {
 					'hasApiKey'       => ! empty( $api_key ),
 					'orderChartData'  => $order_chart_data,
 					'productChartData' => $product_chart_data,
+					'userSessionId'   => $user_session_id, // Server-side session ID (persists across logins)
 				)
 			);
 		}
@@ -305,7 +309,7 @@ class Dataviz_AI_Admin {
 					
 					<div class="dataviz-ai-chat-messages" id="dataviz-ai-chat-messages" role="log" aria-live="polite" aria-atomic="false">
 						<div class="dataviz-ai-chat-welcome">
-							<h2><?php esc_html_e( 'AI Chat Assistant', 'dataviz-ai-woocommerce' ); ?></h2>
+							<h2><?php esc_html_e( 'Chat with me', 'dataviz-ai-woocommerce' ); ?></h2>
 							<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights.', 'dataviz-ai-woocommerce' ); ?></p>
 						</div>
 					</div>

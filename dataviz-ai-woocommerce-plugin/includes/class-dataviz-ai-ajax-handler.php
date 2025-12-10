@@ -36,6 +36,27 @@ class Dataviz_AI_AJAX_Handler {
 	protected $api_client;
 
 	/**
+	 * Chat history manager.
+	 *
+	 * @var Dataviz_AI_Chat_History
+	 */
+	protected $chat_history;
+
+	/**
+	 * Current session ID for this request.
+	 *
+	 * @var string
+	 */
+	protected $session_id = '';
+
+	/**
+	 * Accumulated streaming response content.
+	 *
+	 * @var string
+	 */
+	protected $streaming_content = '';
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string                  $plugin_name  Plugin slug.
@@ -46,6 +67,7 @@ class Dataviz_AI_AJAX_Handler {
 		$this->plugin_name  = $plugin_name;
 		$this->data_fetcher = $data_fetcher;
 		$this->api_client   = $api_client;
+		$this->chat_history = new Dataviz_AI_Chat_History();
 	}
 
 	/**
@@ -59,9 +81,57 @@ class Dataviz_AI_AJAX_Handler {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
 		}
+		
+		// Debug: Log user info
+		$current_user_id = get_current_user_id();
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf( '[Dataviz AI] handle_analysis_request - User ID: %d', $current_user_id ) );
+		}
 
 		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
 		$stream   = isset( $_POST['stream'] ) && filter_var( $_POST['stream'], FILTER_VALIDATE_BOOLEAN );
+		$this->session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
+
+		// Debug log
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf(
+				'[Dataviz AI] handle_analysis_request - User: %d, Session from POST: %s, Question length: %d',
+				get_current_user_id(),
+				$this->session_id ?: 'empty',
+				strlen( $question )
+			) );
+		}
+
+		// If no session ID provided, get or create one from user meta (persists across logins)
+		if ( empty( $this->session_id ) ) {
+			$session_key = 'dataviz_ai_session_id';
+			$this->session_id = get_user_meta( get_current_user_id(), $session_key, true );
+			if ( empty( $this->session_id ) ) {
+				$this->session_id = wp_generate_uuid4();
+				update_user_meta( get_current_user_id(), $session_key, $this->session_id );
+			}
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] Generated/retrieved session ID: %s', $this->session_id ) );
+			}
+		}
+
+		// Save user message to chat history.
+		$saved_id = $this->chat_history->save_message( 'user', $question, $this->session_id );
+		if ( $saved_id ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] User message saved successfully - ID: %d', $saved_id ) );
+			}
+		} else {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				global $wpdb;
+				error_log( sprintf(
+					'[Dataviz AI] Failed to save user message - Error: %s, User: %d, Session: %s',
+					$wpdb->last_error ?: 'Unknown',
+					get_current_user_id(),
+					$this->session_id
+				) );
+			}
+		}
 
 		// If streaming is requested, use streaming handler.
 		if ( $stream ) {
@@ -97,6 +167,10 @@ class Dataviz_AI_AJAX_Handler {
 				400
 			);
 		}
+
+		// Save AI response to chat history.
+		$ai_response = isset( $response['answer'] ) ? $response['answer'] : wp_json_encode( $response );
+		$this->chat_history->save_message( 'ai', $ai_response, $this->session_id, array( 'provider' => $response['provider'] ?? 'unknown' ) );
 
 		wp_send_json_success( $response );
 	}
@@ -141,6 +215,11 @@ class Dataviz_AI_AJAX_Handler {
 			$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'dataviz-ai-woocommerce' );
 			// Simulate streaming for custom backend.
 			$this->stream_text( $answer );
+			// Save complete AI response to chat history.
+			$saved_custom_id = $this->chat_history->save_message( 'ai', $answer, $this->session_id, array( 'provider' => 'custom_backend', 'streaming' => true ) );
+			if ( ! $saved_custom_id && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[Dataviz AI] Failed to save custom backend AI response to chat history' );
+			}
 			return;
 		}
 
@@ -222,10 +301,14 @@ class Dataviz_AI_AJAX_Handler {
 			}
 		}
 
+		// Reset streaming content accumulator.
+		$this->streaming_content = '';
+
 		// Stream the final response.
 		$stream_result = $this->api_client->send_openai_chat_stream(
 			$messages,
 			function( $chunk ) {
+				$this->streaming_content .= $chunk;
 				$this->send_stream_chunk( $chunk );
 			},
 			array(
@@ -236,6 +319,18 @@ class Dataviz_AI_AJAX_Handler {
 		if ( is_wp_error( $stream_result ) ) {
 			$this->send_stream_error( $stream_result->get_error_message() );
 			return;
+		}
+
+		// Save complete AI response to chat history.
+		if ( ! empty( $this->streaming_content ) ) {
+			$saved_ai_id = $this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			if ( ! $saved_ai_id && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[Dataviz AI] Failed to save AI streaming response to chat history' );
+			}
+		} else {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[Dataviz AI] Warning: streaming_content is empty, cannot save AI response' );
+			}
 		}
 
 		$this->send_stream_end();
@@ -1161,6 +1256,46 @@ class Dataviz_AI_AJAX_Handler {
 		);
 
 		error_log( $log_entry );
+	}
+
+	/**
+	 * Handle request to get chat history.
+	 *
+	 * @return void
+	 */
+	public function handle_get_history_request() {
+		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
+		$session_id = isset( $_GET['session_id'] ) ? sanitize_text_field( wp_unslash( $_GET['session_id'] ) ) : '';
+		$limit      = isset( $_GET['limit'] ) ? min( 200, max( 1, (int) $_GET['limit'] ) ) : 100;
+		$days       = isset( $_GET['days'] ) ? min( 30, max( 1, (int) $_GET['days'] ) ) : 5;
+		$all_sessions = isset( $_GET['all_sessions'] ) && filter_var( $_GET['all_sessions'], FILTER_VALIDATE_BOOLEAN );
+
+		// If all_sessions is true or session_id is empty, get all user history
+		if ( $all_sessions || empty( $session_id ) ) {
+			$history = $this->chat_history->get_recent_history( $limit, $days );
+		} else {
+			// Get history for specific session
+			$history = $this->chat_history->get_session_history( $session_id, $limit, $days );
+		}
+
+		// Debug logging (only if WP_DEBUG is enabled)
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( sprintf(
+				'[Dataviz AI] History request - User: %d, Sessions: %s, Limit: %d, Days: %d, Found: %d messages',
+				get_current_user_id(),
+				$all_sessions ? 'all' : $session_id,
+				$limit,
+				$days,
+				count( $history )
+			) );
+		}
+
+		wp_send_json_success( array( 'history' => $history ) );
 	}
 }
 

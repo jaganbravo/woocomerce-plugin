@@ -44,6 +44,16 @@ function dataviz_ai_wc_activate() {
 		);
 	}
 
+	// Create chat history table.
+	require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-history.php';
+	$chat_history = new Dataviz_AI_Chat_History();
+	$chat_history->create_table();
+
+	// Schedule daily cleanup of old messages.
+	if ( ! wp_next_scheduled( 'dataviz_ai_cleanup_chat_history' ) ) {
+		wp_schedule_event( time(), 'daily', 'dataviz_ai_cleanup_chat_history' );
+	}
+
 	flush_rewrite_rules();
 }
 
@@ -53,6 +63,9 @@ register_activation_hook( __FILE__, 'dataviz_ai_wc_activate' );
  * Fired during plugin deactivation.
  */
 function dataviz_ai_wc_deactivate() {
+	// Clear scheduled cleanup task.
+	wp_clear_scheduled_hook( 'dataviz_ai_cleanup_chat_history' );
+
 	flush_rewrite_rules();
 }
 
@@ -85,8 +98,24 @@ function dataviz_ai_wc_init() {
 
 	load_plugin_textdomain( 'dataviz-ai-woocommerce', false, dirname( DATAVIZ_AI_WC_PLUGIN_BASENAME ) . '/languages' );
 
+	// Register cleanup hook.
+	add_action( 'dataviz_ai_cleanup_chat_history', 'dataviz_ai_wc_cleanup_chat_history' );
+
 	$loader = new Dataviz_AI_Loader();
 	$loader->run();
+}
+
+/**
+ * Cleanup old chat history (called by scheduled event).
+ */
+function dataviz_ai_wc_cleanup_chat_history() {
+	require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-history.php';
+	$chat_history = new Dataviz_AI_Chat_History();
+	$deleted = $chat_history->cleanup_old_messages();
+	
+	if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+		error_log( sprintf( '[Dataviz AI] Cleaned up %d old chat history messages', $deleted ) );
+	}
 }
 
 add_action( 'plugins_loaded', 'dataviz_ai_wc_init', 20 );

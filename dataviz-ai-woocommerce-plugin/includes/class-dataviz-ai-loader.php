@@ -11,6 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-api-client.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-data-fetcher.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-history.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-admin.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-widget.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-ajax-handler.php';
@@ -114,6 +115,8 @@ class Dataviz_AI_Loader {
 
 		add_action( 'wp_ajax_dataviz_ai_chat', array( $this->ajax, 'handle_chat_request' ) );
 		add_action( 'wp_ajax_nopriv_dataviz_ai_chat', array( $this->ajax, 'handle_chat_request' ) );
+
+		add_action( 'wp_ajax_dataviz_ai_get_history', array( $this->ajax, 'handle_get_history_request' ) );
 	}
 
 	/**
