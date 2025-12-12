@@ -227,6 +227,92 @@ class Dataviz_AI_AJAX_Handler {
 		$messages = $this->build_smart_analysis_messages( $question );
 		$tools    = $this->get_available_tools();
 
+		// Check if user is confirming a feature request submission.
+		$is_feature_request_confirmation = $this->is_feature_request_confirmation( $question );
+		if ( $is_feature_request_confirmation ) {
+			// Get recent chat history to find the entity_type from previous error.
+			$entity_type = $this->extract_entity_type_from_history();
+			if ( $entity_type ) {
+				// Automatically call submit_feature_request tool.
+				$tool_calls = array(
+					array(
+						'function' => array(
+							'name' => 'submit_feature_request',
+							'arguments' => wp_json_encode( array( 'entity_type' => $entity_type ) ),
+						),
+						'id' => 'auto-submit-' . uniqid(),
+					),
+				);
+				
+				// Execute the tool immediately.
+				foreach ( $tool_calls as $tool_call ) {
+					$function_name = $tool_call['function']['name'];
+					$arguments = json_decode( $tool_call['function']['arguments'], true );
+					$tool_result = $this->execute_tool( $function_name, is_array( $arguments ) ? $arguments : array() );
+					
+					$messages[] = array(
+						'role' => 'assistant',
+						'content' => null,
+						'tool_calls' => array(
+							array(
+								'id' => $tool_call['id'],
+								'type' => 'function',
+								'function' => array(
+									'name' => $function_name,
+									'arguments' => $tool_call['function']['arguments'],
+								),
+							),
+						),
+					);
+					
+					$messages[] = array(
+						'role' => 'tool',
+						'tool_call_id' => $tool_call['id'],
+						'content' => wp_json_encode( $tool_result ),
+					);
+				}
+				
+				// Now get the final response.
+				$final_prompt = 'The user confirmed they want to submit a feature request. A feature request has been submitted. Please confirm this to the user using the tool response message.';
+				$messages[] = array(
+					'role' => 'user',
+					'content' => $final_prompt,
+				);
+				
+				// Stream the final response.
+				$this->streaming_content = '';
+				$stream_result = $this->api_client->send_openai_chat_stream(
+					$messages,
+					function( $chunk ) {
+						$this->streaming_content .= $chunk;
+						$this->send_stream_chunk( $chunk );
+					},
+					array(
+						'model' => 'gpt-4o-mini',
+					)
+				);
+				
+				if ( is_wp_error( $stream_result ) ) {
+					$this->send_stream_error( $stream_result->get_error_message() );
+					return;
+				}
+				
+				// Save AI response to chat history.
+				if ( ! empty( $this->streaming_content ) ) {
+					$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+				}
+				
+				$this->send_stream_done();
+				return;
+			} else {
+				// Entity type not found - let LLM know to ask user.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( '[Dataviz AI] Feature request confirmation detected but entity_type could not be extracted from history. This may happen if the previous error response was not saved properly.' );
+				}
+				// Continue with normal flow - LLM will handle it.
+			}
+		}
+
 		// First, check if LLM wants to call tools.
 		// If question clearly requires data, suggest tools more strongly.
 		$options = array(
@@ -282,6 +368,28 @@ class Dataviz_AI_AJAX_Handler {
 				}
 
 				$tool_result = $this->execute_tool( $function_name, is_array( $arguments ) ? $arguments : array() );
+				
+				// Convert WP_Error to user-friendly format for LLM.
+				if ( is_wp_error( $tool_result ) ) {
+					$tool_result = array(
+						'error'              => true,
+						'error_type'         => 'execution_error',
+						'message'            => $tool_result->get_error_message(),
+						'error_code'         => $tool_result->get_error_code(),
+					);
+				}
+				
+				// If tool result is an error with can_submit_request, store entity_type in transient.
+				if ( is_array( $tool_result ) && isset( $tool_result['error'] ) && $tool_result['error'] === true ) {
+					if ( isset( $tool_result['can_submit_request'] ) && $tool_result['can_submit_request'] === true ) {
+						if ( isset( $tool_result['requested_entity'] ) ) {
+							// Store pending entity_type for this session (expires in 1 hour).
+							$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
+							set_transient( $transient_key, $tool_result['requested_entity'], HOUR_IN_SECONDS );
+						}
+					}
+				}
+				
 				$messages[]  = array(
 					'role'         => 'tool',
 					'tool_call_id' => $tool_call_id,
@@ -290,9 +398,17 @@ class Dataviz_AI_AJAX_Handler {
 			}
 
 			// Now get the final streaming response.
+			$final_prompt = 'Based on the WooCommerce store data that was just fetched using the tools, please answer the user\'s question: ' . $question . "\n\n";
+			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
+			$final_prompt .= "If the error response includes 'can_submit_request': true and 'submission_prompt', ask the user if they would like to submit a feature request using the exact prompt provided. ";
+			$final_prompt .= "CRITICAL: If in a follow-up message the user says 'yes', 'request this feature', 'submit request', or any affirmative response, you MUST IMMEDIATELY call submit_feature_request tool. Extract the entity_type from the 'requested_entity' field in the most recent tool error response. Do NOT ask for clarification - just call the tool with the entity_type from the error response. ";
+			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database. ";
+			$final_prompt .= "If a feature request was successfully submitted (check for 'success': true in tool responses), confirm this to the user and let them know the administrators have been notified. ";
+			$final_prompt .= "Otherwise, provide a comprehensive and helpful answer using the actual data that was retrieved.";
+			
 			$messages[] = array(
 				'role'    => 'user',
-				'content' => 'Based on the WooCommerce store data that was just fetched using the tools, please answer the user\'s question: ' . $question . "\n\nProvide a comprehensive and helpful answer using the actual data that was retrieved. If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.",
+				'content' => $final_prompt,
 			);
 		} else {
 			// No tools needed, add the assistant message and ask for answer.
@@ -497,7 +613,7 @@ class Dataviz_AI_AJAX_Handler {
 		return array(
 			array(
 				'role'    => 'system',
-				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, etc.), you MUST use the available tools to fetch that data. Do not say you don\'t have access - use the tools provided to get the actual data from the store. Only provide answers after you have retrieved the relevant data using the tools.', 'dataviz-ai-woocommerce' ),
+				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, etc.), you MUST use the available tools to fetch that data. Do not say you don\'t have access - use the tools provided to get the actual data from the store. Only provide answers after you have retrieved the relevant data using the tools. If a tool returns an error (check for "error": true in the response), politely inform the user that the requested feature is not yet available and suggest available alternatives based on the error message provided. If the error response includes "can_submit_request": true and "submission_prompt", ask the user if they would like to submit a feature request using the exact prompt provided. CRITICAL: If the user says "yes", "request this feature", "submit request", "yes please", "sure", "ok", or ANY affirmative response, you MUST IMMEDIATELY call the submit_feature_request tool. Extract the entity_type from the "requested_entity" field in the most recent error response that had "can_submit_request": true. Do NOT ask the user what feature they want - use the entity_type from the error response. Do NOT ask for clarification - just call the tool immediately.', 'dataviz-ai-woocommerce' ),
 			),
 			array(
 				'role'    => 'user',
@@ -725,15 +841,26 @@ class Dataviz_AI_AJAX_Handler {
 
 				$result = $this->execute_tool( $function_name, $arguments );
 
+				// Convert WP_Error to user-friendly format for LLM.
+				if ( is_wp_error( $result ) ) {
+					$result = array(
+						'error'              => true,
+						'error_type'         => 'execution_error',
+						'message'            => $result->get_error_message(),
+						'error_code'         => $result->get_error_code(),
+					);
+				}
+
 				// Log tool execution result summary.
 				$result_summary = array(
 					'tool'            => $function_name,
-					'result_type'     => is_wp_error( $result ) ? 'error' : 'success',
+					'result_type'     => ( is_array( $result ) && isset( $result['error'] ) && $result['error'] ) ? 'error' : ( is_wp_error( $result ) ? 'error' : 'success' ),
 					'result_count'    => is_array( $result ) ? count( $result ) : 0,
 				);
 				
-				if ( is_wp_error( $result ) ) {
-					$result_summary['error_message'] = $result->get_error_message();
+				if ( is_array( $result ) && isset( $result['error'] ) && $result['error'] ) {
+					$result_summary['error_message'] = $result['message'] ?? 'Unknown error';
+					$result_summary['error_type'] = $result['error_type'] ?? 'unknown';
 				} elseif ( is_array( $result ) ) {
 					$result_summary['result_keys'] = array_keys( $result );
 					// If result has orders/products/customers, log count.
@@ -758,9 +885,13 @@ class Dataviz_AI_AJAX_Handler {
 			$messages[] = $message;
 			$messages   = array_merge( $messages, $tool_results );
 
+			$final_prompt = 'Based on the data you just fetched, please answer the original question: ' . $question . "\n\n";
+			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
+			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.";
+			
 			$messages[] = array(
 				'role'    => 'user',
-				'content' => 'Based on the data you just fetched, please answer the original question: ' . $question . "\n\nIf the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.",
+				'content' => $final_prompt,
 			);
 
 			$final_response = $this->api_client->send_openai_chat( $messages );
@@ -924,6 +1055,28 @@ class Dataviz_AI_AJAX_Handler {
 					),
 				),
 			),
+			// Feature request submission tool
+			array(
+				'type' => 'function',
+				'function' => array(
+					'name'        => 'submit_feature_request',
+					'description' => 'Submit a feature request when user confirms they want to request an unsupported feature. USE THIS TOOL IMMEDIATELY when user says "yes", "request this feature", "submit request", "yes please", "sure", "ok", or any affirmative response after being asked if they want to submit a feature request. IMPORTANT: Extract the entity_type from the most recent tool error response that had "can_submit_request": true. Look for "requested_entity" field in the error response. Do NOT ask the user for clarification - use the entity_type from the error response.',
+					'parameters'  => array(
+						'type'       => 'object',
+						'properties' => array(
+							'entity_type' => array(
+								'type'        => 'string',
+								'description' => 'The entity type that was requested. Extract this from the most recent tool error response that had "can_submit_request": true. Look for the "requested_entity" field in that error response. Examples: "reviews", "shipping", "taxes", etc.',
+							),
+							'description' => array(
+								'type'        => 'string',
+								'description' => 'Optional description or context about why this feature is needed.',
+							),
+						),
+						'required'   => array( 'entity_type' ),
+					),
+				),
+			),
 		);
 	}
 
@@ -942,6 +1095,9 @@ class Dataviz_AI_AJAX_Handler {
 
 			case 'get_order_statistics':
 				return $this->data_fetcher->get_order_statistics( $arguments );
+
+			case 'submit_feature_request':
+				return $this->handle_feature_request_submission( $arguments );
 
 			// Legacy tools for backward compatibility
 			case 'get_recent_orders':
@@ -987,9 +1143,22 @@ class Dataviz_AI_AJAX_Handler {
 				return $this->data_fetcher->get_customers( $limit );
 
 			default:
-				return new WP_Error(
-					'dataviz_ai_unknown_tool',
-					sprintf( __( 'Unknown tool: %s', 'dataviz-ai-woocommerce' ), $function_name )
+				// Log the unknown tool request for debugging.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] Unknown tool requested: %s', $function_name ) );
+				}
+
+				// Return user-friendly error message.
+				return array(
+					'error'              => true,
+					'error_type'         => 'unknown_tool',
+					'message'            => sprintf(
+						/* translators: %s: tool name */
+						__( 'The tool "%s" is not available. Please use one of the available tools: get_woocommerce_data or get_order_statistics.', 'dataviz-ai-woocommerce' ),
+						esc_html( $function_name )
+					),
+					'requested_tool'     => $function_name,
+					'available_tools'    => array( 'get_woocommerce_data', 'get_order_statistics' ),
 				);
 		}
 	}
@@ -1004,6 +1173,18 @@ class Dataviz_AI_AJAX_Handler {
 		$entity_type = isset( $arguments['entity_type'] ) ? sanitize_text_field( $arguments['entity_type'] ) : 'orders';
 		$query_type  = isset( $arguments['query_type'] ) ? sanitize_text_field( $arguments['query_type'] ) : 'list';
 		$filters      = isset( $arguments['filters'] ) && is_array( $arguments['filters'] ) ? $arguments['filters'] : array();
+
+		// List of supported entity types for error messages.
+		$supported_entities = array(
+			'orders'     => __( 'orders', 'dataviz-ai-woocommerce' ),
+			'products'   => __( 'products', 'dataviz-ai-woocommerce' ),
+			'customers'  => __( 'customers', 'dataviz-ai-woocommerce' ),
+			'categories' => __( 'categories', 'dataviz-ai-woocommerce' ),
+			'tags'       => __( 'tags', 'dataviz-ai-woocommerce' ),
+			'coupons'    => __( 'coupons', 'dataviz-ai-woocommerce' ),
+			'refunds'    => __( 'refunds', 'dataviz-ai-woocommerce' ),
+			'stock'      => __( 'stock levels', 'dataviz-ai-woocommerce' ),
+		);
 
 		switch ( $entity_type ) {
 			case 'orders':
@@ -1031,9 +1212,34 @@ class Dataviz_AI_AJAX_Handler {
 				return $this->handle_stock_query( $filters );
 
 			default:
-				return new WP_Error(
-					'dataviz_ai_unknown_entity',
-					sprintf( __( 'Unknown entity type: %s', 'dataviz-ai-woocommerce' ), $entity_type )
+				// Log the unsupported request for future feature development.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] Unsupported entity type requested: %s', $entity_type ) );
+				}
+
+				// Return user-friendly error message that LLM can understand and relay.
+				return array(
+					'error'              => true,
+					'error_type'         => 'unsupported_entity',
+					'message'            => sprintf(
+						/* translators: %1$s: requested entity type, %2$s: list of supported types */
+						__( 'The "%1$s" data type is not currently supported. Available data types are: %2$s. Please try asking about one of these supported types instead.', 'dataviz-ai-woocommerce' ),
+						esc_html( $entity_type ),
+						implode( ', ', $supported_entities )
+					),
+					'requested_entity'   => $entity_type,
+					'available_entities' => array_keys( $supported_entities ),
+					'suggestion'         => sprintf(
+						/* translators: %s: list of supported entity types */
+						__( 'You can ask about: %s', 'dataviz-ai-woocommerce' ),
+						implode( ', ', $supported_entities )
+					),
+					'can_submit_request' => true,
+					'submission_prompt'  => sprintf(
+						/* translators: %s: requested entity type */
+						__( 'Would you like to request this feature? Just say "yes" or "request this feature" and I\'ll submit a feature request for "%s" to the administrators.', 'dataviz-ai-woocommerce' ),
+						esc_html( $entity_type )
+					),
 				);
 		}
 	}
@@ -1190,6 +1396,288 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
+	 * Handle feature request submission.
+	 *
+	 * @param array $arguments Tool arguments.
+	 * @return array
+	 */
+	protected function handle_feature_request_submission( array $arguments ) {
+		require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-feature-requests.php';
+		
+		$entity_type = isset( $arguments['entity_type'] ) ? sanitize_text_field( $arguments['entity_type'] ) : '';
+		$description = isset( $arguments['description'] ) ? sanitize_textarea_field( $arguments['description'] ) : '';
+		$user_id     = get_current_user_id();
+
+		// Log the submission attempt.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf(
+				'[Dataviz AI] Feature request submission attempt - Entity: %s, User: %d, Description: %s',
+				$entity_type ?: 'empty',
+				$user_id,
+				! empty( $description ) ? 'provided' : 'none'
+			) );
+		}
+
+		if ( empty( $entity_type ) ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( '[Dataviz AI] Feature request submission failed: entity_type is empty' );
+			}
+			return array(
+				'error'   => true,
+				'message' => __( 'Entity type is required to submit a feature request.', 'dataviz-ai-woocommerce' ),
+			);
+		}
+
+		$feature_requests = new Dataviz_AI_Feature_Requests();
+		
+		// Ensure table exists (in case plugin wasn't reactivated).
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'dataviz_ai_feature_requests';
+		$table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) === $table_name;
+		
+		if ( ! $table_exists ) {
+			// Try to create the table.
+			$feature_requests->create_table();
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( '[Dataviz AI] Feature requests table did not exist, attempting to create it.' );
+			}
+		}
+		
+		$request_id = $feature_requests->submit_request( $entity_type, $user_id, $description );
+
+		if ( $request_id ) {
+			// Send email to admins.
+			$email_sent = $this->send_feature_request_email( $request_id, $entity_type, $user_id, $description );
+			
+			// Log if email failed (but don't fail the request submission).
+			if ( ! $email_sent && defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] Feature request #%d submitted but email notification failed.', $request_id ) );
+			}
+
+			return array(
+				'success'  => true,
+				'message'  => sprintf(
+					/* translators: %1$s: entity type, %2$d: request ID */
+					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d. The administrators have been notified.', 'dataviz-ai-woocommerce' ),
+					esc_html( $entity_type ),
+					$request_id
+				),
+				'request_id' => $request_id,
+			);
+		}
+
+		// Log the failure with more details.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			global $wpdb;
+			error_log( sprintf(
+				'[Dataviz AI] Feature request submission failed - Entity: %s, User: %d, DB Error: %s',
+				$entity_type,
+				$user_id,
+				$wpdb->last_error ?: 'Unknown error'
+			) );
+		}
+
+		return array(
+			'error'   => true,
+			'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-woocommerce' ),
+		);
+	}
+
+	/**
+	 * Send email notification to admins about new feature request.
+	 *
+	 * @param int    $request_id  Request ID.
+	 * @param string $entity_type Entity type requested.
+	 * @param int    $user_id     User ID.
+	 * @param string $description Optional description.
+	 * @return bool
+	 */
+	protected function send_feature_request_email( $request_id, $entity_type, $user_id, $description = '' ) {
+		$user = $user_id > 0 ? get_userdata( $user_id ) : null;
+		$user_email = $user ? $user->user_email : __( 'Guest', 'dataviz-ai-woocommerce' );
+		$user_name = $user ? $user->display_name : __( 'Guest User', 'dataviz-ai-woocommerce' );
+
+		// Get admin email.
+		$admin_email = get_option( 'admin_email' );
+		$site_name = get_bloginfo( 'name' );
+
+		// Build email subject.
+		$subject = sprintf(
+			/* translators: %1$s: site name, %2$s: entity type */
+			__( '[%1$s] New Feature Request: %2$s', 'dataviz-ai-woocommerce' ),
+			$site_name,
+			ucfirst( $entity_type )
+		);
+
+		// Build email message.
+		$message = sprintf(
+			/* translators: %1$s: site name */
+			__( 'A new feature request has been submitted on %1$s:', 'dataviz-ai-woocommerce' ),
+			$site_name
+		) . "\n\n";
+
+		$message .= sprintf( __( 'Request ID: #%d', 'dataviz-ai-woocommerce' ), $request_id ) . "\n";
+		$message .= sprintf( __( 'Feature Requested: %s', 'dataviz-ai-woocommerce' ), ucfirst( $entity_type ) ) . "\n";
+		$message .= sprintf( __( 'Requested By: %s (%s)', 'dataviz-ai-woocommerce' ), $user_name, $user_email ) . "\n";
+		$message .= sprintf( __( 'Date: %s', 'dataviz-ai-woocommerce' ), current_time( 'mysql' ) ) . "\n";
+
+		if ( ! empty( $description ) ) {
+			$message .= "\n" . __( 'Description:', 'dataviz-ai-woocommerce' ) . "\n";
+			$message .= $description . "\n";
+		}
+
+		$message .= "\n" . sprintf(
+			/* translators: %s: admin URL */
+			__( 'View all feature requests: %s', 'dataviz-ai-woocommerce' ),
+			admin_url( 'admin.php?page=dataviz-ai-feature-requests' )
+		) . "\n";
+
+		// Send email to all admins.
+		$admins = get_users( array( 'role' => 'administrator' ) );
+		$sent = false;
+		$email_errors = array();
+
+		if ( empty( $admins ) ) {
+			// Log error if no admins found.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( '[Dataviz AI] No administrators found to send feature request email to.' );
+			}
+			return false;
+		}
+
+		foreach ( $admins as $admin ) {
+			$email_result = wp_mail(
+				$admin->user_email,
+				$subject,
+				$message,
+				array(
+					'Content-Type: text/plain; charset=UTF-8',
+					'From: ' . $site_name . ' <' . $admin_email . '>',
+				)
+			);
+
+			if ( $email_result ) {
+				$sent = true;
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] Feature request email sent successfully to: %s', $admin->user_email ) );
+				}
+			} else {
+				$email_errors[] = $admin->user_email;
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] Failed to send feature request email to: %s', $admin->user_email ) );
+				}
+			}
+		}
+
+		// Log summary.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf(
+				'[Dataviz AI] Feature request email summary - Total admins: %d, Sent: %s, Failed: %d',
+				count( $admins ),
+				$sent ? 'Yes' : 'No',
+				count( $email_errors )
+			) );
+			if ( ! empty( $email_errors ) ) {
+				error_log( '[Dataviz AI] Failed email addresses: ' . implode( ', ', $email_errors ) );
+			}
+		}
+
+		return $sent;
+	}
+
+	/**
+	 * Check if user's question is a feature request confirmation.
+	 *
+	 * @param string $question User's question.
+	 * @return bool
+	 */
+	protected function is_feature_request_confirmation( $question ) {
+		$lower_question = strtolower( trim( $question ) );
+		$affirmative_patterns = array(
+			'yes',
+			'yes please',
+			'yes, please',
+			'yep',
+			'yup',
+			'sure',
+			'ok',
+			'okay',
+			'request this feature',
+			'submit request',
+			'submit the request',
+			'please submit',
+			'go ahead',
+			'do it',
+			'that would be great',
+		);
+		
+		foreach ( $affirmative_patterns as $pattern ) {
+			if ( $lower_question === $pattern || strpos( $lower_question, $pattern ) !== false ) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+	/**
+	 * Extract entity_type from transient storage.
+	 *
+	 * @return string|false Entity type or false if not found.
+	 */
+	protected function extract_entity_type_from_history() {
+		// Get pending entity_type from transient (stored when error occurred).
+		$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
+		$entity_type = get_transient( $transient_key );
+		
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf(
+				'[Dataviz AI] Checking transient for entity_type - Key: %s, Found: %s',
+				$transient_key,
+				$entity_type ?: 'NOT FOUND'
+			) );
+		}
+		
+		if ( $entity_type ) {
+			// Clear the transient after use.
+			delete_transient( $transient_key );
+			return $entity_type;
+		}
+		
+		// Fallback: Try to extract from recent chat history.
+		$history = $this->chat_history->get_session_history( $this->session_id, 20, 1 );
+		$history = array_reverse( $history );
+		
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf(
+				'[Dataviz AI] Checking chat history for entity_type - History messages: %d',
+				count( $history )
+			) );
+		}
+		
+		foreach ( $history as $message ) {
+			if ( $message['message_type'] === 'ai' ) {
+				$content = $message['message_content'];
+				// Check if content contains JSON with the error.
+				if ( preg_match( '/"requested_entity"\s*:\s*"([^"]+)"/', $content, $matches ) ) {
+					if ( preg_match( '/"can_submit_request"\s*:\s*true/', $content ) ) {
+						if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+							error_log( sprintf( '[Dataviz AI] Found entity_type in chat history: %s', $matches[1] ) );
+						}
+						return $matches[1];
+					}
+				}
+			}
+		}
+		
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( '[Dataviz AI] Could not extract entity_type from history' );
+		}
+		
+		return false;
+	}
+
+	/**
 	 * Prepare chat messages for OpenAI.
 	 *
 	 * @param string   $question User query.
@@ -1296,6 +1784,55 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		wp_send_json_success( array( 'history' => $history ) );
+	}
+
+	/**
+	 * Handle feature request submission via AJAX.
+	 *
+	 * @return void
+	 */
+	public function handle_submit_feature_request() {
+		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
+		$entity_type = isset( $_POST['entity_type'] ) ? sanitize_text_field( wp_unslash( $_POST['entity_type'] ) ) : '';
+		$description = isset( $_POST['description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['description'] ) ) : '';
+		$user_id     = get_current_user_id();
+
+		if ( empty( $entity_type ) ) {
+			wp_send_json_error( array( 'message' => __( 'Entity type is required.', 'dataviz-ai-woocommerce' ) ), 400 );
+		}
+
+		require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-feature-requests.php';
+		$feature_requests = new Dataviz_AI_Feature_Requests();
+		$request_id = $feature_requests->submit_request( $entity_type, $user_id, $description );
+
+		if ( $request_id ) {
+			// Send email to admins.
+			$email_sent = $this->send_feature_request_email( $request_id, $entity_type, $user_id, $description );
+			
+			// Log if email failed (but don't fail the request submission).
+			if ( ! $email_sent && defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] Feature request #%d submitted but email notification failed.', $request_id ) );
+			}
+
+			wp_send_json_success(
+				array(
+					'message'    => sprintf(
+						/* translators: %1$s: entity type, %2$d: request ID */
+						__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d.', 'dataviz-ai-woocommerce' ),
+						esc_html( $entity_type ),
+						$request_id
+					),
+					'request_id' => $request_id,
+				)
+			);
+		}
+
+		wp_send_json_error( array( 'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-woocommerce' ) ), 500 );
 	}
 }
 
