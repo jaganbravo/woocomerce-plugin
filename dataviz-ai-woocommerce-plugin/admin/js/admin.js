@@ -138,9 +138,14 @@
 
 	// Check if question mentions charts
 	function mentionsChart( text ) {
-		const chartKeywords = [ 'chart', 'pie', 'bar', 'graph', 'visualize', 'visualization', 'plot', 'show me', 'display' ];
+		// Only trigger on explicit chart/visualization requests, not generic "show me" or "display"
+		const chartKeywords = [ 'chart', 'pie', 'bar', 'graph', 'visualize', 'visualization', 'plot', 'diagram' ];
 		const lowerText = text.toLowerCase();
-		return chartKeywords.some( keyword => lowerText.includes( keyword ) );
+		// Check if it's an explicit chart request (not just "show me" or "display")
+		const hasChartKeyword = chartKeywords.some( keyword => lowerText.includes( keyword ) );
+		// Also check for "show me" + "chart" combination, but not just "show me" alone
+		const hasShowMeWithChart = lowerText.includes( 'show me' ) && ( lowerText.includes( 'chart' ) || lowerText.includes( 'graph' ) || lowerText.includes( 'visual' ) );
+		return hasChartKeyword || hasShowMeWithChart;
 	}
 
 	// Detect chart type from question
@@ -158,12 +163,19 @@
 	// Detect what data to chart from question
 	function detectChartData( question ) {
 		const lowerQuestion = question.toLowerCase();
-		if ( lowerQuestion.includes( 'order' ) || lowerQuestion.includes( 'sale' ) || lowerQuestion.includes( 'revenue' ) ) {
+		if ( lowerQuestion.includes( 'order' ) || lowerQuestion.includes( 'sale' ) || lowerQuestion.includes( 'revenue' ) || lowerQuestion.includes( 'transaction' ) ) {
 			return 'orders';
 		} else if ( lowerQuestion.includes( 'product' ) || lowerQuestion.includes( 'item' ) ) {
 			return 'products';
+		} else if ( lowerQuestion.includes( 'coupon' ) || lowerQuestion.includes( 'discount' ) ) {
+			return 'coupons';
+		} else if ( lowerQuestion.includes( 'customer' ) || lowerQuestion.includes( 'buyer' ) ) {
+			return 'customers';
+		} else if ( lowerQuestion.includes( 'category' ) || lowerQuestion.includes( 'tag' ) ) {
+			return 'categories';
 		}
-		return 'orders'; // Default to orders
+		// Return null if we can't determine the data type - don't default to orders
+		return null;
 	}
 
 	// Render pie chart
@@ -266,6 +278,11 @@
 
 		const chartType = detectChartType( question );
 		const dataType = detectChartData( question );
+
+		// Don't render chart if we can't determine the data type or it's not orders/products
+		if ( ! dataType || ( dataType !== 'orders' && dataType !== 'products' ) ) {
+			return;
+		}
 
 		// Create chart container
 		const $chartContainer = $( '<div class="dataviz-ai-chart-wrapper"></div>' );
