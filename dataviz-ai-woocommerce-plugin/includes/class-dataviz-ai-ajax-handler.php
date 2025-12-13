@@ -351,6 +351,9 @@ class Dataviz_AI_AJAX_Handler {
 				$messages[] = $assistant_message;
 			}
 
+			// Store tool results for frontend (to avoid redundant AJAX calls).
+			$tool_results_for_frontend = array();
+
 			foreach ( $tool_calls as $tool_call ) {
 				// Handle both OpenAI format and auto-detected format.
 				if ( isset( $tool_call['function']['name'] ) ) {
@@ -390,16 +393,33 @@ class Dataviz_AI_AJAX_Handler {
 					}
 				}
 				
+				// Store tool results for frontend if they contain chart-relevant data.
+				if ( is_array( $tool_result ) && ! isset( $tool_result['error'] ) ) {
+					// Check if this is inventory data.
+					if ( $function_name === 'get_woocommerce_data' && isset( $arguments['entity_type'] ) ) {
+						$entity_type = strtolower( $arguments['entity_type'] );
+						if ( in_array( $entity_type, array( 'inventory', 'stock' ), true ) ) {
+							$tool_results_for_frontend['inventory'] = $tool_result;
+						}
+					}
+				}
+				
 				$messages[]  = array(
 					'role'         => 'tool',
 					'tool_call_id' => $tool_call_id,
 					'content'      => wp_json_encode( $tool_result ),
 				);
 			}
+			
+			// Send tool results to frontend as metadata (before text response).
+			if ( ! empty( $tool_results_for_frontend ) ) {
+				$this->send_stream_chunk( '', array( 'tool_data' => $tool_results_for_frontend ) );
+			}
 
 			// Now get the final streaming response.
 			$final_prompt = 'Based on the WooCommerce store data that was just fetched using the tools, please answer the user\'s question: ' . $question . "\n\n";
 			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
+			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported or not yet available. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format without mentioning chart limitations. ";
 			$final_prompt .= "If the error response includes 'can_submit_request': true and 'submission_prompt', ask the user if they would like to submit a feature request using the exact prompt provided. ";
 			$final_prompt .= "CRITICAL: If in a follow-up message the user says 'yes', 'request this feature', 'submit request', or any affirmative response, you MUST IMMEDIATELY call submit_feature_request tool. Extract the entity_type from the 'requested_entity' field in the most recent tool error response. Do NOT ask for clarification - just call the tool with the entity_type from the error response. ";
 			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database. ";
@@ -456,10 +476,15 @@ class Dataviz_AI_AJAX_Handler {
 	 * Send a chunk in the stream.
 	 *
 	 * @param string $chunk Text chunk.
+	 * @param array  $metadata Optional metadata to include (e.g., tool_data).
 	 * @return void
 	 */
-	protected function send_stream_chunk( $chunk ) {
-		echo "data: " . wp_json_encode( array( 'chunk' => $chunk ) ) . "\n\n";
+	protected function send_stream_chunk( $chunk, $metadata = array() ) {
+		$data = array( 'chunk' => $chunk );
+		if ( ! empty( $metadata ) ) {
+			$data = array_merge( $data, $metadata );
+		}
+		echo "data: " . wp_json_encode( $data ) . "\n\n";
 		if ( ob_get_level() ) {
 			ob_flush();
 		}
@@ -613,7 +638,7 @@ class Dataviz_AI_AJAX_Handler {
 		return array(
 			array(
 				'role'    => 'system',
-				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. CRITICAL: When the user asks about ANY store data (orders, products, customers, sales, revenue, commission, sales commission, reviews, shipping, taxes, or ANY other data type), you MUST use the available tools to fetch that data. Even if you think the data type might not be supported, still call the get_woocommerce_data tool with the exact entity_type the user mentioned (e.g., if they say "commission" or "sales commission", use entity_type: "commission"). Do not say you don\'t have access - use the tools provided to get the actual data from the store. Only provide answers after you have retrieved the relevant data using the tools. If a tool returns an error (check for "error": true in the response), politely inform the user that the requested feature is not yet available and suggest available alternatives based on the error message provided. If the error response includes "can_submit_request": true and "submission_prompt", ask the user if they would like to submit a feature request using the exact prompt provided. CRITICAL: If the user says "yes", "request this feature", "submit request", "yes please", "sure", "ok", or ANY affirmative response, you MUST IMMEDIATELY call the submit_feature_request tool. Extract the entity_type from the "requested_entity" field in the most recent error response that had "can_submit_request": true. Do NOT ask the user what feature they want - use the entity_type from the error response. Do NOT ask for clarification - just call the tool immediately.', 'dataviz-ai-woocommerce' ),
+				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. CRITICAL: When the user asks about ANY store data (orders, products, customers, sales, revenue, commission, sales commission, reviews, shipping, taxes, inventory, stock, or ANY other data type), you MUST use the available tools to fetch that data. Even if you think the data type might not be supported, still call the get_woocommerce_data tool with the exact entity_type the user mentioned (e.g., if they say "commission" or "sales commission", use entity_type: "commission"). Do not say you don\'t have access - use the tools provided to get the actual data from the store. IMPORTANT: If the user asks for a chart, graph, pie chart, bar chart, or visualization, you should still fetch the data using the tools. The frontend will automatically render charts based on the data and question - you do NOT need to generate charts yourself. Just provide the data in a clear format. Do NOT say "I cannot generate charts" - charts are handled automatically by the system. Only provide answers after you have retrieved the relevant data using the tools. If a tool returns an error (check for "error": true in the response), politely inform the user that the requested feature is not yet available and suggest available alternatives based on the error message provided. If the error response includes "can_submit_request": true and "submission_prompt", ask the user if they would like to submit a feature request using the exact prompt provided. CRITICAL: If the user says "yes", "request this feature", "submit request", "yes please", "sure", "ok", or ANY affirmative response, you MUST IMMEDIATELY call the submit_feature_request tool. Extract the entity_type from the "requested_entity" field in the most recent error response that had "can_submit_request": true. Do NOT ask the user what feature they want - use the entity_type from the error response. Do NOT ask for clarification - just call the tool immediately.', 'dataviz-ai-woocommerce' ),
 			),
 			array(
 				'role'    => 'user',
@@ -788,7 +813,7 @@ class Dataviz_AI_AJAX_Handler {
 		$messages = array(
 			array(
 				'role'    => 'system',
-				'content' => 'You are a helpful WooCommerce data analyst. You have direct access to the WooCommerce store database through tools. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, etc.), you MUST use the available tools to fetch that data. Never say you don\'t have access - use the tools provided to get real data from the store. Analyze the user\'s question and use the appropriate tools to fetch the required data.',
+				'content' => 'You are a helpful WooCommerce data analyst. You have direct access to the WooCommerce store database through tools. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, inventory, stock, etc.), you MUST use the available tools to fetch that data. Never say you don\'t have access - use the tools provided to get real data from the store. CRITICAL: If the user asks for a chart, graph, pie chart, bar chart, or visualization, you should still fetch the data using the tools. The frontend will automatically render charts based on the data and question - you do NOT need to generate charts yourself. Just provide the data in a clear format. Do NOT say "I cannot generate charts" or "charts are not yet supported" - charts are handled automatically by the system. Analyze the user\'s question and use the appropriate tools to fetch the required data.',
 			),
 			array(
 				'role'    => 'user',
@@ -887,6 +912,7 @@ class Dataviz_AI_AJAX_Handler {
 
 			$final_prompt = 'Based on the data you just fetched, please answer the original question: ' . $question . "\n\n";
 			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
+			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format. ";
 			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.";
 			
 			$messages[] = array(
@@ -975,13 +1001,13 @@ class Dataviz_AI_AJAX_Handler {
 				'type' => 'function',
 				'function' => array(
 					'name'        => 'get_woocommerce_data',
-					'description' => 'Get any WooCommerce data dynamically. Can fetch orders, products, customers, categories, tags, coupons, refunds, stock levels, etc. CRITICAL: If the user asks about ANY WooCommerce data (including "commission", "sales commission", "reviews", "shipping", "taxes", or any other data type), you MUST call this tool with the exact entity_type the user mentioned. Even if you think it might not be supported, still call the tool - the system will detect unsupported types and offer to submit a feature request. USE THIS TOOL when user asks about: product categories, product tags, coupons, low stock products, refunds, commission, or any data type not covered by specialized tools below.',
+					'description' => 'Get any WooCommerce data dynamically. Can fetch orders, products, customers, categories, tags, coupons, refunds, stock levels, inventory, etc. CRITICAL: If the user asks about ANY WooCommerce data (including "commission", "sales commission", "reviews", "shipping", "taxes", "inventory", "stock", or any other data type), you MUST call this tool with the exact entity_type the user mentioned. Even if you think it might not be supported, still call the tool - the system will detect unsupported types and offer to submit a feature request. IMPORTANT: If the user asks for a chart or visualization, still call this tool to fetch the data - charts are automatically rendered by the frontend. USE THIS TOOL when user asks about: product categories, product tags, coupons, inventory, stock levels, low stock products, refunds, commission, or any data type not covered by specialized tools below.',
 					'parameters'  => array(
 						'type'       => 'object',
 						'properties' => array(
 							'entity_type' => array(
 								'type'        => 'string',
-								'description' => 'What type of data to fetch. Supported types: orders, products, customers, categories, tags, coupons, refunds, stock. If the user asks about an unsupported type (e.g., "commission", "reviews", "shipping"), use the exact term the user mentioned (e.g., "commission", "reviews", "shipping") - the system will detect it as unsupported and offer to submit a feature request.',
+								'description' => 'What type of data to fetch. Supported types: orders, products, customers, categories, tags, coupons, refunds, stock, inventory. IMPORTANT: Use the EXACT term the user mentioned. If user says "inventory", use entity_type: "inventory" (NOT "stock"). If user says "stock", use entity_type: "stock". If the user asks about an unsupported type (e.g., "commission", "reviews", "shipping"), use the exact term the user mentioned - the system will detect it as unsupported and offer to submit a feature request.',
 							),
 							'query_type'  => array(
 								'type'        => 'string',
@@ -1172,6 +1198,9 @@ class Dataviz_AI_AJAX_Handler {
 		$entity_type = isset( $arguments['entity_type'] ) ? sanitize_text_field( $arguments['entity_type'] ) : 'orders';
 		$query_type  = isset( $arguments['query_type'] ) ? sanitize_text_field( $arguments['query_type'] ) : 'list';
 		$filters      = isset( $arguments['filters'] ) && is_array( $arguments['filters'] ) ? $arguments['filters'] : array();
+		
+		// Store original entity_type for later use
+		$original_entity_type = $entity_type;
 
 		// List of supported entity types for error messages.
 		$supported_entities = array(
@@ -1182,10 +1211,14 @@ class Dataviz_AI_AJAX_Handler {
 			'tags'       => __( 'tags', 'dataviz-ai-woocommerce' ),
 			'coupons'    => __( 'coupons', 'dataviz-ai-woocommerce' ),
 			'refunds'    => __( 'refunds', 'dataviz-ai-woocommerce' ),
-			'stock'      => __( 'stock levels', 'dataviz-ai-woocommerce' ),
+			'stock'      => __( 'stock levels / inventory', 'dataviz-ai-woocommerce' ),
 		);
 
-		switch ( $entity_type ) {
+		// Normalize entity_type (handle synonyms) but keep original for context
+		// Note: "inventory" is NOT normalized to "stock" - they are different
+		$entity_type_normalized = $this->normalize_entity_type( $entity_type );
+
+		switch ( $entity_type_normalized ) {
 			case 'orders':
 				return $this->handle_orders_query( $query_type, $filters );
 
@@ -1208,7 +1241,11 @@ class Dataviz_AI_AJAX_Handler {
 				return $this->handle_refunds_query( $filters );
 
 			case 'stock':
-				return $this->handle_stock_query( $filters );
+				return $this->handle_stock_query( $filters, $original_entity_type );
+			
+			case 'inventory':
+				// "inventory" is treated as "stock" but shows all inventory
+				return $this->handle_stock_query( $filters, 'inventory' );
 
 			default:
 				// Log the unsupported request for future feature development.
@@ -1386,12 +1423,38 @@ class Dataviz_AI_AJAX_Handler {
 	/**
 	 * Handle stock queries.
 	 *
-	 * @param array $filters Filters.
+	 * @param array  $filters     Filters.
+	 * @param string $entity_type Original entity type (to detect if user asked for "inventory" vs "stock").
 	 * @return array|WP_Error
 	 */
-	protected function handle_stock_query( array $filters ) {
-		$threshold = isset( $filters['stock_threshold'] ) ? (int) $filters['stock_threshold'] : 10;
-		return $this->data_fetcher->get_low_stock_products( $threshold );
+	protected function handle_stock_query( array $filters, $entity_type = 'stock' ) {
+		// If user asked for "inventory" or "current inventory", show all inventory
+		// If user asked for "stock" or "low stock", show only low stock
+		$show_all = false;
+		
+		$entity_lower = strtolower( $entity_type );
+		
+		// Check if user's question suggests "all inventory" vs "low stock"
+		if ( strpos( $entity_lower, 'inventory' ) !== false ) {
+			// User asked for inventory - show all products with stock levels
+			$show_all = true;
+		} elseif ( strpos( $entity_lower, 'low' ) !== false || strpos( $entity_lower, 'stock' ) !== false ) {
+			// User asked for "low stock" - show only low stock
+			$show_all = false;
+		} else {
+			// Default: if query_type is "list", show all; otherwise show low stock
+			$query_type = isset( $filters['query_type'] ) ? $filters['query_type'] : 'list';
+			$show_all = ( $query_type === 'list' && strpos( $entity_lower, 'inventory' ) !== false );
+		}
+		
+		if ( $show_all ) {
+			// Return all products with inventory/stock levels
+			return $this->data_fetcher->get_all_inventory_products( $filters );
+		} else {
+			// Return only low stock products (default behavior)
+			$threshold = isset( $filters['stock_threshold'] ) ? (int) $filters['stock_threshold'] : 10;
+			return $this->data_fetcher->get_low_stock_products( $threshold );
+		}
 	}
 
 	/**
@@ -1620,6 +1683,30 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
+	 * Normalize entity type (handle synonyms).
+	 *
+	 * @param string $entity_type Entity type from user.
+	 * @return string Normalized entity type.
+	 */
+	protected function normalize_entity_type( $entity_type ) {
+		$normalized = strtolower( trim( $entity_type ) );
+		
+		// Handle synonyms - map to supported types
+		// Note: "inventory" is NOT mapped - it's handled separately to show all inventory
+		$synonyms = array(
+			'stock levels' => 'stock',
+			'stock level' => 'stock',
+		);
+		
+		if ( isset( $synonyms[ $normalized ] ) ) {
+			return $synonyms[ $normalized ];
+		}
+		
+		// Keep "inventory" as-is (not normalized to "stock")
+		return $normalized;
+	}
+
+	/**
 	 * Extract entity_type from transient storage.
 	 *
 	 * @return string|false Entity type or false if not found.
@@ -1832,6 +1919,28 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		wp_send_json_error( array( 'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-woocommerce' ) ), 500 );
+	}
+
+	/**
+	 * Handle inventory chart data request via AJAX.
+	 *
+	 * @return void
+	 */
+	public function handle_get_inventory_chart() {
+		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
+		// Get all inventory products
+		$inventory_data = $this->data_fetcher->get_all_inventory_products( array( 'limit' => 100 ) );
+
+		if ( isset( $inventory_data['error'] ) && $inventory_data['error'] ) {
+			wp_send_json_error( array( 'message' => $inventory_data['message'] ), 400 );
+		}
+
+		wp_send_json_success( array( 'products' => $inventory_data['products'] ?? array() ) );
 	}
 }
 

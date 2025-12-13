@@ -43,7 +43,7 @@
 - No priority support
 
 #### Paid Tier
-**"Pro" - $29/month** or **$290/year** (save 17%)
+**"Pro" - $19/month** or **$190/year** (save 17%)
 - ✅ Unlimited questions
 - ✅ All entity types (orders, products, customers, categories, tags, coupons, refunds, stock)
 - ✅ Chat history (5 days)
@@ -51,6 +51,10 @@
 - ✅ Advanced analytics (statistics, sampling, time-series)
 - ✅ Email support
 - ✅ Single store
+
+**Alternative: "Pro" - $15/month** or **$150/year** (save 17%)
+- Same features as above
+- More competitive pricing for early adopters
 
 **"Agency" - $99/month** or **$990/year** (save 17%)
 - ✅ Everything in Pro
@@ -419,7 +423,7 @@
 - Documentation
 - 48-72 hour response time
 
-### Pro Tier ($29/month)
+### Pro Tier ($19/month or $15/month)
 - Email support
 - Priority documentation
 - 24-48 hour response time
@@ -434,20 +438,35 @@
 
 ## 💰 Revenue Projections (Conservative)
 
-### Month 1
+### Month 1 (at $15/month)
 - 100 free users
-- 5 paid users @ $29 = $145/month
-- **Total: $145/month**
+- 8 paid users @ $15 = $120/month
+- **Total: $120/month**
 
-### Month 3
+### Month 3 (at $15/month)
 - 500 free users
-- 25 paid users @ $29 = $725/month
-- **Total: $725/month**
+- 40 paid users @ $15 = $600/month
+- **Total: $600/month**
 
-### Month 6
+### Month 6 (at $15/month)
 - 2,000 free users
-- 100 paid users @ $29 = $2,900/month
-- **Total: $2,900/month**
+- 150 paid users @ $15 = $2,250/month
+- **Total: $2,250/month**
+
+### Month 1 (at $19/month)
+- 100 free users
+- 6 paid users @ $19 = $114/month
+- **Total: $114/month**
+
+### Month 3 (at $19/month)
+- 500 free users
+- 30 paid users @ $19 = $570/month
+- **Total: $570/month**
+
+### Month 6 (at $19/month)
+- 2,000 free users
+- 120 paid users @ $19 = $2,280/month
+- **Total: $2,280/month**
 
 ### Month 12
 - 5,000 free users
