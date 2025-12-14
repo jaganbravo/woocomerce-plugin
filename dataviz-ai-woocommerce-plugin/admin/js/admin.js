@@ -167,6 +167,8 @@
 			return 'orders';
 		} else if ( lowerQuestion.includes( 'product' ) || lowerQuestion.includes( 'item' ) ) {
 			return 'products';
+		} else if ( lowerQuestion.includes( 'inventory' ) || lowerQuestion.includes( 'stock' ) ) {
+			return 'inventory';
 		} else if ( lowerQuestion.includes( 'coupon' ) || lowerQuestion.includes( 'discount' ) ) {
 			return 'coupons';
 		} else if ( lowerQuestion.includes( 'customer' ) || lowerQuestion.includes( 'buyer' ) ) {
@@ -271,16 +273,21 @@
 	}
 
 	// Render chart based on question and data
-	function renderChartForQuestion( question, $messageContainer ) {
+	function renderChartForQuestion( question, $messageContainer, streamToolData = null ) {
 		if ( ! mentionsChart( question ) || typeof DatavizAIAdmin === 'undefined' ) {
 			return;
+		}
+
+		// Check if chart already exists in this container to prevent duplicates
+		if ( $messageContainer.find( '.dataviz-ai-chart-wrapper' ).length > 0 ) {
+			return; // Chart already rendered
 		}
 
 		const chartType = detectChartType( question );
 		const dataType = detectChartData( question );
 
-		// Don't render chart if we can't determine the data type or it's not orders/products
-		if ( ! dataType || ( dataType !== 'orders' && dataType !== 'products' ) ) {
+		// Don't render chart if we can't determine the data type or it's not a supported type
+		if ( ! dataType || ( dataType !== 'orders' && dataType !== 'products' && dataType !== 'inventory' ) ) {
 			return;
 		}
 
@@ -349,7 +356,85 @@
 					renderBarChart( $chartContainer, data, labels, 'Top Products by Sales', 'Units Sold' );
 				}
 			}
+		} else if ( dataType === 'inventory' ) {
+			// Inventory chart - use data from stream if available, otherwise fetch via AJAX
+			// streamToolData is passed as third parameter when called from stream completion
+			if ( streamToolData && streamToolData.inventory && streamToolData.inventory.products ) {
+				// Use data already fetched by LLM (no redundant AJAX call)
+				renderInventoryChart( $chartContainer, chartType, streamToolData.inventory.products );
+			} else {
+				// Fallback: fetch data via AJAX if not in stream
+				fetchInventoryForChart( $chartContainer, chartType, question );
+			}
 		}
+	}
+
+	// Render inventory chart from products data (shared by both stream and AJAX)
+	function renderInventoryChart( $chartContainer, chartType, products ) {
+		if ( chartType === 'pie' ) {
+			// Inventory pie chart - group by stock status or stock ranges
+			const stockGroups = {};
+			
+			products.forEach( function( product ) {
+				const stockQty = product.stock_quantity;
+				let group;
+				
+				if ( stockQty === null || stockQty === undefined ) {
+					group = 'No Stock Management';
+				} else if ( stockQty === 0 ) {
+					group = 'Out of Stock';
+				} else if ( stockQty < 10 ) {
+					group = 'Low Stock (1-9)';
+				} else if ( stockQty < 50 ) {
+					group = 'Medium Stock (10-49)';
+				} else {
+					group = 'High Stock (50+)';
+				}
+				
+				stockGroups[ group ] = ( stockGroups[ group ] || 0 ) + 1;
+			} );
+			
+			const labels = Object.keys( stockGroups );
+			const data = Object.values( stockGroups );
+			
+			if ( labels.length > 0 ) {
+				renderPieChart( $chartContainer, data, labels, 'Inventory Distribution by Stock Level' );
+			}
+		} else if ( chartType === 'bar' ) {
+			// Top products by stock quantity (bar chart)
+			const productsWithStock = products
+				.filter( p => p.stock_quantity !== null && p.stock_quantity !== undefined )
+				.sort( ( a, b ) => b.stock_quantity - a.stock_quantity )
+				.slice( 0, 10 );
+			
+			const labels = productsWithStock.map( p => p.name.length > 15 ? p.name.substring( 0, 15 ) + '...' : p.name );
+			const data = productsWithStock.map( p => p.stock_quantity );
+			
+			if ( labels.length > 0 ) {
+				renderBarChart( $chartContainer, data, labels, 'Top Products by Stock Quantity', 'Stock Qty' );
+			}
+		}
+	}
+
+	// Fetch inventory data for chart rendering (fallback if not in stream)
+	function fetchInventoryForChart( $chartContainer, chartType, question ) {
+		// Make AJAX call to get inventory data
+		jQuery.ajax( {
+			url: DatavizAIAdmin.ajaxUrl,
+			type: 'POST',
+			data: {
+				action: 'dataviz_ai_get_inventory_chart',
+				nonce: DatavizAIAdmin.nonce,
+			},
+			success: function( response ) {
+				if ( response.success && response.data && response.data.products ) {
+					renderInventoryChart( $chartContainer, chartType, response.data.products );
+				}
+			},
+			error: function() {
+				console.error( 'Failed to fetch inventory data for chart' );
+			}
+		} );
 	}
 
 	// Stop the current stream
@@ -500,6 +585,7 @@
 				currentStreamReader = reader;
 				const decoder = new TextDecoder();
 				let buffer = '';
+				let streamToolData = null; // Store tool data from stream for chart rendering
 
 				function readChunk() {
 					return reader.read().then( function( result ) {
@@ -518,13 +604,7 @@
 							
 							if ( ! streamStopped && fullResponse.trim() ) {
 								conversationHistory.push( { role: 'assistant', content: fullResponse } );
-								
-								// Render charts if question mentions charts
-								if ( mentionsChart( question ) ) {
-									setTimeout( function() {
-										renderChartForQuestion( question, $aiMessage );
-									}, 300 );
-								}
+								// Note: Chart rendering is handled when processing [DONE] line below
 							}
 							
 							// Hide stop button, show send button
@@ -550,6 +630,13 @@
 									
 									if ( ! streamStopped && fullResponse.trim() ) {
 										conversationHistory.push( { role: 'assistant', content: fullResponse } );
+										
+										// Render charts if question mentions charts, passing tool data
+										if ( mentionsChart( question ) ) {
+											setTimeout( function() {
+												renderChartForQuestion( question, $aiMessage, streamToolData );
+											}, 300 );
+										}
 									}
 									
 									// Hide stop button, show send button
@@ -574,6 +661,11 @@
 										currentStreamReader = null;
 										currentStreamController = null;
 										return;
+									}
+
+									// Store tool data from stream for chart rendering (if present)
+									if ( data.tool_data ) {
+										streamToolData = data.tool_data;
 									}
 
 									if ( data.chunk && ! streamStopped ) {

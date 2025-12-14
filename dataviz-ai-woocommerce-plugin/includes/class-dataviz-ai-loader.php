@@ -120,6 +120,8 @@ class Dataviz_AI_Loader {
 		add_action( 'wp_ajax_dataviz_ai_get_history', array( $this->ajax, 'handle_get_history_request' ) );
 
 		add_action( 'wp_ajax_dataviz_ai_submit_feature_request', array( $this->ajax, 'handle_submit_feature_request' ) );
+
+		add_action( 'wp_ajax_dataviz_ai_get_inventory_chart', array( $this->ajax, 'handle_get_inventory_chart' ) );
 	}
 
 	/**

@@ -607,6 +607,60 @@ class Dataviz_AI_Data_Fetcher {
 	}
 
 	/**
+	 * Get all products with inventory/stock levels.
+	 *
+	 * @param array $filters Optional filters (limit, etc.).
+	 * @return array
+	 */
+	public function get_all_inventory_products( array $filters = array() ) {
+		if ( ! function_exists( 'wc_get_products' ) ) {
+			return array(
+				'error'   => true,
+				'message' => __( 'WooCommerce is not available. Please ensure WooCommerce is installed and activated.', 'dataviz-ai-woocommerce' ),
+			);
+		}
+
+		$limit = isset( $filters['limit'] ) ? min( 500, max( 1, (int) $filters['limit'] ) ) : 100;
+
+		$products = wc_get_products(
+			array(
+				'limit'  => $limit,
+				'status' => array( 'publish' ),
+			)
+		);
+
+		$inventory = array();
+
+		foreach ( $products as $product ) {
+			/* @var WC_Product $product */
+			$stock_quantity = $product->get_stock_quantity();
+			$stock_status   = $product->get_stock_status();
+			$manage_stock   = $product->get_manage_stock();
+
+			$inventory[] = array(
+				'id'             => $product->get_id(),
+				'name'           => $product->get_name(),
+				'sku'            => $product->get_sku(),
+				'stock_quantity' => $manage_stock ? ( $stock_quantity !== null ? $stock_quantity : 0 ) : null,
+				'stock_status'   => $stock_status,
+				'manage_stock'   => $manage_stock,
+				'price'          => $product->get_price(),
+				'backorders'     => $product->get_backorders(),
+			);
+		}
+
+		return array(
+			'products' => $inventory,
+			'total'    => count( $inventory ),
+			'message'  => sprintf(
+				/* translators: %d: number of products */
+				_n( 'Found %d product with inventory information.', 'Found %d products with inventory information.', count( $inventory ), 'dataviz-ai-woocommerce' ),
+				count( $inventory )
+			),
+		);
+	}
+
+	/**
 	 * Get products by category.
 	 *
 	 * @param int $category_id Category ID.
