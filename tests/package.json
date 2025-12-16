@@ -1,0 +1,23 @@
+{
+  "name": "dataviz-ai-test-agent",
+  "version": "1.0.0",
+  "description": "AI-powered test agent for Dataviz AI WooCommerce plugin",
+  "main": "ai-chat-test-agent.js",
+  "scripts": {
+    "test": "node ai-chat-test-agent.js",
+    "test:headless": "HEADLESS=true node ai-chat-test-agent.js"
+  },
+  "keywords": [
+    "testing",
+    "ai",
+    "woocommerce",
+    "playwright"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "openai": "^4.20.0",
+    "dotenv": "^16.3.1"
+  }
+}
