@@ -3,3 +3,6 @@ docker/wordpress/
 .DS_Store
 *.log
 
+# Ignore plugin configuration file (contains sensitive data)
+dataviz-ai-woocommerce-plugin/config.php
+

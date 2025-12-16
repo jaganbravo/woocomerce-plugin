@@ -27,6 +27,14 @@ define( 'DATAVIZ_AI_WC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'DATAVIZ_AI_WC_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 /**
+ * Load configuration file if it exists.
+ */
+$config_file = DATAVIZ_AI_WC_PLUGIN_DIR . 'config.php';
+if ( file_exists( $config_file ) ) {
+	require_once $config_file;
+}
+
+/**
  * Autoload dependencies.
  */
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-loader.php';

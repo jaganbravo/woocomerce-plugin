@@ -50,13 +50,6 @@ class Dataviz_AI_Admin {
 	protected $menu_slug = 'dataviz-ai-woocommerce';
 
 	/**
-	 * Settings page slug.
-	 *
-	 * @var string
-	 */
-	protected $settings_slug = 'dataviz-ai-woocommerce-settings';
-
-	/**
 	 * Constructor.
 	 *
 	 * @param string                  $plugin_name  Plugin slug.
@@ -86,109 +79,9 @@ class Dataviz_AI_Admin {
 			'dashicons-admin-comments',
 			56
 		);
-
-		add_submenu_page(
-			$this->menu_slug,
-			__( 'API Settings', 'dataviz-ai-woocommerce' ),
-			__( 'API Settings', 'dataviz-ai-woocommerce' ),
-			'manage_woocommerce',
-			$this->settings_slug,
-			array( $this, 'render_settings_page' )
-		);
 	}
 
-	/**
-	 * Register settings.
-	 *
-	 * @return void
-	 */
-	public function register_settings() {
-		register_setting(
-			'dataviz_ai_wc',
-			'dataviz_ai_wc_settings',
-			array(
-				'type'              => 'array',
-				'sanitize_callback' => array( $this, 'sanitize_settings' ),
-				'default'           => array(
-					'api_url' => '',
-					'api_key' => '',
-				),
-			)
-		);
 
-		add_settings_section(
-			'dataviz_ai_wc_api',
-			__( 'API Configuration', 'dataviz-ai-woocommerce' ),
-			function() {
-				echo '<p>' . esc_html__( 'Connect your WordPress store to the Dataviz AI backend.', 'dataviz-ai-woocommerce' ) . '</p>';
-			},
-			'dataviz_ai_wc'
-		);
-
-		add_settings_field(
-			'dataviz_ai_wc_api_url',
-			__( 'API Base URL', 'dataviz-ai-woocommerce' ),
-			array( $this, 'render_api_url_field' ),
-			'dataviz_ai_wc',
-			'dataviz_ai_wc_api'
-		);
-
-		add_settings_field(
-			'dataviz_ai_wc_api_key',
-			__( 'API Key', 'dataviz-ai-woocommerce' ),
-			array( $this, 'render_api_key_field' ),
-			'dataviz_ai_wc',
-			'dataviz_ai_wc_api'
-		);
-	}
-
-	/**
-	 * Sanitize settings input.
-	 *
-	 * @param array $input Raw settings from POST.
-	 *
-	 * @return array
-	 */
-	public function sanitize_settings( $input ) {
-		$output = array();
-
-		$output['api_url'] = isset( $input['api_url'] ) ? esc_url_raw( $input['api_url'] ) : '';
-		$output['api_key'] = isset( $input['api_key'] ) ? sanitize_text_field( $input['api_key'] ) : '';
-
-		return $output;
-	}
-
-	/**
-	 * Render API URL field.
-	 *
-	 * @return void
-	 */
-	public function render_api_url_field() {
-		$options = get_option( 'dataviz_ai_wc_settings', array() );
-		$value   = isset( $options['api_url'] ) ? $options['api_url'] : '';
-
-		printf(
-			'<input type="url" name="dataviz_ai_wc_settings[api_url]" value="%1$s" class="regular-text" placeholder="%2$s" />',
-			esc_attr( $value ),
-			esc_attr__( 'https://app.yourdomain.com', 'dataviz-ai-woocommerce' )
-		);
-	}
-
-	/**
-	 * Render API key field.
-	 *
-	 * @return void
-	 */
-	public function render_api_key_field() {
-		$options = get_option( 'dataviz_ai_wc_settings', array() );
-		$value   = isset( $options['api_key'] ) ? $options['api_key'] : '';
-
-		printf(
-			'<input type="password" name="dataviz_ai_wc_settings[api_key]" value="%1$s" class="regular-text" placeholder="%2$s" autocomplete="off" />',
-			esc_attr( $value ),
-			esc_attr__( 'sk-live-...', 'dataviz-ai-woocommerce' )
-		);
-	}
 
 	/**
 	 * Enqueue admin assets.
@@ -199,9 +92,8 @@ class Dataviz_AI_Admin {
 	 */
 	public function enqueue_assets( $hook ) {
 		$is_main_page = 'toplevel_page_' . $this->menu_slug === $hook;
-		$is_settings_page = 'dataviz-ai-woocommerce_page_' . $this->settings_slug === $hook;
 
-		if ( ! $is_main_page && ! $is_settings_page ) {
+		if ( ! $is_main_page ) {
 			return;
 		}
 
@@ -296,13 +188,7 @@ class Dataviz_AI_Admin {
 						<div class="dataviz-ai-chat-warning">
 							<p class="notice inline notice-warning">
 								<strong><?php esc_html_e( 'API key required.', 'dataviz-ai-woocommerce' ); ?></strong> 
-								<?php
-								printf(
-									/* translators: %s: Link to settings page */
-									esc_html__( 'Please %s to enable AI responses. Leave API URL empty to use OpenAI directly.', 'dataviz-ai-woocommerce' ),
-									'<a href="' . esc_url( admin_url( 'admin.php?page=' . $this->settings_slug ) ) . '">' . esc_html__( 'configure your API key', 'dataviz-ai-woocommerce' ) . '</a>'
-								);
-								?>
+								<?php esc_html_e( 'Please configure your API key via environment variables (OPENAI_API_KEY or DATAVIZ_AI_API_KEY) or by editing the config.php file in the plugin directory.', 'dataviz-ai-woocommerce' ); ?>
 							</p>
 						</div>
 					<?php endif; ?>
@@ -351,38 +237,5 @@ class Dataviz_AI_Admin {
 		<?php
 	}
 
-	/**
-	 * Render settings page output.
-	 *
-	 * @return void
-	 */
-	public function render_settings_page() {
-		$api_url = $this->api_client->get_api_url();
-		$api_key = $this->api_client->get_api_key();
-		?>
-		<div class="wrap dataviz-ai-admin">
-			<h1><?php esc_html_e( 'API Settings', 'dataviz-ai-woocommerce' ); ?></h1>
-			<p><?php esc_html_e( 'Configure your API settings to connect the Dataviz AI plugin to your backend service or OpenAI.', 'dataviz-ai-woocommerce' ); ?></p>
-
-			<form method="post" action="options.php" class="dataviz-ai-settings">
-				<?php
-				settings_fields( 'dataviz_ai_wc' );
-				do_settings_sections( 'dataviz_ai_wc' );
-				submit_button( __( 'Save Settings', 'dataviz-ai-woocommerce' ) );
-				?>
-			</form>
-
-			<?php if ( $api_key ) : ?>
-				<div class="notice notice-success inline">
-					<p><strong><?php esc_html_e( 'API key configured.', 'dataviz-ai-woocommerce' ); ?></strong> <?php esc_html_e( 'Your API settings are active.', 'dataviz-ai-woocommerce' ); ?></p>
-				</div>
-			<?php else : ?>
-				<div class="notice notice-warning inline">
-					<p><strong><?php esc_html_e( 'API key required.', 'dataviz-ai-woocommerce' ); ?></strong> <?php esc_html_e( 'Please configure your API key above to enable AI responses. Leave API URL empty to use OpenAI directly.', 'dataviz-ai-woocommerce' ); ?></p>
-				</div>
-			<?php endif; ?>
-		</div>
-		<?php
-	}
 }
 

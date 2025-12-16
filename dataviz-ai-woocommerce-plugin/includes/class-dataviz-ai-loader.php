@@ -101,7 +101,6 @@ class Dataviz_AI_Loader {
 	 */
 	protected function define_admin_hooks() {
 		add_action( 'admin_menu', array( $this->admin, 'register_menu_page' ) );
-		add_action( 'admin_init', array( $this->admin, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_assets' ) );
 	}
 
