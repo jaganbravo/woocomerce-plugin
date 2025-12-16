@@ -50,12 +50,28 @@ class Dataviz_AI_API_Client {
 
 	/**
 	 * Return configured API URL.
+	 * 
+	 * Priority order:
+	 * 1. Environment variable: DATAVIZ_AI_API_BASE_URL
+	 * 2. Config constant: DATAVIZ_AI_API_BASE_URL
+	 * 3. WordPress option (for backward compatibility)
 	 *
 	 * @return string
 	 */
 	public function get_api_url() {
-		$settings = $this->get_settings();
+		// Check environment variable first
+		$env_url = getenv( 'DATAVIZ_AI_API_BASE_URL' );
+		if ( false !== $env_url && ! empty( $env_url ) ) {
+			return esc_url_raw( $env_url );
+		}
 
+		// Check config constant
+		if ( defined( 'DATAVIZ_AI_API_BASE_URL' ) && ! empty( DATAVIZ_AI_API_BASE_URL ) ) {
+			return esc_url_raw( DATAVIZ_AI_API_BASE_URL );
+		}
+
+		// Fall back to WordPress option (backward compatibility)
+		$settings = $this->get_settings();
 		return isset( $settings['api_url'] ) ? esc_url_raw( $settings['api_url'] ) : '';
 	}
 
@@ -70,12 +86,31 @@ class Dataviz_AI_API_Client {
 
 	/**
 	 * Return configured API key.
+	 * 
+	 * Priority order:
+	 * 1. Environment variable: OPENAI_API_KEY or DATAVIZ_AI_API_KEY
+	 * 2. Config constant: DATAVIZ_AI_API_KEY
+	 * 3. WordPress option (for backward compatibility)
 	 *
 	 * @return string
 	 */
 	public function get_api_key() {
-		$settings = $this->get_settings();
+		// Check environment variables first (OpenAI standard, then custom)
+		$env_key = getenv( 'OPENAI_API_KEY' );
+		if ( false === $env_key || empty( $env_key ) ) {
+			$env_key = getenv( 'DATAVIZ_AI_API_KEY' );
+		}
+		if ( false !== $env_key && ! empty( $env_key ) ) {
+			return sanitize_text_field( $env_key );
+		}
 
+		// Check config constant
+		if ( defined( 'DATAVIZ_AI_API_KEY' ) && ! empty( DATAVIZ_AI_API_KEY ) ) {
+			return sanitize_text_field( DATAVIZ_AI_API_KEY );
+		}
+
+		// Fall back to WordPress option (backward compatibility)
+		$settings = $this->get_settings();
 		return isset( $settings['api_key'] ) ? (string) $settings['api_key'] : '';
 	}
 
