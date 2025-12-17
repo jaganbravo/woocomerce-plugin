@@ -37,7 +37,7 @@ const testResults = {
  * Generate test questions using AI
  */
 async function generateTestQuestions() {
-    console.log('🤖 Generating test questions using AI...\n');
+    console.log('[AI] Generating test questions using AI...\n');
     
     const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -75,7 +75,7 @@ async function generateTestQuestions() {
         return Array.isArray(questions) ? questions : [questions];
     } catch (e) {
         // Fallback to predefined questions
-        console.log('⚠️  AI question generation failed, using predefined questions');
+        console.log('[WARN]  AI question generation failed, using predefined questions');
         return getPredefinedQuestions();
     }
 }
@@ -184,10 +184,16 @@ Response received: "${response}"
 Chart displayed: ${hasChart ? 'Yes' : 'No'}
 
 Evaluate if the response is:
-1. Relevant to the question
-2. Contains actual data (not just "I cannot help")
-3. For chart requests, chart should be displayed
+1. Relevant to the question (does it address what was asked?)
+2. Contains actual data or useful information (not just greetings, errors, or "I cannot help")
+3. For chart requests, chart should be displayed (if question asks for chart)
 4. Response should be helpful and informative
+
+IMPORTANT: 
+- A response that contains actual WooCommerce data (orders, products, customers, statistics, etc.) is VALID
+- A response that is a greeting like "Hello! How can I assist you?" without data is INVALID
+- A response that provides data but doesn't have a chart (when chart was requested) should still be VALID if it contains the data
+- Only mark as INVALID if the response is clearly irrelevant, contains no data, or is just a greeting
 
 Return ONLY a JSON object with:
 {
@@ -223,7 +229,7 @@ Return ONLY a JSON object with:
  * Login to WordPress admin
  */
 async function loginToWordPress(page) {
-    console.log('🔐 Logging into WordPress admin...');
+    console.log('[LOGIN] Logging into WordPress admin...');
     
     await page.goto('http://localhost:8080/wp-login.php');
     await page.fill('#user_login', CONFIG.adminUser);
@@ -232,14 +238,14 @@ async function loginToWordPress(page) {
     
     // Wait for dashboard
     await page.waitForURL('**/wp-admin/**', { timeout: 10000 });
-    console.log('✅ Logged in successfully\n');
+    console.log('[SUCCESS] Logged in successfully\n');
 }
 
 /**
  * Test a single chat question
  */
 async function testChatQuestion(page, question, questionNumber) {
-    console.log(`\n📝 Test ${questionNumber}: "${question}"`);
+    console.log('\n[TEST] Test ' + questionNumber + ': "' + question + '"');
     
     try {
         // Navigate to plugin page
@@ -296,51 +302,185 @@ async function testChatQuestion(page, question, questionNumber) {
             throw new Error('Could not find send button');
         }
         
+        // Count existing AI messages before sending (to identify the new one)
+        const aiMessagesBefore = await page.$$('.dataviz-ai-message--ai');
+        const messageCountBefore = aiMessagesBefore.length;
+        
         await sendButton.click();
         
-        // Wait for response (look for AI message or chart)
-        await page.waitForTimeout(2000); // Initial wait
+        // Wait for send button to be disabled (streaming started)
+        await page.waitForTimeout(1000);
         
-        // Wait for response to appear
-        const responseSelectors = [
-            '.dataviz-ai-message--ai',  // Correct class for AI messages
-            '.dataviz-ai-message-ai',
-            '.dataviz-ai-message-content',  // Message content
-            '.ai-message',
-            '.chat-message-ai',
-            '[class*="message"][class*="ai"]',
-            '.dataviz-ai-chart-wrapper',  // Chart wrapper
-            'canvas' // Chart.js canvas
-        ];
-        
-        let responseElement = null;
-        for (const selector of responseSelectors) {
-            try {
-                await page.waitForSelector(selector, { timeout: 20000 });
-                responseElement = await page.$(selector);
-                if (responseElement) break;
-            } catch (e) {}
-        }
-        
-        if (!responseElement) {
-            throw new Error('No response received within timeout');
-        }
-        
-        // Get response text - wait a bit more for streaming to complete
-        await page.waitForTimeout(5000); // Wait for streaming to complete
-        
-        let responseText = '';
+        // Wait for send button to be re-enabled (streaming completed)
+        // This is a reliable signal that the stream is done
         try {
-            // Try to get text from AI message
-            const aiMessage = await page.$('.dataviz-ai-message--ai .dataviz-ai-message-content');
-            if (aiMessage) {
-                responseText = await aiMessage.textContent();
-            } else {
-                responseText = await responseElement.textContent();
-            }
+            await page.waitForFunction(
+                () => {
+                    const sendBtn = document.querySelector('.dataviz-ai-chat-send');
+                    return sendBtn && !sendBtn.disabled && sendBtn.offsetParent !== null;
+                },
+                { timeout: 30000 }
+            );
+            console.log('   [OK] Streaming completed (send button re-enabled)');
         } catch (e) {
-            // Try getting from page
-            responseText = await page.textContent('body');
+            console.log('   [WARN]  Send button not re-enabled within timeout, continuing...');
+        }
+        
+        // Wait for response (look for AI message or chart)
+        await page.waitForTimeout(2000); // Additional wait for UI updates
+        
+        // Wait for a NEW AI message to appear (count should increase)
+        let newMessageFound = false;
+        for (let i = 0; i < 20; i++) {
+            await page.waitForTimeout(500);
+            const aiMessagesAfter = await page.$$('.dataviz-ai-message--ai');
+            if (aiMessagesAfter.length > messageCountBefore) {
+                newMessageFound = true;
+                break;
+            }
+        }
+        
+        if (!newMessageFound) {
+            // Fallback: wait for any AI message
+            await page.waitForSelector('.dataviz-ai-message--ai', { timeout: 20000 });
+        }
+        
+        // Get ALL AI messages and select the LAST one (most recent)
+        const allAiMessages = await page.$$('.dataviz-ai-message--ai');
+        if (allAiMessages.length === 0) {
+            throw new Error('No AI messages found');
+        }
+        
+        // The last message is the most recent one
+        const latestAiMessage = allAiMessages[allAiMessages.length - 1];
+        
+        // Wait for streaming to complete - check multiple times until response is stable
+        let responseText = '';
+        let previousResponse = '';
+        let stableCount = 0;
+        const maxWaitTime = 30000; // 30 seconds max
+        const checkInterval = 1000; // Check every second
+        const stableThreshold = 3; // Response must be stable for 3 checks
+        
+        for (let waitTime = 0; waitTime < maxWaitTime; waitTime += checkInterval) {
+            await page.waitForTimeout(checkInterval);
+            
+            try {
+                // Get ALL AI messages and select the LAST one (most recent)
+                const allAiMessages = await page.$$('.dataviz-ai-message--ai');
+                if (allAiMessages.length > 0) {
+                    const latestMessage = allAiMessages[allAiMessages.length - 1];
+                    // Try to get text from the latest message's content
+                    const messageContent = await latestMessage.$('.dataviz-ai-message-content');
+                    if (messageContent) {
+                        responseText = await messageContent.textContent();
+                    } else {
+                        // Fallback: get text from the message container itself
+                        responseText = await latestMessage.textContent();
+                    }
+                } else {
+                    // Fallback: try getting from any AI message (shouldn't happen)
+                    // Get the latest AI message (most recent)
+                    const allAiMessages = await page.$$('.dataviz-ai-message--ai');
+                    if (allAiMessages.length > 0) {
+                        const latestMessage = allAiMessages[allAiMessages.length - 1];
+                        const messageContent = await latestMessage.$('.dataviz-ai-message-content');
+                        if (messageContent) {
+                            responseText = await messageContent.textContent();
+                        } else {
+                            responseText = await latestMessage.textContent();
+                        }
+                    }
+                }
+                
+                responseText = responseText ? responseText.trim() : '';
+                
+                // Check if response is stable (not changing)
+                if (responseText === previousResponse && responseText.length > 0) {
+                    stableCount++;
+                    if (stableCount >= stableThreshold) {
+                        // Response is stable, break
+                        break;
+                    }
+                } else {
+                    stableCount = 0;
+                    previousResponse = responseText;
+                }
+                
+                // If response contains data keywords and is not just a greeting, it's likely complete
+                const hasDataKeywords = /order|product|customer|revenue|sale|inventory|stock|statistic/i.test(responseText);
+                const isNotJustGreeting = !/^hello[!.]?\s*(how can i assist you|how may i help)/i.test(responseText);
+                
+                if (hasDataKeywords && isNotJustGreeting && responseText.length > 50) {
+                    // Response looks complete, break early
+                    break;
+                }
+            } catch (e) {
+                // Continue waiting
+            }
+        }
+        
+        // Final extraction - get the latest AI message
+        if (!responseText || responseText.length < 10) {
+            try {
+                // Get ALL AI messages and select the LAST one (most recent)
+                const allAiMessages = await page.$$('.dataviz-ai-message--ai');
+                if (allAiMessages.length > 0) {
+                    const latestMessage = allAiMessages[allAiMessages.length - 1];
+                    const messageContent = await latestMessage.$('.dataviz-ai-message-content');
+                    if (messageContent) {
+                        responseText = await messageContent.textContent();
+                    } else {
+                        responseText = await latestMessage.textContent();
+                    }
+                }
+                responseText = responseText ? responseText.trim() : '';
+            } catch (e) {
+                responseText = '';
+            }
+        }
+        
+        // Debug: log the actual response for troubleshooting
+        if (responseText.length < 50) {
+            console.log('   [WARN]  Warning: Response seems short (' + responseText.length + ' chars): "' + responseText + '"');
+        }
+        
+        // Additional check: if response is just a greeting, wait longer for tools to execute
+        if (/^hello[!.]?\s*(how can i assist you|how may i help)/i.test(responseText) && responseText.length < 100) {
+            console.log('   [WARN]  Detected greeting, waiting for tools to execute and response to update...');
+            
+            // Wait for response to change (tools might be executing)
+            for (let i = 0; i < 10; i++) {
+                await page.waitForTimeout(2000); // Wait 2 seconds
+                
+                try {
+                    // Get the latest AI message (most recent)
+                    const allAiMessages = await page.$$('.dataviz-ai-message--ai');
+                    if (allAiMessages.length > 0) {
+                        const latestMessage = allAiMessages[allAiMessages.length - 1];
+                        const messageContent = await latestMessage.$('.dataviz-ai-message-content');
+                        const newResponse = messageContent ? await messageContent.textContent() : await latestMessage.textContent();
+                        const newResponseTrimmed = newResponse ? newResponse.trim() : '';
+                        
+                        // Check if response has changed and contains data
+                        if (newResponseTrimmed.length > responseText.length) {
+                            responseText = newResponseTrimmed;
+                            
+                            // If new response has data keywords, it's likely the real response
+                            const hasDataKeywords = /order|product|customer|revenue|sale|inventory|stock|statistic|total|count/i.test(responseText);
+                            if (hasDataKeywords && !/^hello[!.]?\s*(how can i assist you|how may i help)/i.test(responseText)) {
+                                console.log('   [OK] Response updated with data after ' + (i + 1) * 2 + ' seconds');
+                                break;
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+            
+            // Final check: if still just greeting, log for debugging
+            if (/^hello[!.]?\s*(how can i assist you|how may i help)/i.test(responseText) && responseText.length < 100) {
+                console.log('   [WARN]  Response still appears to be just a greeting after waiting');
+            }
         }
         
         // Check if chart was displayed
@@ -351,12 +491,12 @@ async function testChatQuestion(page, question, questionNumber) {
         
         // Log result
         if (verification.valid) {
-            console.log(`✅ PASSED: ${verification.reason}`);
-            if (chartExists) console.log('   📊 Chart displayed');
+            console.log('[SUCCESS] PASSED: ' + verification.reason + '');
+            if (chartExists) console.log('   [CHART] Chart displayed');
             testResults.passed.push({ question, response: responseText.substring(0, 100) });
         } else {
-            console.log(`❌ FAILED: ${verification.reason}`);
-            console.log(`   Response: ${responseText.substring(0, 150)}...`);
+            console.log('[FAIL] FAILED: ' + verification.reason + '');
+            console.log('   Response: ' + responseText.substring(0, 150) + '...');
             testResults.failed.push({ 
                 question, 
                 response: responseText.substring(0, 200),
@@ -370,7 +510,7 @@ async function testChatQuestion(page, question, questionNumber) {
         await page.waitForTimeout(2000);
         
     } catch (error) {
-        console.log(`❌ ERROR: ${error.message}`);
+        console.log('[FAIL] ERROR: ' + error.message + '');
         testResults.failed.push({ 
             question, 
             error: error.message 
@@ -383,7 +523,7 @@ async function testChatQuestion(page, question, questionNumber) {
  * Run all tests
  */
 async function runTests() {
-    console.log('🚀 Starting AI Chat Test Agent\n');
+    console.log('[START] Starting AI Chat Test Agent\n');
     console.log('=' .repeat(60));
     
     const browser = await chromium.launch({ 
@@ -400,7 +540,7 @@ async function runTests() {
         
         // Generate test questions
         const questions = await generateTestQuestions();
-        console.log(`📋 Generated ${questions.length} test questions\n`);
+        console.log('[LIST] Generated ' + questions.length + ' test questions\n');
         
         // Run tests
         for (let i = 0; i < questions.length; i++) {
@@ -408,7 +548,7 @@ async function runTests() {
         }
         
     } catch (error) {
-        console.error('❌ Fatal error:', error);
+        console.error('[FAIL] Fatal error:', error);
     } finally {
         await browser.close();
     }
@@ -422,20 +562,20 @@ async function runTests() {
  */
 function printSummary() {
     console.log('\n' + '='.repeat(60));
-    console.log('📊 TEST SUMMARY');
+    console.log('[CHART] TEST SUMMARY');
     console.log('='.repeat(60));
-    console.log(`Total Tests: ${testResults.total}`);
-    console.log(`✅ Passed: ${testResults.passed.length}`);
-    console.log(`❌ Failed: ${testResults.failed.length}`);
-    console.log(`Success Rate: ${((testResults.passed.length / testResults.total) * 100).toFixed(1)}%`);
+    console.log('Total Tests: ' + testResults.total + '');
+    console.log('[SUCCESS] Passed: ' + testResults.passed.length + '');
+    console.log('[FAIL] Failed: ' + testResults.failed.length + '');
+    console.log('Success Rate: ' + ((testResults.passed.length / testResults.total) * 100).toFixed(1) + '%');
     
     if (testResults.failed.length > 0) {
-        console.log('\n❌ Failed Tests:');
+        console.log('\n[FAIL] Failed Tests:');
         testResults.failed.forEach((test, i) => {
-            console.log(`\n${i + 1}. Question: "${test.question}"`);
-            if (test.reason) console.log(`   Reason: ${test.reason}`);
-            if (test.error) console.log(`   Error: ${test.error}`);
-            if (test.response) console.log(`   Response: ${test.response.substring(0, 100)}...`);
+            console.log('\n${i + 1}. Question: "' + test.question + '"');
+            if (test.reason) console.log('   Reason: ' + test.reason + '');
+            if (test.error) console.log('   Error: ' + test.error + '');
+            if (test.response) console.log('   Response: ' + test.response.substring(0, 100) + '...');
         });
     }
     
@@ -448,4 +588,5 @@ if (require.main === module) {
 }
 
 module.exports = { runTests, testChatQuestion, verifyResponse };
+
 

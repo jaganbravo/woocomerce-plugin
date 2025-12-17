@@ -320,9 +320,11 @@ class Dataviz_AI_AJAX_Handler {
 			'tools' => $tools,
 		);
 		
-		// For data-related questions, prefer tool usage.
+		// For data-related questions, strongly encourage tool usage.
 		if ( $this->question_requires_data( $question ) ) {
-			$options['tool_choice'] = 'auto'; // Let LLM decide, but strongly hint
+			// Use 'required' to force tool usage, but we'll fall back to auto-detect if LLM still doesn't call tools
+			// We can't use 'required' with multiple tools, so use 'auto' but detect and fix if LLM doesn't comply
+			$options['tool_choice'] = 'auto';
 		}
 		
 		$first_response = $this->api_client->send_openai_chat(
@@ -337,19 +339,43 @@ class Dataviz_AI_AJAX_Handler {
 
 		$assistant_message = $first_response['choices'][0]['message'] ?? array();
 		$tool_calls        = $assistant_message['tool_calls'] ?? array();
+		
+		// If LLM responds with content instead of calling tools, check if question requires data.
+		// If it does, ignore the content response and auto-detect tool calls instead.
+		if ( empty( $tool_calls ) && isset( $assistant_message['content'] ) && ! empty( $assistant_message['content'] ) ) {
+			if ( $this->question_requires_data( $question ) ) {
+				// Question requires data but LLM didn't call tools - auto-detect and call tools.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] LLM returned content instead of calling tools for data question. Question: %s', $question ) );
+				}
+				$tool_calls = $this->auto_detect_tool_calls( $question );
+				// Don't add the assistant message with content - we'll fetch data instead.
+				unset( $assistant_message['content'] );
+			}
+		}
 
 		// If LLM doesn't call tools but question is clearly about data, proactively fetch data.
 		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
 			// Automatically fetch relevant data based on question keywords.
 			$tool_calls = $this->auto_detect_tool_calls( $question );
+			// If we auto-detected tool calls, don't use any content from assistant_message
+			if ( ! empty( $tool_calls ) && isset( $assistant_message['content'] ) ) {
+				unset( $assistant_message['content'] );
+			}
 		}
 
 		// If LLM wants to call tools (or we auto-detected), execute them and then stream the final response.
 		if ( ! empty( $tool_calls ) ) {
-			// If we have LLM tool calls, add the assistant message. Otherwise, we're using auto-detected calls.
-			if ( isset( $assistant_message['tool_calls'] ) ) {
+			// Only add assistant message if it has tool_calls (from LLM), not if we auto-detected.
+			// Also ensure it doesn't have unwanted content (greeting).
+			if ( isset( $assistant_message['tool_calls'] ) && ! empty( $assistant_message['tool_calls'] ) ) {
+				// Remove any content if present (shouldn't be, but safety check)
+				if ( isset( $assistant_message['content'] ) && ! empty( $assistant_message['content'] ) ) {
+					unset( $assistant_message['content'] );
+				}
 				$messages[] = $assistant_message;
 			}
+			// If we auto-detected tool calls, don't add assistant_message (it might contain greeting)
 
 			// Store tool results for frontend (to avoid redundant AJAX calls).
 			$tool_results_for_frontend = array();
@@ -417,34 +443,65 @@ class Dataviz_AI_AJAX_Handler {
 			}
 
 			// Now get the final streaming response.
-			$final_prompt = 'Based on the WooCommerce store data that was just fetched using the tools, please answer the user\'s question: ' . $question . "\n\n";
-			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
+			$final_prompt = 'You are a WooCommerce data analyst. The user asked: "' . $question . '". ';
+			$final_prompt .= 'I have just fetched the relevant data from the WooCommerce store using tools. ';
+			$final_prompt .= 'Your task is to analyze this data and provide a clear, helpful answer to the user\'s question. ';
+			$final_prompt .= "\n\nCRITICAL: Do NOT greet the user or say 'Hello' or 'How can I assist you'. ";
+			$final_prompt .= "The user has already asked a specific question - answer it directly with the data provided. ";
+			$final_prompt .= "Start your response by directly addressing their question. ";
+			$final_prompt .= "\n\nIMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
 			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported or not yet available. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format without mentioning chart limitations. ";
 			$final_prompt .= "If the error response includes 'can_submit_request': true and 'submission_prompt', ask the user if they would like to submit a feature request using the exact prompt provided. ";
 			$final_prompt .= "CRITICAL: If in a follow-up message the user says 'yes', 'request this feature', 'submit request', or any affirmative response, you MUST IMMEDIATELY call submit_feature_request tool. Extract the entity_type from the 'requested_entity' field in the most recent tool error response. Do NOT ask for clarification - just call the tool with the entity_type from the error response. ";
 			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database. ";
 			$final_prompt .= "If a feature request was successfully submitted (check for 'success': true in tool responses), confirm this to the user and let them know the administrators have been notified. ";
-			$final_prompt .= "Otherwise, provide a comprehensive and helpful answer using the actual data that was retrieved.";
+			$final_prompt .= "Otherwise, provide a comprehensive and helpful answer using the actual data that was retrieved. ";
+			$final_prompt .= "\n\nRemember: Answer the question directly. Do not greet the user.";
 			
 			$messages[] = array(
 				'role'    => 'user',
 				'content' => $final_prompt,
 			);
 		} else {
-			// No tools needed, add the assistant message and ask for answer.
-			if ( isset( $assistant_message['content'] ) ) {
+			// No tools needed - but double-check: if question requires data, we should have called tools
+			// This else block should only be reached for non-data questions
+			if ( isset( $assistant_message['content'] ) && ! $this->question_requires_data( $question ) ) {
 				$messages[] = $assistant_message;
+			} elseif ( $this->question_requires_data( $question ) ) {
+				// Question requires data but no tool calls - this is an error case
+				// Log it but don't stream the greeting - return an error instead
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] ERROR: No tool calls detected for data question: %s', $question ) );
+				}
+				$this->send_stream_error( __( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' ) );
+				return;
 			}
 		}
 
 		// Reset streaming content accumulator.
 		$this->streaming_content = '';
+		
+		// For data questions, filter out greetings from the stream
+		$is_data_question = $this->question_requires_data( $question );
+		$greeting_pattern = '/^hello[!.]?\s*(how can i assist you|how may i help)/i';
 
 		// Stream the final response.
 		$stream_result = $this->api_client->send_openai_chat_stream(
 			$messages,
-			function( $chunk ) {
+			function( $chunk ) use ( $is_data_question, $greeting_pattern ) {
 				$this->streaming_content .= $chunk;
+				
+				// For data questions, check if accumulated content is just a greeting
+				if ( $is_data_question ) {
+					$trimmed_content = trim( $this->streaming_content );
+					// If content matches greeting pattern and is short, don't send yet
+					if ( preg_match( $greeting_pattern, $trimmed_content ) && strlen( $trimmed_content ) < 80 ) {
+						// Don't send this chunk - it's just a greeting, wait for actual content
+						return;
+					}
+				}
+				
+				// Send the chunk normally
 				$this->send_stream_chunk( $chunk );
 			},
 			array(
@@ -571,15 +628,43 @@ class Dataviz_AI_AJAX_Handler {
 		$tool_calls = array();
 		$lower_question = strtolower( $question );
 		
-		// Check for orders/sales/revenue keywords.
-		if ( preg_match( '/\b(order|orders|sale|sales|revenue|transaction|purchase|recent)\b/i', $question ) ) {
+		// Check for statistics/aggregated queries (revenue, total, count, average, etc.)
+		if ( preg_match( '/\b(total|revenue|count|average|sum|statistics|stats|how many)\b/i', $question ) && 
+		     preg_match( '/\b(order|orders|sale|sales)\b/i', $question ) ) {
+			// Use order statistics for aggregated queries
 			$tool_calls[] = array(
 				'function' => array(
-					'name' => 'get_recent_orders',
-					'arguments' => wp_json_encode( array( 'limit' => 20 ) ),
+					'name' => 'get_order_statistics',
+					'arguments' => wp_json_encode( array() ),
 				),
-				'id' => 'auto-orders-' . uniqid(),
+				'id' => 'auto-order-stats-' . uniqid(),
 			);
+		}
+		// Check for orders/sales/revenue keywords (list queries)
+		elseif ( preg_match( '/\b(order|orders|sale|sales|revenue|transaction|purchase|recent)\b/i', $question ) ) {
+			// For questions about orders, use flexible tool with appropriate query type
+			if ( preg_match( '/\b(list|show|display|all)\b/i', $question ) ) {
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_woocommerce_data',
+						'arguments' => wp_json_encode( array(
+							'entity_type' => 'orders',
+							'query_type' => 'list',
+							'filters' => array( 'limit' => 20 ),
+						) ),
+					),
+					'id' => 'auto-orders-list-' . uniqid(),
+				);
+			} else {
+				// Default to order statistics for general order queries
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_order_statistics',
+						'arguments' => wp_json_encode( array() ),
+					),
+					'id' => 'auto-order-stats-' . uniqid(),
+				);
+			}
 		}
 		
 		// Check for product keywords.
@@ -638,7 +723,7 @@ class Dataviz_AI_AJAX_Handler {
 		return array(
 			array(
 				'role'    => 'system',
-				'content' => __( 'You are an AI assistant helping analyze WooCommerce store data. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. CRITICAL: When the user asks about ANY store data (orders, products, customers, sales, revenue, commission, sales commission, reviews, shipping, taxes, inventory, stock, or ANY other data type), you MUST use the available tools to fetch that data. Even if you think the data type might not be supported, still call the get_woocommerce_data tool with the exact entity_type the user mentioned (e.g., if they say "commission" or "sales commission", use entity_type: "commission"). Do not say you don\'t have access - use the tools provided to get the actual data from the store. IMPORTANT: If the user asks for a chart, graph, pie chart, bar chart, or visualization, you should still fetch the data using the tools. The frontend will automatically render charts based on the data and question - you do NOT need to generate charts yourself. Just provide the data in a clear format. Do NOT say "I cannot generate charts" - charts are handled automatically by the system. Only provide answers after you have retrieved the relevant data using the tools. If a tool returns an error (check for "error": true in the response), politely inform the user that the requested feature is not yet available and suggest available alternatives based on the error message provided. If the error response includes "can_submit_request": true and "submission_prompt", ask the user if they would like to submit a feature request using the exact prompt provided. CRITICAL: If the user says "yes", "request this feature", "submit request", "yes please", "sure", "ok", or ANY affirmative response, you MUST IMMEDIATELY call the submit_feature_request tool. Extract the entity_type from the "requested_entity" field in the most recent error response that had "can_submit_request": true. Do NOT ask the user what feature they want - use the entity_type from the error response. Do NOT ask for clarification - just call the tool immediately.', 'dataviz-ai-woocommerce' ),
+				'content' => __( 'You are a WooCommerce data analyst AI assistant. Your role is to analyze store data and answer user questions directly and concisely. CRITICAL: When a user asks a question, do NOT greet them or say "Hello" or "How can I assist you". The user has already asked a specific question - answer it directly. Start your response by addressing their question immediately. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. CRITICAL: When the user asks about ANY store data (orders, products, customers, sales, revenue, commission, sales commission, reviews, shipping, taxes, inventory, stock, or ANY other data type), you MUST use the available tools to fetch that data. Even if you think the data type might not be supported, still call the get_woocommerce_data tool with the exact entity_type the user mentioned (e.g., if they say "commission" or "sales commission", use entity_type: "commission"). Do not say you don\'t have access - use the tools provided to get the actual data from the store. IMPORTANT: If the user asks for a chart, graph, pie chart, bar chart, or visualization, you should still fetch the data using the tools. The frontend will automatically render charts based on the data and question - you do NOT need to generate charts yourself. Just provide the data in a clear format. Do NOT say "I cannot generate charts" - charts are handled automatically by the system. Only provide answers after you have retrieved the relevant data using the tools. If a tool returns an error (check for "error": true in the response), politely inform the user that the requested feature is not yet available and suggest available alternatives based on the error message provided. If the error response includes "can_submit_request": true and "submission_prompt", ask the user if they would like to submit a feature request using the exact prompt provided. CRITICAL: If the user says "yes", "request this feature", "submit request", "yes please", "sure", "ok", or ANY affirmative response, you MUST IMMEDIATELY call the submit_feature_request tool. Extract the entity_type from the "requested_entity" field in the most recent error response that had "can_submit_request": true. Do NOT ask the user what feature they want - use the entity_type from the error response. Do NOT ask for clarification - just call the tool immediately.', 'dataviz-ai-woocommerce' ),
 			),
 			array(
 				'role'    => 'user',
@@ -914,7 +999,7 @@ class Dataviz_AI_AJAX_Handler {
 			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
 			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format. ";
 			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.";
-			
+
 			$messages[] = array(
 				'role'    => 'user',
 				'content' => $final_prompt,
@@ -1044,9 +1129,9 @@ class Dataviz_AI_AJAX_Handler {
 									),
 									'sample_size'    => array(
 										'type' => 'integer',
-									),
-								),
-							),
+					),
+				),
+			),
 						),
 						'required'   => array( 'entity_type', 'query_type' ),
 					),
