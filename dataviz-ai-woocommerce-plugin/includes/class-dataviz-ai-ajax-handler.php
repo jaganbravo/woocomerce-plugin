@@ -43,6 +43,13 @@ class Dataviz_AI_AJAX_Handler {
 	protected $chat_history;
 
 	/**
+	 * License manager.
+	 *
+	 * @var Dataviz_AI_License_Manager
+	 */
+	protected $license_manager;
+
+	/**
 	 * Current session ID for this request.
 	 *
 	 * @var string
@@ -64,10 +71,11 @@ class Dataviz_AI_AJAX_Handler {
 	 * @param Dataviz_AI_API_Client   $api_client   API client instance.
 	 */
 	public function __construct( $plugin_name, Dataviz_AI_Data_Fetcher $data_fetcher, Dataviz_AI_API_Client $api_client ) {
-		$this->plugin_name  = $plugin_name;
-		$this->data_fetcher = $data_fetcher;
-		$this->api_client   = $api_client;
-		$this->chat_history = new Dataviz_AI_Chat_History();
+		$this->plugin_name     = $plugin_name;
+		$this->data_fetcher    = $data_fetcher;
+		$this->api_client      = $api_client;
+		$this->chat_history    = new Dataviz_AI_Chat_History();
+		$this->license_manager = new Dataviz_AI_License_Manager();
 	}
 
 	/**
@@ -91,6 +99,20 @@ class Dataviz_AI_AJAX_Handler {
 		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
 		$stream   = isset( $_POST['stream'] ) && filter_var( $_POST['stream'], FILTER_VALIDATE_BOOLEAN );
 		$this->session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
+
+		// Check license limits
+		if ( ! $this->license_manager->can_ask_question() ) {
+			$usage_stats = $this->license_manager->get_usage_stats();
+			wp_send_json_error( array(
+				'message' => sprintf(
+					/* translators: %1$d: limit, %2$s: purchase URL */
+					__( 'You have reached your monthly limit of %1$d questions. <a href="%2$s" target="_blank">Upgrade to Pro</a> for unlimited questions.', 'dataviz-ai-woocommerce' ),
+					$usage_stats['questions_limit'],
+					esc_url( $this->license_manager->get_purchase_url( 'pro' ) )
+				),
+				'upgrade_required' => true,
+			), 429 );
+		}
 
 		// Debug log
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
@@ -172,6 +194,9 @@ class Dataviz_AI_AJAX_Handler {
 		$ai_response = isset( $response['answer'] ) ? $response['answer'] : wp_json_encode( $response );
 		$this->chat_history->save_message( 'ai', $ai_response, $this->session_id, array( 'provider' => $response['provider'] ?? 'unknown' ) );
 
+		// Increment usage counter
+		$this->license_manager->increment_usage();
+
 		wp_send_json_success( $response );
 	}
 
@@ -219,6 +244,9 @@ class Dataviz_AI_AJAX_Handler {
 			$saved_custom_id = $this->chat_history->save_message( 'ai', $answer, $this->session_id, array( 'provider' => 'custom_backend', 'streaming' => true ) );
 			if ( ! $saved_custom_id && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( '[Dataviz AI] Failed to save custom backend AI response to chat history' );
+			} else {
+				// Increment usage counter on successful save
+				$this->license_manager->increment_usage();
 			}
 			return;
 		}
@@ -300,6 +328,8 @@ class Dataviz_AI_AJAX_Handler {
 				// Save AI response to chat history.
 				if ( ! empty( $this->streaming_content ) ) {
 					$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+					// Increment usage counter
+					$this->license_manager->increment_usage();
 				}
 				
 				$this->send_stream_done();
@@ -519,6 +549,9 @@ class Dataviz_AI_AJAX_Handler {
 			$saved_ai_id = $this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
 			if ( ! $saved_ai_id && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( '[Dataviz AI] Failed to save AI streaming response to chat history' );
+			} else {
+				// Increment usage counter on successful save
+				$this->license_manager->increment_usage();
 			}
 		} else {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {

@@ -43,11 +43,25 @@ class Dataviz_AI_Admin {
 	protected $api_client;
 
 	/**
+	 * License manager dependency.
+	 *
+	 * @var Dataviz_AI_License_Manager
+	 */
+	protected $license_manager;
+
+	/**
 	 * Admin page slug.
 	 *
 	 * @var string
 	 */
 	protected $menu_slug = 'dataviz-ai-woocommerce';
+
+	/**
+	 * License settings page slug.
+	 *
+	 * @var string
+	 */
+	protected $license_slug = 'dataviz-ai-woocommerce-license';
 
 	/**
 	 * Constructor.
@@ -58,10 +72,11 @@ class Dataviz_AI_Admin {
 	 * @param Dataviz_AI_API_Client   $api_client   API client instance.
 	 */
 	public function __construct( $plugin_name, $version, Dataviz_AI_Data_Fetcher $data_fetcher, Dataviz_AI_API_Client $api_client ) {
-		$this->plugin_name  = $plugin_name;
-		$this->version      = $version;
-		$this->data_fetcher = $data_fetcher;
-		$this->api_client   = $api_client;
+		$this->plugin_name     = $plugin_name;
+		$this->version         = $version;
+		$this->data_fetcher    = $data_fetcher;
+		$this->api_client      = $api_client;
+		$this->license_manager = new Dataviz_AI_License_Manager();
 	}
 
 	/**
@@ -78,6 +93,15 @@ class Dataviz_AI_Admin {
 			array( $this, 'render_admin_page' ),
 			'dashicons-admin-comments',
 			56
+		);
+
+		add_submenu_page(
+			$this->menu_slug,
+			__( 'License', 'dataviz-ai-woocommerce' ),
+			__( 'License', 'dataviz-ai-woocommerce' ),
+			'manage_woocommerce',
+			$this->license_slug,
+			array( $this, 'render_license_page' )
 		);
 	}
 
@@ -125,6 +149,7 @@ class Dataviz_AI_Admin {
 		);
 
 		$api_key = $this->api_client->get_api_key();
+		$usage_stats = $this->license_manager->get_usage_stats();
 
 		// Get chart data for rendering
 		$orders    = $this->data_fetcher->get_recent_orders( array( 'limit' => 50 ) );
@@ -165,6 +190,10 @@ class Dataviz_AI_Admin {
 					'orderChartData'  => $order_chart_data,
 					'productChartData' => $product_chart_data,
 					'userSessionId'   => $user_session_id, // Server-side session ID (persists across logins)
+					'usageStats'      => $usage_stats,
+					'isPremium'       => $this->license_manager->is_premium(),
+					'upgradeUrl'      => $this->license_manager->get_purchase_url( 'pro' ),
+					'upgradeMessage'  => $this->license_manager->get_upgrade_message(),
 				)
 			);
 		}
@@ -178,9 +207,32 @@ class Dataviz_AI_Admin {
 	public function render_admin_page() {
 		$api_url   = $this->api_client->get_api_url();
 		$api_key   = $this->api_client->get_api_key();
+		$usage_stats = $this->license_manager->get_usage_stats();
+		$is_premium = $this->license_manager->is_premium();
 		?>
 		<div class="wrap dataviz-ai-admin">
 			<h1><?php esc_html_e( 'Dataviz AI for WooCommerce', 'dataviz-ai-woocommerce' ); ?></h1>
+
+			<?php if ( ! $is_premium && $usage_stats['questions_limit'] > 0 ) : ?>
+				<div class="dataviz-ai-usage-notice" style="margin: 15px 0; padding: 10px; background: #f0f6fc; border-left: 4px solid #2271b1; border-radius: 4px;">
+					<p style="margin: 0;">
+						<strong><?php esc_html_e( 'Usage:', 'dataviz-ai-woocommerce' ); ?></strong>
+						<?php
+						printf(
+							/* translators: %1$d: used, %2$d: limit */
+							esc_html__( '%1$d of %2$d questions used this month.', 'dataviz-ai-woocommerce' ),
+							(int) $usage_stats['questions_used'],
+							(int) $usage_stats['questions_limit']
+						);
+						?>
+						<?php if ( $usage_stats['questions_used'] >= $usage_stats['questions_limit'] * 0.8 ) : ?>
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->license_slug ) ); ?>" style="margin-left: 10px;">
+								<?php esc_html_e( 'Upgrade to Pro for unlimited questions', 'dataviz-ai-woocommerce' ); ?>
+							</a>
+						<?php endif; ?>
+					</p>
+				</div>
+			<?php endif; ?>
 
 			<div class="dataviz-ai-grid">
 				<section class="dataviz-ai-card dataviz-ai-card--wide dataviz-ai-chat-container">
@@ -232,6 +284,193 @@ class Dataviz_AI_Admin {
 						</div>
 					</form>
 				</section>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Handle license activation/deactivation.
+	 *
+	 * @return void
+	 */
+	public function handle_license_action() {
+		if ( ! isset( $_POST['dataviz_ai_license_action'] ) ) {
+			return;
+		}
+
+		if ( ! check_admin_referer( 'dataviz_ai_license_action', 'dataviz_ai_license_nonce' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		$action = sanitize_text_field( $_POST['dataviz_ai_license_action'] );
+
+		if ( 'activate' === $action && isset( $_POST['license_key'] ) ) {
+			$license_key = sanitize_text_field( $_POST['license_key'] );
+			$result = $this->license_manager->activate_license( $license_key );
+
+			if ( $result['success'] ) {
+				add_action( 'admin_notices', function() use ( $result ) {
+					printf(
+						'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+						esc_html( $result['message'] )
+					);
+				} );
+			} else {
+				add_action( 'admin_notices', function() use ( $result ) {
+					printf(
+						'<div class="notice notice-error is-dismissible"><p>%s</p></div>',
+						esc_html( $result['message'] )
+					);
+				} );
+			}
+		} elseif ( 'deactivate' === $action ) {
+			$this->license_manager->deactivate_license();
+			add_action( 'admin_notices', function() {
+				printf(
+					'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+					esc_html__( 'License deactivated successfully.', 'dataviz-ai-woocommerce' )
+				);
+			} );
+		}
+	}
+
+	/**
+	 * Render license page output.
+	 *
+	 * @return void
+	 */
+	public function render_license_page() {
+		$this->handle_license_action();
+
+		$license_status = $this->license_manager->get_license_status();
+		$plan = $this->license_manager->get_plan();
+		$usage_stats = $this->license_manager->get_usage_stats();
+		$is_premium = $this->license_manager->is_premium();
+		$license_data = $this->license_manager->get_license_data_public();
+		?>
+		<div class="wrap dataviz-ai-admin">
+			<h1><?php esc_html_e( 'License Settings', 'dataviz-ai-woocommerce' ); ?></h1>
+
+			<div class="dataviz-ai-license-status" style="margin: 20px 0;">
+				<?php if ( $is_premium ) : ?>
+					<div class="notice notice-success inline">
+						<p><strong><?php esc_html_e( '✅ Premium License Active', 'dataviz-ai-woocommerce' ); ?></strong></p>
+						<p>
+							<?php
+							printf(
+								/* translators: %s: Plan name */
+								esc_html__( 'Your %s plan is active with unlimited questions.', 'dataviz-ai-woocommerce' ),
+								esc_html( ucfirst( $plan ) )
+							);
+							?>
+						</p>
+					</div>
+				<?php else : ?>
+					<div class="notice notice-info inline">
+						<p><strong><?php esc_html_e( 'Free Plan Active', 'dataviz-ai-woocommerce' ); ?></strong></p>
+						<p>
+							<?php
+							printf(
+								/* translators: %1$d: used questions, %2$d: limit */
+								esc_html__( 'You have used %1$d of %2$d free questions this month.', 'dataviz-ai-woocommerce' ),
+								(int) $usage_stats['questions_used'],
+								(int) $usage_stats['questions_limit']
+							);
+							?>
+						</p>
+					</div>
+				<?php endif; ?>
+			</div>
+
+			<div class="dataviz-ai-license-form" style="max-width: 600px;">
+				<h2><?php esc_html_e( 'Activate License', 'dataviz-ai-woocommerce' ); ?></h2>
+				
+				<?php if ( ! $is_premium ) : ?>
+					<form method="post" action="">
+						<?php wp_nonce_field( 'dataviz_ai_license_action', 'dataviz_ai_license_nonce' ); ?>
+						<input type="hidden" name="dataviz_ai_license_action" value="activate" />
+						
+						<table class="form-table">
+							<tr>
+								<th scope="row">
+									<label for="license_key"><?php esc_html_e( 'License Key', 'dataviz-ai-woocommerce' ); ?></label>
+								</th>
+								<td>
+									<input 
+										type="text" 
+										id="license_key" 
+										name="license_key" 
+										class="regular-text" 
+										placeholder="<?php esc_attr_e( 'Enter your license key', 'dataviz-ai-woocommerce' ); ?>"
+										value="<?php echo esc_attr( $license_data['license_key'] ); ?>"
+									/>
+									<p class="description">
+										<?php esc_html_e( 'Enter your license key to activate premium features.', 'dataviz-ai-woocommerce' ); ?>
+									</p>
+								</td>
+							</tr>
+						</table>
+
+						<?php submit_button( __( 'Activate License', 'dataviz-ai-woocommerce' ) ); ?>
+					</form>
+				<?php else : ?>
+					<form method="post" action="">
+						<?php wp_nonce_field( 'dataviz_ai_license_action', 'dataviz_ai_license_nonce' ); ?>
+						<input type="hidden" name="dataviz_ai_license_action" value="deactivate" />
+						
+						<p>
+							<strong><?php esc_html_e( 'License Key:', 'dataviz-ai-woocommerce' ); ?></strong> 
+							<code><?php echo esc_html( substr( $license_data['license_key'], 0, 20 ) . '...' ); ?></code>
+						</p>
+						
+						<?php submit_button( __( 'Deactivate License', 'dataviz-ai-woocommerce' ), 'secondary' ); ?>
+					</form>
+				<?php endif; ?>
+			</div>
+
+			<div class="dataviz-ai-upgrade-info" style="margin-top: 30px;">
+				<h2><?php esc_html_e( 'Upgrade to Premium', 'dataviz-ai-woocommerce' ); ?></h2>
+				
+				<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+					<div style="border: 1px solid #ddd; padding: 20px; border-radius: 4px;">
+						<h3><?php esc_html_e( 'Pro Plan', 'dataviz-ai-woocommerce' ); ?></h3>
+						<p style="font-size: 24px; font-weight: bold; color: #2271b1;">$15<span style="font-size: 14px;">/month</span></p>
+						<ul style="list-style: disc; margin-left: 20px;">
+							<li><?php esc_html_e( 'Unlimited questions', 'dataviz-ai-woocommerce' ); ?></li>
+							<li><?php esc_html_e( 'All entity types', 'dataviz-ai-woocommerce' ); ?></li>
+							<li><?php esc_html_e( 'Chat history (5 days)', 'dataviz-ai-woocommerce' ); ?></li>
+							<li><?php esc_html_e( 'Priority support', 'dataviz-ai-woocommerce' ); ?></li>
+							<li><?php esc_html_e( 'Advanced analytics', 'dataviz-ai-woocommerce' ); ?></li>
+						</ul>
+						<p>
+							<a href="<?php echo esc_url( $this->license_manager->get_purchase_url( 'pro' ) ); ?>" class="button button-primary" target="_blank">
+								<?php esc_html_e( 'Buy Pro Plan', 'dataviz-ai-woocommerce' ); ?>
+							</a>
+						</p>
+					</div>
+
+					<div style="border: 1px solid #ddd; padding: 20px; border-radius: 4px;">
+						<h3><?php esc_html_e( 'Agency Plan', 'dataviz-ai-woocommerce' ); ?></h3>
+						<p style="font-size: 24px; font-weight: bold; color: #2271b1;">$99<span style="font-size: 14px;">/month</span></p>
+						<ul style="list-style: disc; margin-left: 20px;">
+							<li><?php esc_html_e( 'Everything in Pro', 'dataviz-ai-woocommerce' ); ?></li>
+							<li><?php esc_html_e( 'Multiple stores (up to 10)', 'dataviz-ai-woocommerce' ); ?></li>
+							<li><?php esc_html_e( 'White-label option', 'dataviz-ai-woocommerce' ); ?></li>
+							<li><?php esc_html_e( 'Priority support', 'dataviz-ai-woocommerce' ); ?></li>
+							<li><?php esc_html_e( 'API access (future)', 'dataviz-ai-woocommerce' ); ?></li>
+						</ul>
+						<p>
+							<a href="<?php echo esc_url( $this->license_manager->get_purchase_url( 'agency' ) ); ?>" class="button button-primary" target="_blank">
+								<?php esc_html_e( 'Buy Agency Plan', 'dataviz-ai-woocommerce' ); ?>
+							</a>
+						</p>
+					</div>
+				</div>
 			</div>
 		</div>
 		<?php
