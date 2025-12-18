@@ -64,6 +64,20 @@ class Dataviz_AI_Admin {
 	protected $license_slug = 'dataviz-ai-woocommerce-license';
 
 	/**
+	 * Checkout page slug.
+	 *
+	 * @var string
+	 */
+	protected $checkout_slug = 'dataviz-ai-woocommerce-checkout';
+
+	/**
+	 * Payment handler.
+	 *
+	 * @var Dataviz_AI_Payment_Handler
+	 */
+	protected $payment_handler;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string                  $plugin_name  Plugin slug.
@@ -77,6 +91,7 @@ class Dataviz_AI_Admin {
 		$this->data_fetcher    = $data_fetcher;
 		$this->api_client      = $api_client;
 		$this->license_manager = new Dataviz_AI_License_Manager();
+		$this->payment_handler = new Dataviz_AI_Payment_Handler();
 	}
 
 	/**
@@ -103,6 +118,16 @@ class Dataviz_AI_Admin {
 			$this->license_slug,
 			array( $this, 'render_license_page' )
 		);
+
+		// Add checkout page (hidden from menu, accessed via direct link)
+		add_submenu_page(
+			null, // Hidden from menu
+			__( 'Checkout', 'dataviz-ai-woocommerce' ),
+			__( 'Checkout', 'dataviz-ai-woocommerce' ),
+			'manage_woocommerce',
+			$this->checkout_slug,
+			array( $this, 'render_checkout_page' )
+		);
 	}
 
 
@@ -116,9 +141,22 @@ class Dataviz_AI_Admin {
 	 */
 	public function enqueue_assets( $hook ) {
 		$is_main_page = 'toplevel_page_' . $this->menu_slug === $hook;
+		$is_checkout_page = 'dataviz-ai-woocommerce_page_' . $this->checkout_slug === $hook;
 
-		if ( ! $is_main_page ) {
+		if ( ! $is_main_page && ! $is_checkout_page ) {
 			return;
+		}
+
+		// Enqueue admin styles for both pages
+		wp_enqueue_style(
+			$this->plugin_name . '-admin',
+			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/admin.css',
+			array(),
+			$this->version
+		);
+
+		if ( $is_checkout_page ) {
+			return; // Checkout page handles its own scripts
 		}
 
 		// Enqueue admin styles for both pages.
@@ -347,6 +385,21 @@ class Dataviz_AI_Admin {
 	public function render_license_page() {
 		$this->handle_license_action();
 
+		// Handle payment success redirect
+		if ( isset( $_GET['payment'] ) && 'success' === $_GET['payment'] && isset( $_GET['license_key'] ) ) {
+			$license_key = sanitize_text_field( $_GET['license_key'] );
+			$result = $this->license_manager->activate_license( $license_key );
+			if ( $result['success'] ) {
+				add_action( 'admin_notices', function() {
+					printf(
+						'<div class="notice notice-success is-dismissible"><p><strong>%s</strong> %s</p></div>',
+						esc_html__( 'Payment Successful!', 'dataviz-ai-woocommerce' ),
+						esc_html__( 'Your license has been activated automatically.', 'dataviz-ai-woocommerce' )
+					);
+				} );
+			}
+		}
+
 		$license_status = $this->license_manager->get_license_status();
 		$plan = $this->license_manager->get_plan();
 		$usage_stats = $this->license_manager->get_usage_stats();
@@ -448,10 +501,17 @@ class Dataviz_AI_Admin {
 							<li><?php esc_html_e( 'Advanced analytics', 'dataviz-ai-woocommerce' ); ?></li>
 						</ul>
 						<p>
-							<a href="<?php echo esc_url( $this->license_manager->get_purchase_url( 'pro' ) ); ?>" class="button button-primary" target="_blank">
-								<?php esc_html_e( 'Buy Pro Plan', 'dataviz-ai-woocommerce' ); ?>
+							<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'pro', 'stripe' ) ); ?>" class="button button-primary">
+								<?php esc_html_e( 'Buy Pro Plan - Secure Checkout', 'dataviz-ai-woocommerce' ); ?>
 							</a>
 						</p>
+						<?php if ( $this->payment_handler->is_paypal_configured() ) : ?>
+							<p style="margin-top: 10px;">
+								<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'pro', 'paypal' ) ); ?>" class="button">
+									<?php esc_html_e( 'Pay with PayPal', 'dataviz-ai-woocommerce' ); ?>
+								</a>
+							</p>
+						<?php endif; ?>
 					</div>
 
 					<div style="border: 1px solid #ddd; padding: 20px; border-radius: 4px;">
@@ -465,10 +525,17 @@ class Dataviz_AI_Admin {
 							<li><?php esc_html_e( 'API access (future)', 'dataviz-ai-woocommerce' ); ?></li>
 						</ul>
 						<p>
-							<a href="<?php echo esc_url( $this->license_manager->get_purchase_url( 'agency' ) ); ?>" class="button button-primary" target="_blank">
-								<?php esc_html_e( 'Buy Agency Plan', 'dataviz-ai-woocommerce' ); ?>
+							<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'agency', 'stripe' ) ); ?>" class="button button-primary">
+								<?php esc_html_e( 'Buy Agency Plan - Secure Checkout', 'dataviz-ai-woocommerce' ); ?>
 							</a>
 						</p>
+						<?php if ( $this->payment_handler->is_paypal_configured() ) : ?>
+							<p style="margin-top: 10px;">
+								<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'agency', 'paypal' ) ); ?>" class="button">
+									<?php esc_html_e( 'Pay with PayPal', 'dataviz-ai-woocommerce' ); ?>
+								</a>
+							</p>
+						<?php endif; ?>
 					</div>
 				</div>
 			</div>
@@ -476,5 +543,166 @@ class Dataviz_AI_Admin {
 		<?php
 	}
 
+	/**
+	 * Render secure checkout page.
+	 *
+	 * @return void
+	 */
+	public function render_checkout_page() {
+		// Check user permissions
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$plan = isset( $_GET['plan'] ) ? sanitize_text_field( $_GET['plan'] ) : 'pro';
+		$payment_method = isset( $_GET['payment_method'] ) ? sanitize_text_field( $_GET['payment_method'] ) : 'stripe';
+		$plan = in_array( $plan, array( 'pro', 'agency' ), true ) ? $plan : 'pro';
+		$payment_method = in_array( $payment_method, array( 'stripe', 'paypal' ), true ) ? $payment_method : 'stripe';
+
+		$pricing = $this->payment_handler->get_plan_pricing( $plan );
+		$user = wp_get_current_user();
+		$user_email = $user->user_email;
+
+		// Enqueue Stripe.js if using Stripe
+		if ( 'stripe' === $payment_method && $this->payment_handler->is_stripe_configured() ) {
+			wp_enqueue_script( 'stripe-js', 'https://js.stripe.com/v3/', array(), '3.0', true );
+		}
+
+		// Enqueue checkout scripts
+		wp_enqueue_script(
+			$this->plugin_name . '-checkout',
+			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/checkout.js',
+			array( 'jquery' ),
+			$this->version,
+			true
+		);
+
+			wp_localize_script(
+				$this->plugin_name . '-checkout',
+				'DatavizAICheckout',
+				array(
+					'ajaxUrl'              => admin_url( 'admin-ajax.php' ),
+					'nonce'                => wp_create_nonce( 'dataviz_ai_checkout' ),
+					'plan'                 => $plan,
+					'paymentMethod'        => $payment_method,
+					'amount'               => $pricing['monthly'],
+					'currency'             => $pricing['currency'],
+					'stripePublishableKey' => $this->payment_handler->get_stripe_publishable_key(),
+					'paypalClientId'       => $this->payment_handler->get_paypal_client_id(),
+					'isStripeConfigured'   => $this->payment_handler->is_stripe_configured(),
+					'isPayPalConfigured'   => $this->payment_handler->is_paypal_configured(),
+					'userName'             => $user->display_name,
+					'successUrl'           => admin_url( 'admin.php?page=' . $this->license_slug . '&payment=success' ),
+					'cancelUrl'            => admin_url( 'admin.php?page=' . $this->license_slug ),
+				)
+			);
+
+		?>
+		<div class="wrap dataviz-ai-admin">
+			<h1><?php esc_html_e( 'Secure Checkout', 'dataviz-ai-woocommerce' ); ?></h1>
+
+			<div class="dataviz-ai-checkout-container" style="max-width: 800px; margin: 20px auto;">
+				<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
+					<!-- Payment Form -->
+					<div class="dataviz-ai-checkout-form">
+						<h2><?php esc_html_e( 'Payment Details', 'dataviz-ai-woocommerce' ); ?></h2>
+
+						<div class="dataviz-ai-order-summary" style="background: #f9f9f9; padding: 20px; border-radius: 4px; margin-bottom: 20px;">
+							<h3 style="margin-top: 0;"><?php esc_html_e( 'Order Summary', 'dataviz-ai-woocommerce' ); ?></h3>
+							<p>
+								<strong><?php echo esc_html( ucfirst( $plan ) ); ?> <?php esc_html_e( 'Plan', 'dataviz-ai-woocommerce' ); ?></strong><br>
+								<span style="font-size: 24px; font-weight: bold; color: #2271b1;">
+									$<?php echo esc_html( number_format( $pricing['monthly'], 2 ) ); ?>
+									<span style="font-size: 14px;">/month</span>
+								</span>
+							</p>
+							<p style="margin-top: 10px;">
+								<small><?php esc_html_e( 'Billed monthly. Cancel anytime.', 'dataviz-ai-woocommerce' ); ?></small>
+							</p>
+						</div>
+
+						<?php if ( 'stripe' === $payment_method ) : ?>
+							<?php if ( ! $this->payment_handler->is_stripe_configured() ) : ?>
+								<div class="notice notice-error">
+									<p><?php esc_html_e( 'Stripe is not configured. Please contact support.', 'dataviz-ai-woocommerce' ); ?></p>
+								</div>
+							<?php else : ?>
+								<form id="dataviz-ai-stripe-checkout-form">
+									<div id="stripe-card-element" style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px;">
+										<!-- Stripe Elements will create form elements here -->
+									</div>
+									<div id="stripe-card-errors" role="alert" style="color: #d63638; margin-bottom: 15px;"></div>
+
+									<div style="margin-bottom: 15px;">
+										<label>
+											<input type="checkbox" id="save-payment-method" />
+											<?php esc_html_e( 'Save payment method for future use', 'dataviz-ai-woocommerce' ); ?>
+										</label>
+									</div>
+
+									<button type="submit" id="stripe-submit-button" class="button button-primary button-large" style="width: 100%; padding: 15px;">
+										<?php
+										printf(
+											/* translators: %s: Amount */
+											esc_html__( 'Pay $%s/month', 'dataviz-ai-woocommerce' ),
+											number_format( $pricing['monthly'], 2 )
+										);
+										?>
+									</button>
+								</form>
+							<?php endif; ?>
+						<?php elseif ( 'paypal' === $payment_method ) : ?>
+							<?php if ( ! $this->payment_handler->is_paypal_configured() ) : ?>
+								<div class="notice notice-error">
+									<p><?php esc_html_e( 'PayPal is not configured. Please contact support.', 'dataviz-ai-woocommerce' ); ?></p>
+								</div>
+							<?php else : ?>
+								<div id="paypal-button-container" style="margin-top: 20px;">
+									<!-- PayPal button will be rendered here -->
+								</div>
+								<script src="https://www.paypal.com/sdk/js?client-id=<?php echo esc_js( $this->payment_handler->get_paypal_client_id() ); ?>&currency=<?php echo esc_js( $pricing['currency'] ); ?>"></script>
+							<?php endif; ?>
+						<?php endif; ?>
+
+						<div style="margin-top: 20px; padding: 15px; background: #f0f6fc; border-left: 4px solid #2271b1; border-radius: 4px;">
+							<p style="margin: 0; font-size: 12px;">
+								<strong>🔒 <?php esc_html_e( 'Secure Payment', 'dataviz-ai-woocommerce' ); ?></strong><br>
+								<?php esc_html_e( 'Your payment information is encrypted and secure. We never store your full card details.', 'dataviz-ai-woocommerce' ); ?>
+							</p>
+						</div>
+					</div>
+
+					<!-- Order Details Sidebar -->
+					<div class="dataviz-ai-checkout-sidebar">
+						<div style="background: #f9f9f9; padding: 20px; border-radius: 4px; position: sticky; top: 20px;">
+							<h3 style="margin-top: 0;"><?php esc_html_e( 'What You Get', 'dataviz-ai-woocommerce' ); ?></h3>
+							<ul style="list-style: none; padding: 0;">
+								<?php if ( 'pro' === $plan ) : ?>
+									<li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ <?php esc_html_e( 'Unlimited questions', 'dataviz-ai-woocommerce' ); ?></li>
+									<li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ <?php esc_html_e( 'All entity types', 'dataviz-ai-woocommerce' ); ?></li>
+									<li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ <?php esc_html_e( 'Chat history (5 days)', 'dataviz-ai-woocommerce' ); ?></li>
+									<li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ <?php esc_html_e( 'Priority support', 'dataviz-ai-woocommerce' ); ?></li>
+									<li style="padding: 8px 0;">✅ <?php esc_html_e( 'Advanced analytics', 'dataviz-ai-woocommerce' ); ?></li>
+								<?php else : ?>
+									<li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ <?php esc_html_e( 'Everything in Pro', 'dataviz-ai-woocommerce' ); ?></li>
+									<li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ <?php esc_html_e( 'Multiple stores (up to 10)', 'dataviz-ai-woocommerce' ); ?></li>
+									<li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ <?php esc_html_e( 'White-label option', 'dataviz-ai-woocommerce' ); ?></li>
+									<li style="padding: 8px 0; border-bottom: 1px solid #eee;">✅ <?php esc_html_e( 'Priority support', 'dataviz-ai-woocommerce' ); ?></li>
+									<li style="padding: 8px 0;">✅ <?php esc_html_e( 'API access (future)', 'dataviz-ai-woocommerce' ); ?></li>
+								<?php endif; ?>
+							</ul>
+
+							<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+								<p style="font-size: 12px; color: #666;">
+									<?php esc_html_e( 'By completing this purchase, you agree to our Terms of Service and Privacy Policy.', 'dataviz-ai-woocommerce' ); ?>
+								</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
 }
 

@@ -2060,5 +2060,84 @@ class Dataviz_AI_AJAX_Handler {
 
 		wp_send_json_success( array( 'products' => $inventory_data['products'] ?? array() ) );
 	}
+
+	/**
+	 * Handle payment intent creation (Stripe).
+	 *
+	 * @return void
+	 */
+	public function handle_create_payment_intent() {
+		check_ajax_referer( 'dataviz_ai_checkout', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
+		$plan = isset( $_POST['plan'] ) ? sanitize_text_field( $_POST['plan'] ) : 'pro';
+		$amount = isset( $_POST['amount'] ) ? floatval( $_POST['amount'] ) : 15.00;
+		$currency = isset( $_POST['currency'] ) ? sanitize_text_field( $_POST['currency'] ) : 'USD';
+
+		$payment_handler = new Dataviz_AI_Payment_Handler();
+		$result = $payment_handler->create_stripe_payment_intent( $plan, $amount, $currency );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+
+		wp_send_json_success( array(
+			'client_secret' => $result['client_secret'],
+			'payment_intent_id' => $result['id'],
+		) );
+	}
+
+	/**
+	 * Handle payment processing and license key generation.
+	 *
+	 * @return void
+	 */
+	public function handle_process_payment() {
+		check_ajax_referer( 'dataviz_ai_checkout', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
+		$plan = isset( $_POST['plan'] ) ? sanitize_text_field( $_POST['plan'] ) : 'pro';
+		$payment_id = isset( $_POST['payment_id'] ) ? sanitize_text_field( $_POST['payment_id'] ) : '';
+		$payment_method = isset( $_POST['payment_method'] ) ? sanitize_text_field( $_POST['payment_method'] ) : 'stripe';
+
+		if ( empty( $payment_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Payment ID is required.', 'dataviz-ai-woocommerce' ) ), 400 );
+		}
+
+		$payment_handler = new Dataviz_AI_Payment_Handler();
+		$user_id = get_current_user_id();
+		$user = wp_get_current_user();
+
+		// Generate license key
+		$license_key = $payment_handler->generate_license_key( $plan, $user_id, $payment_id );
+
+		// Activate license automatically
+		$license_manager = new Dataviz_AI_License_Manager();
+		$activation_result = $license_manager->activate_license( $license_key );
+
+		if ( ! $activation_result['success'] ) {
+			// License activation failed, but payment succeeded - store for manual activation
+			update_option( 'dataviz_ai_pending_license_' . $payment_id, array(
+				'license_key' => $license_key,
+				'plan'       => $plan,
+				'user_id'    => $user_id,
+				'payment_id' => $payment_id,
+			) );
+		}
+
+		// Send license key via email
+		$payment_handler->send_license_key_email( $license_key, $user->user_email, $plan );
+
+		wp_send_json_success( array(
+			'license_key' => $license_key,
+			'message'     => __( 'Payment successful! Your license key has been sent to your email.', 'dataviz-ai-woocommerce' ),
+		) );
+	}
 }
 
