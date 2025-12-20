@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Piece Odyssey</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="screen">
+        <div class="loading-content">
+            <h1>🏴‍☠️ ONE PIECE ODYSSEY 🏴‍☠️</h1>
+            <div class="loading-bar">
+                <div id="loadingProgress" class="loading-progress"></div>
+            </div>
+            <p id="loadingText">Loading the Grand Line...</p>
+        </div>
+    </div>
+
+    <!-- Character Selection Screen -->
+    <div id="characterSelectScreen" class="screen hidden">
+        <div class="screen-content">
+            <h1>Select Your Character</h1>
+            <div class="character-grid" id="characterGrid"></div>
+            <div class="character-preview-container">
+                <canvas class="character-preview-canvas" id="characterPreview"></canvas>
+            </div>
+            <div class="character-info" id="characterInfo">
+                <h2 id="selectedCharName">Choose a character</h2>
+                <p id="selectedCharDesc"></p>
+                <div class="char-stats" id="charStats"></div>
+            </div>
+            <button id="startGameBtn" class="btn-primary" disabled>Start Adventure</button>
+        </div>
+    </div>
+
+    <!-- Customization Screen -->
+    <div id="customizationScreen" class="screen hidden">
+        <div class="screen-content">
+            <h1>Customize Your Character</h1>
+            <div class="customization-container">
+                <div class="character-preview-container">
+                    <canvas class="character-preview-canvas" id="charPreview"></canvas>
+                </div>
+                <div class="customization-options">
+                    <h3>Faces</h3>
+                    <div class="face-grid" id="faceGrid"></div>
+                    <h3>Shirts</h3>
+                    <div class="accessory-grid" id="shirtGrid"></div>
+                    <h3>Pants</h3>
+                    <div class="accessory-grid" id="pantsGrid"></div>
+                    <h3>Hats</h3>
+                    <div class="accessory-grid" id="hatGrid"></div>
+                    <button id="confirmCustomization" class="btn-primary">Confirm & Start</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Game Screen -->
+    <div id="gameScreen" class="screen hidden">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- HUD -->
+        <div class="hud">
+            <div class="hud-top">
+                <div class="health-bar">
+                    <div class="bar-label">HP</div>
+                    <div class="bar-container">
+                        <div id="healthBar" class="bar-fill health"></div>
+                    </div>
+                    <span id="healthText">100/100</span>
+                </div>
+                <div class="berry-display">
+                    <div class="berry-icon">🍒</div>
+                    <div class="berry-amount" id="berryAmount">1,000</div>
+                </div>
+                <div class="island-info">
+                    <h3 id="currentIsland">Island 1: East Blue</h3>
+                    <div class="boss-indicator" id="bossIndicator"></div>
+                </div>
+            </div>
+            
+            <div class="hud-bottom">
+                <div class="controls-info">
+                    <div>WASD - Move | Get close to enemies to fight</div>
+                    <div>Defeat all enemies to unlock the boss!</div>
+                </div>
+                <div class="moves-list" id="movesList"></div>
+            </div>
+        </div>
+        
+        <!-- Game Messages -->
+        <div id="message" class="message hidden"></div>
+
+        <!-- Turn-Based Combat UI -->
+        <div id="combatUI" class="combat-ui hidden">
+            <div class="combat-header">
+                <div class="turn-indicator" id="turnIndicator">Your Turn</div>
+                <div class="boss-health">
+                    <div class="boss-name" id="bossName"></div>
+                    <div class="bar-container boss-bar">
+                        <div id="bossHealthBar" class="bar-fill boss"></div>
+                    </div>
+                    <div class="boss-hp-text" id="bossHPText"></div>
+                </div>
+            </div>
+            <div class="combat-actions" id="combatActions">
+                <button class="combat-btn" id="attackBtn">⚔️ Attack</button>
+                <button class="combat-btn" id="specialBtn">💥 Special Moves</button>
+                <button class="combat-btn" id="defendBtn">🛡️ Defend</button>
+                <button class="combat-btn" id="itemBtn">💊 Item</button>
+            </div>
+            <div id="specialMovesMenu" class="special-moves-menu hidden">
+                <h3>Select Special Move:</h3>
+                <div id="specialMovesList"></div>
+                <button class="combat-btn" id="cancelMovesBtn">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Menu -->
+        <div id="gameMenu" class="menu hidden">
+            <h2>Game Menu</h2>
+            <button class="menu-btn" id="resumeBtn">Resume</button>
+            <button class="menu-btn" id="changeClothesBtn">Change Clothes</button>
+            <button class="menu-btn" id="skillsBtn">Learn Moves</button>
+            <button class="menu-btn" id="quitBtn">Quit to Menu</button>
+        </div>
+        
+        <!-- Change Clothes Menu -->
+        <div id="changeClothesMenu" class="screen hidden">
+            <div class="screen-content">
+                <h1>Change Your Outfit</h1>
+                <div class="customization-container">
+                    <div class="character-preview-container">
+                        <canvas class="character-preview-canvas" id="outfitPreview"></canvas>
+                    </div>
+                    <div class="customization-options">
+                        <h3>Shirts</h3>
+                        <div class="accessory-grid" id="shirtGridInGame"></div>
+                        <h3>Pants</h3>
+                        <div class="accessory-grid" id="pantsGridInGame"></div>
+                        <h3>Hats</h3>
+                        <div class="accessory-grid" id="hatGridInGame"></div>
+                        <button class="btn-primary" id="confirmOutfitBtn">Confirm Outfit</button>
+                        <button class="btn-primary" style="background: rgba(255,255,255,0.2); margin-top: 10px;" id="cancelOutfitBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teacher Dialog -->
+        <div id="teacherDialog" class="dialog hidden">
+            <div class="dialog-content">
+                <div class="teacher-portrait" id="teacherPortrait"></div>
+                <div class="dialog-text">
+                    <h3 id="teacherName"></h3>
+                    <p id="teacherMessage"></p>
+                    <div id="teachableMoves"></div>
+                    <button class="btn-primary" id="closeDialog">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Island Complete -->
+        <div id="islandComplete" class="dialog hidden">
+            <div class="dialog-content success">
+                <h2>🏆 Island Complete! 🏆</h2>
+                <p id="islandCompleteText"></p>
+                <button class="btn-primary" id="nextIslandBtn">Sail to Next Island</button>
+                <button class="btn-primary" style="margin-top: 10px; background: rgba(255,255,255,0.2);" onclick="document.getElementById('islandComplete').classList.add('hidden')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
+

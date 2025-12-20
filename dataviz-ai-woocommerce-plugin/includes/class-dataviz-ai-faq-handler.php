@@ -292,4 +292,3 @@ class Dataviz_AI_FAQ_Handler {
 		}
 	}
 }
-

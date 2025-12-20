@@ -57,13 +57,6 @@ class Dataviz_AI_Admin {
 	protected $menu_slug = 'dataviz-ai-woocommerce';
 
 	/**
-	 * License settings page slug.
-	 *
-	 * @var string
-	 */
-	protected $license_slug = 'dataviz-ai-woocommerce-license';
-
-	/**
 	 * Checkout page slug.
 	 *
 	 * @var string
@@ -110,15 +103,6 @@ class Dataviz_AI_Admin {
 			56
 		);
 
-		add_submenu_page(
-			$this->menu_slug,
-			__( 'License', 'dataviz-ai-woocommerce' ),
-			__( 'License', 'dataviz-ai-woocommerce' ),
-			'manage_woocommerce',
-			$this->license_slug,
-			array( $this, 'render_license_page' )
-		);
-
 		// Add checkout page (hidden from menu, accessed via direct link)
 		add_submenu_page(
 			null, // Hidden from menu
@@ -158,14 +142,6 @@ class Dataviz_AI_Admin {
 		if ( $is_checkout_page ) {
 			return; // Checkout page handles its own scripts
 		}
-
-		// Enqueue admin styles for both pages.
-		wp_enqueue_style(
-			$this->plugin_name . '-admin',
-			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/admin.css',
-			array(),
-			$this->version
-		);
 
 		// Only enqueue scripts for main page.
 		if ( $is_main_page ) {
@@ -264,7 +240,7 @@ class Dataviz_AI_Admin {
 						);
 						?>
 						<?php if ( $usage_stats['questions_used'] >= $usage_stats['questions_limit'] * 0.8 ) : ?>
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->license_slug ) ); ?>" style="margin-left: 10px;">
+							<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'pro', 'stripe' ) ); ?>" style="margin-left: 10px;">
 								<?php esc_html_e( 'Upgrade to Pro for unlimited questions', 'dataviz-ai-woocommerce' ); ?>
 							</a>
 						<?php endif; ?>
@@ -328,222 +304,6 @@ class Dataviz_AI_Admin {
 	}
 
 	/**
-	 * Handle license activation/deactivation.
-	 *
-	 * @return void
-	 */
-	public function handle_license_action() {
-		if ( ! isset( $_POST['dataviz_ai_license_action'] ) ) {
-			return;
-		}
-
-		if ( ! check_admin_referer( 'dataviz_ai_license_action', 'dataviz_ai_license_nonce' ) ) {
-			return;
-		}
-
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			return;
-		}
-
-		$action = sanitize_text_field( $_POST['dataviz_ai_license_action'] );
-
-		if ( 'activate' === $action && isset( $_POST['license_key'] ) ) {
-			$license_key = sanitize_text_field( $_POST['license_key'] );
-			$result = $this->license_manager->activate_license( $license_key );
-
-			if ( $result['success'] ) {
-				add_action( 'admin_notices', function() use ( $result ) {
-					printf(
-						'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-						esc_html( $result['message'] )
-					);
-				} );
-			} else {
-				add_action( 'admin_notices', function() use ( $result ) {
-					printf(
-						'<div class="notice notice-error is-dismissible"><p>%s</p></div>',
-						esc_html( $result['message'] )
-					);
-				} );
-			}
-		} elseif ( 'deactivate' === $action ) {
-			$this->license_manager->deactivate_license();
-			add_action( 'admin_notices', function() {
-				printf(
-					'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-					esc_html__( 'License deactivated successfully.', 'dataviz-ai-woocommerce' )
-				);
-			} );
-		}
-	}
-
-	/**
-	 * Render license page output.
-	 *
-	 * @return void
-	 */
-	public function render_license_page() {
-		$this->handle_license_action();
-
-		// Handle payment success redirect
-		if ( isset( $_GET['payment'] ) && 'success' === $_GET['payment'] && isset( $_GET['license_key'] ) ) {
-			$license_key = sanitize_text_field( $_GET['license_key'] );
-			$result = $this->license_manager->activate_license( $license_key );
-			if ( $result['success'] ) {
-				add_action( 'admin_notices', function() {
-					printf(
-						'<div class="notice notice-success is-dismissible"><p><strong>%s</strong> %s</p></div>',
-						esc_html__( 'Payment Successful!', 'dataviz-ai-woocommerce' ),
-						esc_html__( 'Your license has been activated automatically.', 'dataviz-ai-woocommerce' )
-					);
-				} );
-			}
-		}
-
-		$license_status = $this->license_manager->get_license_status();
-		$plan = $this->license_manager->get_plan();
-		$usage_stats = $this->license_manager->get_usage_stats();
-		$is_premium = $this->license_manager->is_premium();
-		$license_data = $this->license_manager->get_license_data_public();
-		?>
-		<div class="wrap dataviz-ai-admin">
-			<h1><?php esc_html_e( 'License Settings', 'dataviz-ai-woocommerce' ); ?></h1>
-
-			<div class="dataviz-ai-license-status" style="margin: 20px 0;">
-				<?php if ( $is_premium ) : ?>
-					<div class="notice notice-success inline">
-						<p><strong><?php esc_html_e( '✅ Premium License Active', 'dataviz-ai-woocommerce' ); ?></strong></p>
-						<p>
-							<?php
-							printf(
-								/* translators: %s: Plan name */
-								esc_html__( 'Your %s plan is active with unlimited questions.', 'dataviz-ai-woocommerce' ),
-								esc_html( ucfirst( $plan ) )
-							);
-							?>
-						</p>
-					</div>
-				<?php else : ?>
-					<div class="notice notice-info inline">
-						<p><strong><?php esc_html_e( 'Free Plan Active', 'dataviz-ai-woocommerce' ); ?></strong></p>
-						<p>
-							<?php
-							printf(
-								/* translators: %1$d: used questions, %2$d: limit */
-								esc_html__( 'You have used %1$d of %2$d free questions this month.', 'dataviz-ai-woocommerce' ),
-								(int) $usage_stats['questions_used'],
-								(int) $usage_stats['questions_limit']
-							);
-							?>
-						</p>
-					</div>
-				<?php endif; ?>
-			</div>
-
-			<div class="dataviz-ai-license-form" style="max-width: 600px;">
-				<h2><?php esc_html_e( 'Activate License', 'dataviz-ai-woocommerce' ); ?></h2>
-				
-				<?php if ( ! $is_premium ) : ?>
-					<form method="post" action="">
-						<?php wp_nonce_field( 'dataviz_ai_license_action', 'dataviz_ai_license_nonce' ); ?>
-						<input type="hidden" name="dataviz_ai_license_action" value="activate" />
-						
-						<table class="form-table">
-							<tr>
-								<th scope="row">
-									<label for="license_key"><?php esc_html_e( 'License Key', 'dataviz-ai-woocommerce' ); ?></label>
-								</th>
-								<td>
-									<input 
-										type="text" 
-										id="license_key" 
-										name="license_key" 
-										class="regular-text" 
-										placeholder="<?php esc_attr_e( 'Enter your license key', 'dataviz-ai-woocommerce' ); ?>"
-										value="<?php echo esc_attr( $license_data['license_key'] ); ?>"
-									/>
-									<p class="description">
-										<?php esc_html_e( 'Enter your license key to activate premium features.', 'dataviz-ai-woocommerce' ); ?>
-									</p>
-								</td>
-							</tr>
-						</table>
-
-						<?php submit_button( __( 'Activate License', 'dataviz-ai-woocommerce' ) ); ?>
-					</form>
-				<?php else : ?>
-					<form method="post" action="">
-						<?php wp_nonce_field( 'dataviz_ai_license_action', 'dataviz_ai_license_nonce' ); ?>
-						<input type="hidden" name="dataviz_ai_license_action" value="deactivate" />
-						
-						<p>
-							<strong><?php esc_html_e( 'License Key:', 'dataviz-ai-woocommerce' ); ?></strong> 
-							<code><?php echo esc_html( substr( $license_data['license_key'], 0, 20 ) . '...' ); ?></code>
-						</p>
-						
-						<?php submit_button( __( 'Deactivate License', 'dataviz-ai-woocommerce' ), 'secondary' ); ?>
-					</form>
-				<?php endif; ?>
-			</div>
-
-			<div class="dataviz-ai-upgrade-info" style="margin-top: 30px;">
-				<h2><?php esc_html_e( 'Upgrade to Premium', 'dataviz-ai-woocommerce' ); ?></h2>
-				
-				<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
-					<div style="border: 1px solid #ddd; padding: 20px; border-radius: 4px;">
-						<h3><?php esc_html_e( 'Pro Plan', 'dataviz-ai-woocommerce' ); ?></h3>
-						<p style="font-size: 24px; font-weight: bold; color: #2271b1;">$15<span style="font-size: 14px;">/month</span></p>
-						<ul style="list-style: disc; margin-left: 20px;">
-							<li><?php esc_html_e( 'Unlimited questions', 'dataviz-ai-woocommerce' ); ?></li>
-							<li><?php esc_html_e( 'All entity types', 'dataviz-ai-woocommerce' ); ?></li>
-							<li><?php esc_html_e( 'Chat history (5 days)', 'dataviz-ai-woocommerce' ); ?></li>
-							<li><?php esc_html_e( 'Priority support', 'dataviz-ai-woocommerce' ); ?></li>
-							<li><?php esc_html_e( 'Advanced analytics', 'dataviz-ai-woocommerce' ); ?></li>
-						</ul>
-						<p>
-							<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'pro', 'stripe' ) ); ?>" class="button button-primary">
-								<?php esc_html_e( 'Buy Pro Plan - Secure Checkout', 'dataviz-ai-woocommerce' ); ?>
-							</a>
-						</p>
-						<?php if ( $this->payment_handler->is_paypal_configured() ) : ?>
-							<p style="margin-top: 10px;">
-								<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'pro', 'paypal' ) ); ?>" class="button">
-									<?php esc_html_e( 'Pay with PayPal', 'dataviz-ai-woocommerce' ); ?>
-								</a>
-							</p>
-						<?php endif; ?>
-					</div>
-
-					<div style="border: 1px solid #ddd; padding: 20px; border-radius: 4px;">
-						<h3><?php esc_html_e( 'Agency Plan', 'dataviz-ai-woocommerce' ); ?></h3>
-						<p style="font-size: 24px; font-weight: bold; color: #2271b1;">$99<span style="font-size: 14px;">/month</span></p>
-						<ul style="list-style: disc; margin-left: 20px;">
-							<li><?php esc_html_e( 'Everything in Pro', 'dataviz-ai-woocommerce' ); ?></li>
-							<li><?php esc_html_e( 'Multiple stores (up to 10)', 'dataviz-ai-woocommerce' ); ?></li>
-							<li><?php esc_html_e( 'White-label option', 'dataviz-ai-woocommerce' ); ?></li>
-							<li><?php esc_html_e( 'Priority support', 'dataviz-ai-woocommerce' ); ?></li>
-							<li><?php esc_html_e( 'API access (future)', 'dataviz-ai-woocommerce' ); ?></li>
-						</ul>
-						<p>
-							<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'agency', 'stripe' ) ); ?>" class="button button-primary">
-								<?php esc_html_e( 'Buy Agency Plan - Secure Checkout', 'dataviz-ai-woocommerce' ); ?>
-							</a>
-						</p>
-						<?php if ( $this->payment_handler->is_paypal_configured() ) : ?>
-							<p style="margin-top: 10px;">
-								<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'agency', 'paypal' ) ); ?>" class="button">
-									<?php esc_html_e( 'Pay with PayPal', 'dataviz-ai-woocommerce' ); ?>
-								</a>
-							</p>
-						<?php endif; ?>
-					</div>
-				</div>
-			</div>
-		</div>
-		<?php
-	}
-
-	/**
 	 * Render secure checkout page.
 	 *
 	 * @return void
@@ -592,8 +352,8 @@ class Dataviz_AI_Admin {
 					'isStripeConfigured'   => $this->payment_handler->is_stripe_configured(),
 					'isPayPalConfigured'   => $this->payment_handler->is_paypal_configured(),
 					'userName'             => $user->display_name,
-					'successUrl'           => admin_url( 'admin.php?page=' . $this->license_slug . '&payment=success' ),
-					'cancelUrl'            => admin_url( 'admin.php?page=' . $this->license_slug ),
+					'successUrl'           => admin_url( 'admin.php?page=' . $this->menu_slug . '&payment=success' ),
+					'cancelUrl'            => admin_url( 'admin.php?page=' . $this->menu_slug ),
 				)
 			);
 
