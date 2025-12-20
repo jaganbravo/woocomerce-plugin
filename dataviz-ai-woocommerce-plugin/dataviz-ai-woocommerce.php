@@ -85,6 +85,13 @@ function dataviz_ai_wc_deactivate() {
 register_deactivation_hook( __FILE__, 'dataviz_ai_wc_deactivate' );
 
 /**
+ * Load plugin textdomain.
+ */
+function dataviz_ai_wc_load_textdomain() {
+	load_plugin_textdomain( 'dataviz-ai-woocommerce', false, dirname( DATAVIZ_AI_WC_PLUGIN_BASENAME ) . '/languages' );
+}
+
+/**
  * Initialize the plugin.
  */
 function dataviz_ai_wc_init() {
@@ -109,8 +116,6 @@ function dataviz_ai_wc_init() {
 		return;
 	}
 
-	load_plugin_textdomain( 'dataviz-ai-woocommerce', false, dirname( DATAVIZ_AI_WC_PLUGIN_BASENAME ) . '/languages' );
-
 	// Register cleanup hook.
 	add_action( 'dataviz_ai_cleanup_chat_history', 'dataviz_ai_wc_cleanup_chat_history' );
 
@@ -131,5 +136,10 @@ function dataviz_ai_wc_cleanup_chat_history() {
 	}
 }
 
+// Load textdomain on plugins_loaded with priority 10 (before init, but WordPress will accept it)
+// This ensures translations are available when dataviz_ai_wc_init runs at priority 20
+add_action( 'plugins_loaded', 'dataviz_ai_wc_load_textdomain', 10 );
+
+// Initialize plugin on plugins_loaded
 add_action( 'plugins_loaded', 'dataviz_ai_wc_init', 20 );
 
