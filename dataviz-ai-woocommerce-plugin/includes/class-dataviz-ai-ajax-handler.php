@@ -50,6 +50,13 @@ class Dataviz_AI_AJAX_Handler {
 	protected $license_manager;
 
 	/**
+	 * FAQ handler.
+	 *
+	 * @var Dataviz_AI_FAQ_Handler
+	 */
+	protected $faq_handler;
+
+	/**
 	 * Current session ID for this request.
 	 *
 	 * @var string
@@ -76,6 +83,7 @@ class Dataviz_AI_AJAX_Handler {
 		$this->api_client      = $api_client;
 		$this->chat_history    = new Dataviz_AI_Chat_History();
 		$this->license_manager = new Dataviz_AI_License_Manager();
+		$this->faq_handler     = new Dataviz_AI_FAQ_Handler();
 	}
 
 	/**
@@ -99,6 +107,28 @@ class Dataviz_AI_AJAX_Handler {
 		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
 		$stream   = isset( $_POST['stream'] ) && filter_var( $_POST['stream'], FILTER_VALIDATE_BOOLEAN );
 		$this->session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
+
+		// Check FAQ first (before license check to provide helpful answers)
+		$faq_match = $this->faq_handler->find_faq_match( $question );
+		if ( $faq_match ) {
+			// Save user message to chat history
+			$saved_id = $this->chat_history->save_message( 'user', $question, $this->session_id );
+			
+			// Format FAQ answer
+			$faq_answer = $this->faq_handler->format_faq_answer( $faq_match, 'text' );
+			
+			// Save FAQ answer to chat history
+			$this->chat_history->save_message( 'ai', $faq_answer, $this->session_id, array( 'provider' => 'faq', 'faq_question' => $faq_match['question'] ) );
+			
+			// Return FAQ answer
+			wp_send_json_success( array(
+				'answer'   => $faq_answer,
+				'provider' => 'faq',
+				'faq_match' => true,
+				'faq_question' => $faq_match['question'],
+			) );
+			return;
+		}
 
 		// Check license limits
 		if ( ! $this->license_manager->can_ask_question() ) {
@@ -207,6 +237,24 @@ class Dataviz_AI_AJAX_Handler {
 	 * @return void
 	 */
 	protected function handle_streaming_analysis( $question ) {
+		// Check FAQ first before streaming
+		$faq_match = $this->faq_handler->find_faq_match( $question );
+		if ( $faq_match ) {
+			// Save user message to chat history
+			$this->chat_history->save_message( 'user', $question, $this->session_id );
+			
+			// Format FAQ answer
+			$faq_answer = $this->faq_handler->format_faq_answer( $faq_match, 'text' );
+			
+			// Stream the FAQ answer
+			$this->stream_text( $faq_answer );
+			
+			// Save FAQ answer to chat history
+			$this->chat_history->save_message( 'ai', $faq_answer, $this->session_id, array( 'provider' => 'faq', 'faq_question' => $faq_match['question'], 'streaming' => true ) );
+			
+			return;
+		}
+
 		// Disable output buffering for streaming.
 		if ( ob_get_level() ) {
 			ob_end_clean();
@@ -2138,6 +2186,29 @@ class Dataviz_AI_AJAX_Handler {
 			'license_key' => $license_key,
 			'message'     => __( 'Payment successful! Your license key has been sent to your email.', 'dataviz-ai-woocommerce' ),
 		) );
+	}
+
+	/**
+	 * Handle FAQ request to get FAQ entries.
+	 *
+	 * @return void
+	 */
+	public function handle_get_faqs_request() {
+		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
+		$category = isset( $_GET['category'] ) ? sanitize_text_field( wp_unslash( $_GET['category'] ) ) : '';
+
+		if ( ! empty( $category ) ) {
+			$faqs = $this->faq_handler->get_faqs_by_category( $category );
+		} else {
+			$faqs = $this->faq_handler->get_all_faqs();
+		}
+
+		wp_send_json_success( array( 'faqs' => $faqs ) );
 	}
 }
 
