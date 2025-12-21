@@ -82,7 +82,15 @@ class Dataviz_AI_AJAX_Handler {
 		$this->data_fetcher    = $data_fetcher;
 		$this->api_client      = $api_client;
 		$this->chat_history    = new Dataviz_AI_Chat_History();
-		$this->license_manager = new Dataviz_AI_License_Manager();
+		
+		// Initialize license manager if class exists
+		$license_manager_class = 'Dataviz_AI_License_Manager';
+		if ( class_exists( $license_manager_class ) ) {
+			$this->license_manager = new $license_manager_class();
+		} else {
+			$this->license_manager = null;
+		}
+		
 		$this->faq_handler     = new Dataviz_AI_FAQ_Handler();
 	}
 
@@ -97,7 +105,7 @@ class Dataviz_AI_AJAX_Handler {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
 		}
-		
+
 		// Debug: Log user info
 		$current_user_id = get_current_user_id();
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
@@ -134,7 +142,7 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		// Check license limits
-		if ( ! $this->license_manager->can_ask_question() ) {
+		if ( $this->license_manager && ! $this->license_manager->can_ask_question() ) {
 			$usage_stats = $this->license_manager->get_usage_stats();
 			wp_send_json_error( array(
 				'message' => sprintf(
@@ -228,7 +236,9 @@ class Dataviz_AI_AJAX_Handler {
 		$this->chat_history->save_message( 'ai', $ai_response, $this->session_id, array( 'provider' => $response['provider'] ?? 'unknown' ) );
 
 		// Increment usage counter
-		$this->license_manager->increment_usage();
+		if ( $this->license_manager ) {
+			$this->license_manager->increment_usage();
+		}
 
 		wp_send_json_success( $response );
 	}
@@ -2148,7 +2158,12 @@ class Dataviz_AI_AJAX_Handler {
 		$currency_raw = isset( $_POST['currency'] ) ? $_POST['currency'] : null;
 		$currency = ( $currency_raw !== null && is_string( $currency_raw ) ) ? sanitize_text_field( $currency_raw ) : 'USD';
 
-		$payment_handler = new Dataviz_AI_Payment_Handler();
+		$payment_handler_class = 'Dataviz_AI_Payment_Handler';
+		if ( ! class_exists( $payment_handler_class ) ) {
+			wp_send_json_error( array( 'message' => __( 'Payment handler is not available.', 'dataviz-ai-woocommerce' ) ), 503 );
+		}
+
+		$payment_handler = new $payment_handler_class();
 		$result = $payment_handler->create_stripe_payment_intent( $plan, $amount, $currency );
 
 		if ( is_wp_error( $result ) ) {
@@ -2185,7 +2200,13 @@ class Dataviz_AI_AJAX_Handler {
 			wp_send_json_error( array( 'message' => __( 'Payment ID is required.', 'dataviz-ai-woocommerce' ) ), 400 );
 		}
 
-		$payment_handler = new Dataviz_AI_Payment_Handler();
+		$payment_handler_class = 'Dataviz_AI_Payment_Handler';
+		$license_manager_class = 'Dataviz_AI_License_Manager';
+		if ( ! class_exists( $payment_handler_class ) || ! class_exists( $license_manager_class ) ) {
+			wp_send_json_error( array( 'message' => __( 'Payment and license handlers are not available.', 'dataviz-ai-woocommerce' ) ), 503 );
+		}
+
+		$payment_handler = new $payment_handler_class();
 		$user_id = get_current_user_id();
 		$user = wp_get_current_user();
 
@@ -2193,7 +2214,7 @@ class Dataviz_AI_AJAX_Handler {
 		$license_key = $payment_handler->generate_license_key( $plan, $user_id, $payment_id );
 
 		// Activate license automatically
-		$license_manager = new Dataviz_AI_License_Manager();
+		$license_manager = new $license_manager_class();
 		$activation_result = $license_manager->activate_license( $license_key );
 
 		if ( ! $activation_result['success'] ) {

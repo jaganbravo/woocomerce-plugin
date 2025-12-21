@@ -83,8 +83,22 @@ class Dataviz_AI_Admin {
 		$this->version         = $version;
 		$this->data_fetcher    = $data_fetcher;
 		$this->api_client      = $api_client;
-		$this->license_manager = new Dataviz_AI_License_Manager();
-		$this->payment_handler = new Dataviz_AI_Payment_Handler();
+		
+		// Initialize license manager if class exists
+		$license_manager_class = 'Dataviz_AI_License_Manager';
+		if ( class_exists( $license_manager_class ) ) {
+			$this->license_manager = new $license_manager_class();
+		} else {
+			$this->license_manager = null;
+		}
+		
+		// Initialize payment handler if class exists
+		$payment_handler_class = 'Dataviz_AI_Payment_Handler';
+		if ( class_exists( $payment_handler_class ) ) {
+			$this->payment_handler = new $payment_handler_class();
+		} else {
+			$this->payment_handler = null;
+		}
 	}
 
 	/**
@@ -163,7 +177,11 @@ class Dataviz_AI_Admin {
 		);
 
 		$api_key = $this->api_client->get_api_key();
-		$usage_stats = $this->license_manager->get_usage_stats();
+		$usage_stats = $this->license_manager ? $this->license_manager->get_usage_stats() : array(
+			'questions_asked'  => 0,
+			'questions_limit'  => 100,
+			'is_premium'       => false,
+		);
 
 		// Get chart data for rendering
 		$orders    = $this->data_fetcher->get_recent_orders( array( 'limit' => 50 ) );
@@ -205,9 +223,9 @@ class Dataviz_AI_Admin {
 					'productChartData' => $product_chart_data,
 					'userSessionId'   => $user_session_id, // Server-side session ID (persists across logins)
 					'usageStats'      => $usage_stats,
-					'isPremium'       => $this->license_manager->is_premium(),
-					'upgradeUrl'      => $this->license_manager->get_purchase_url( 'pro' ),
-					'upgradeMessage'  => $this->license_manager->get_upgrade_message(),
+					'isPremium'       => $this->license_manager ? $this->license_manager->is_premium() : false,
+					'upgradeUrl'      => $this->license_manager ? $this->license_manager->get_purchase_url( 'pro' ) : '#',
+					'upgradeMessage'  => $this->license_manager ? $this->license_manager->get_upgrade_message() : '',
 				)
 			);
 		}
@@ -221,8 +239,12 @@ class Dataviz_AI_Admin {
 	public function render_admin_page() {
 		$api_url   = $this->api_client->get_api_url();
 		$api_key   = $this->api_client->get_api_key();
-		$usage_stats = $this->license_manager->get_usage_stats();
-		$is_premium = $this->license_manager->is_premium();
+		$usage_stats = $this->license_manager ? $this->license_manager->get_usage_stats() : array(
+			'questions_asked'  => 0,
+			'questions_limit'  => 100,
+			'is_premium'       => false,
+		);
+		$is_premium = $this->license_manager ? $this->license_manager->is_premium() : false;
 		?>
 		<div class="wrap dataviz-ai-admin">
 			<h1><?php esc_html_e( 'Dataviz AI for WooCommerce', 'dataviz-ai-woocommerce' ); ?></h1>
@@ -239,7 +261,7 @@ class Dataviz_AI_Admin {
 							(int) $usage_stats['questions_limit']
 						);
 						?>
-						<?php if ( $usage_stats['questions_used'] >= $usage_stats['questions_limit'] * 0.8 ) : ?>
+						<?php if ( $usage_stats['questions_used'] >= $usage_stats['questions_limit'] * 0.8 && $this->payment_handler ) : ?>
 							<a href="<?php echo esc_url( $this->payment_handler->get_checkout_url( 'pro', 'stripe' ) ); ?>" style="margin-left: 10px;">
 								<?php esc_html_e( 'Upgrade to Pro for unlimited questions', 'dataviz-ai-woocommerce' ); ?>
 							</a>
@@ -318,6 +340,10 @@ class Dataviz_AI_Admin {
 		$payment_method = isset( $_GET['payment_method'] ) ? sanitize_text_field( $_GET['payment_method'] ) : 'stripe';
 		$plan = in_array( $plan, array( 'pro', 'agency' ), true ) ? $plan : 'pro';
 		$payment_method = in_array( $payment_method, array( 'stripe', 'paypal' ), true ) ? $payment_method : 'stripe';
+
+		if ( ! $this->payment_handler ) {
+			wp_die( esc_html__( 'Payment handler is not available.', 'dataviz-ai-woocommerce' ) );
+		}
 
 		$pricing = $this->payment_handler->get_plan_pricing( $plan );
 		$user = wp_get_current_user();

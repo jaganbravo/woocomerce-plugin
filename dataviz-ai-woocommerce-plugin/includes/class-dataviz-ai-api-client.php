@@ -222,9 +222,29 @@ class Dataviz_AI_API_Client {
 		$status_code = wp_remote_retrieve_response_code( $response );
 
 		if ( $status_code >= 400 || ! is_array( $body ) ) {
+			// Log detailed error for debugging
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				$error_details = array(
+					'status_code' => $status_code,
+					'body'        => $body,
+					'request_url' => $this->default_openai_url,
+				);
+				error_log( sprintf( '[Dataviz AI] OpenAI API Error: %s', wp_json_encode( $error_details, JSON_PRETTY_PRINT ) ) );
+			}
+			
+			// Extract error message from response if available
+			$error_message = __( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' );
+			if ( is_array( $body ) && isset( $body['error'] ) ) {
+				if ( is_array( $body['error'] ) && isset( $body['error']['message'] ) ) {
+					$error_message .= ' ' . $body['error']['message'];
+				} elseif ( is_string( $body['error'] ) ) {
+					$error_message .= ' ' . $body['error'];
+				}
+			}
+			
 			return new WP_Error(
 				'dataviz_ai_openai_error',
-				__( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' ),
+				$error_message,
 				array(
 					'status' => $status_code,
 					'body'   => $body,

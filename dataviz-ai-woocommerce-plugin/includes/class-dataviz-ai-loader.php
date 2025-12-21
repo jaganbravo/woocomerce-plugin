@@ -13,8 +13,6 @@ require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-api-client.ph
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-data-fetcher.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-history.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-feature-requests.php';
-require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-license-manager.php';
-require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-payment-handler.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-faq-handler.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-admin.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-widget.php';

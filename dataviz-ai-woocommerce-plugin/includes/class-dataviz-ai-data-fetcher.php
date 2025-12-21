@@ -214,6 +214,18 @@ class Dataviz_AI_Data_Fetcher {
 
 		$stats = $wpdb->get_row( $query, ARRAY_A );
 
+		// Handle case when query returns null (no rows match)
+		if ( ! $stats || ! is_array( $stats ) ) {
+			$stats = array(
+				'total_orders'    => 0,
+				'total_revenue'   => 0,
+				'avg_order_value' => 0,
+				'min_order_value' => 0,
+				'max_order_value' => 0,
+				'unique_customers' => 0,
+			);
+		}
+
 		// Get status breakdown.
 		$status_query = "
 			SELECT 
@@ -227,6 +239,9 @@ class Dataviz_AI_Data_Fetcher {
 		";
 
 		$status_breakdown = $wpdb->get_results( $status_query, ARRAY_A );
+		if ( ! is_array( $status_breakdown ) ) {
+			$status_breakdown = array();
+		}
 
 		// Get daily revenue trend (last 30 days or date range).
 		$trend_days = 30;
@@ -250,10 +265,61 @@ class Dataviz_AI_Data_Fetcher {
 		";
 
 		$daily_trend = $wpdb->get_results( $trend_query, ARRAY_A );
+		if ( ! is_array( $daily_trend ) ) {
+			$daily_trend = array();
+		}
+
+		// Handle case when no orders are found
+		$total_orders = (int) ( $stats['total_orders'] ?? 0 );
+		$total_revenue = (float) ( $stats['total_revenue'] ?? 0 );
+		
+		// If no orders found, return a clear message
+		if ( $total_orders === 0 ) {
+			$date_range_msg = '';
+			if ( $date_from && $date_to ) {
+				$date_range_msg = sprintf(
+					/* translators: %1$s: start date, %2$s: end date */
+					__( ' for the period from %1$s to %2$s', 'dataviz-ai-woocommerce' ),
+					date_i18n( get_option( 'date_format' ), strtotime( $date_from ) ),
+					date_i18n( get_option( 'date_format' ), strtotime( $date_to ) )
+				);
+			} elseif ( $date_from ) {
+				$date_range_msg = sprintf(
+					/* translators: %s: start date */
+					__( ' from %s onwards', 'dataviz-ai-woocommerce' ),
+					date_i18n( get_option( 'date_format' ), strtotime( $date_from ) )
+				);
+			} elseif ( $date_to ) {
+				$date_range_msg = sprintf(
+					/* translators: %s: end date */
+					__( ' up to %s', 'dataviz-ai-woocommerce' ),
+					date_i18n( get_option( 'date_format' ), strtotime( $date_to ) )
+				);
+			}
+			
+			return array(
+				'summary'         => array(
+					'total_orders'      => 0,
+					'total_revenue'    => 0,
+					'avg_order_value'  => 0,
+					'min_order_value'  => 0,
+					'max_order_value'  => 0,
+					'unique_customers'  => 0,
+				),
+				'status_breakdown' => array(),
+				'daily_trend'      => array(),
+				'no_orders'        => true,
+				'message'          => sprintf(
+					/* translators: %s: date range message */
+					__( 'No orders found%s in the WooCommerce store.', 'dataviz-ai-woocommerce' ),
+					$date_range_msg
+				),
+			);
+		}
 
 		return array(
 			'summary'         => array(
-				'total_orders'      => (int) ( $stats['total_orders'] ?? 0 ),
+				'total_orders'      => $total_orders,
 				'total_revenue'     => (float) ( $stats['total_revenue'] ?? 0 ),
 				'avg_order_value'   => (float) ( $stats['avg_order_value'] ?? 0 ),
 				'min_order_value'    => (float) ( $stats['min_order_value'] ?? 0 ),
