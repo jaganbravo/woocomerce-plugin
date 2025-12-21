@@ -104,9 +104,12 @@ class Dataviz_AI_AJAX_Handler {
 			error_log( sprintf( '[Dataviz AI] handle_analysis_request - User ID: %d', $current_user_id ) );
 		}
 
-		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
+		// PHP 8.1+ compatibility: Ensure values are strings before sanitization
+		$question_raw = isset( $_POST['question'] ) ? wp_unslash( $_POST['question'] ) : null;
+		$question = ( $question_raw !== null && is_string( $question_raw ) ) ? sanitize_text_field( $question_raw ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
 		$stream   = isset( $_POST['stream'] ) && filter_var( $_POST['stream'], FILTER_VALIDATE_BOOLEAN );
-		$this->session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
+		$session_id_raw = isset( $_POST['session_id'] ) ? wp_unslash( $_POST['session_id'] ) : null;
+		$this->session_id = ( $session_id_raw !== null && is_string( $session_id_raw ) ) ? sanitize_text_field( $session_id_raw ) : '';
 
 		// Check FAQ first (before license check to provide helpful answers)
 		$faq_match = $this->faq_handler->find_faq_match( $question );
@@ -821,7 +824,9 @@ class Dataviz_AI_AJAX_Handler {
 	public function handle_chat_request() {
 		check_ajax_referer( 'dataviz_ai_chat', 'nonce' );
 
-		$question = isset( $_POST['message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
+		// PHP 8.1+ compatibility: Ensure value is string before sanitization
+		$question_raw = isset( $_POST['message'] ) ? wp_unslash( $_POST['message'] ) : null;
+		$question = ( $question_raw !== null && is_string( $question_raw ) ) ? sanitize_textarea_field( $question_raw ) : '';
 
 		if ( empty( $question ) ) {
 			wp_send_json_error( array( 'message' => __( 'Message cannot be empty.', 'dataviz-ai-woocommerce' ) ), 400 );
@@ -1361,8 +1366,11 @@ class Dataviz_AI_AJAX_Handler {
 	 * @return array|WP_Error
 	 */
 	protected function execute_flexible_query( array $arguments ) {
-		$entity_type = isset( $arguments['entity_type'] ) ? sanitize_text_field( $arguments['entity_type'] ) : 'orders';
-		$query_type  = isset( $arguments['query_type'] ) ? sanitize_text_field( $arguments['query_type'] ) : 'list';
+		// PHP 8.1+ compatibility: Ensure values are strings before sanitization
+		$entity_type_raw = isset( $arguments['entity_type'] ) ? $arguments['entity_type'] : null;
+		$entity_type = ( $entity_type_raw !== null && is_string( $entity_type_raw ) ) ? sanitize_text_field( $entity_type_raw ) : 'orders';
+		$query_type_raw = isset( $arguments['query_type'] ) ? $arguments['query_type'] : null;
+		$query_type  = ( $query_type_raw !== null && is_string( $query_type_raw ) ) ? sanitize_text_field( $query_type_raw ) : 'list';
 		$filters      = isset( $arguments['filters'] ) && is_array( $arguments['filters'] ) ? $arguments['filters'] : array();
 		
 		// Store original entity_type for later use
@@ -1632,8 +1640,11 @@ class Dataviz_AI_AJAX_Handler {
 	protected function handle_feature_request_submission( array $arguments ) {
 		require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-feature-requests.php';
 		
-		$entity_type = isset( $arguments['entity_type'] ) ? sanitize_text_field( $arguments['entity_type'] ) : '';
-		$description = isset( $arguments['description'] ) ? sanitize_textarea_field( $arguments['description'] ) : '';
+		// PHP 8.1+ compatibility: Ensure values are strings before sanitization
+		$entity_type_raw = isset( $arguments['entity_type'] ) ? $arguments['entity_type'] : null;
+		$entity_type = ( $entity_type_raw !== null && is_string( $entity_type_raw ) ) ? sanitize_text_field( $entity_type_raw ) : '';
+		$description_raw = isset( $arguments['description'] ) ? $arguments['description'] : null;
+		$description = ( $description_raw !== null && is_string( $description_raw ) ) ? sanitize_textarea_field( $description_raw ) : '';
 		$user_id     = get_current_user_id();
 
 		// Log the submission attempt.
@@ -1855,6 +1866,10 @@ class Dataviz_AI_AJAX_Handler {
 	 * @return string Normalized entity type.
 	 */
 	protected function normalize_entity_type( $entity_type ) {
+		// PHP 8.1+ compatibility: Ensure entity_type is a string
+		if ( ! is_string( $entity_type ) ) {
+			$entity_type = '';
+		}
 		$normalized = strtolower( trim( $entity_type ) );
 		
 		// Handle synonyms - map to supported types
@@ -2010,7 +2025,9 @@ class Dataviz_AI_AJAX_Handler {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
 		}
 
-		$session_id = isset( $_GET['session_id'] ) ? sanitize_text_field( wp_unslash( $_GET['session_id'] ) ) : '';
+		// PHP 8.1+ compatibility: Ensure value is string before sanitization
+		$session_id_raw = isset( $_GET['session_id'] ) ? wp_unslash( $_GET['session_id'] ) : null;
+		$session_id = ( $session_id_raw !== null && is_string( $session_id_raw ) ) ? sanitize_text_field( $session_id_raw ) : '';
 		$limit      = isset( $_GET['limit'] ) ? min( 200, max( 1, (int) $_GET['limit'] ) ) : 100;
 		$days       = isset( $_GET['days'] ) ? min( 30, max( 1, (int) $_GET['days'] ) ) : 5;
 		$all_sessions = isset( $_GET['all_sessions'] ) && filter_var( $_GET['all_sessions'], FILTER_VALIDATE_BOOLEAN );
@@ -2050,8 +2067,11 @@ class Dataviz_AI_AJAX_Handler {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
 		}
 
-		$entity_type = isset( $_POST['entity_type'] ) ? sanitize_text_field( wp_unslash( $_POST['entity_type'] ) ) : '';
-		$description = isset( $_POST['description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['description'] ) ) : '';
+		// PHP 8.1+ compatibility: Ensure values are strings before sanitization
+		$entity_type_raw = isset( $_POST['entity_type'] ) ? wp_unslash( $_POST['entity_type'] ) : null;
+		$entity_type = ( $entity_type_raw !== null && is_string( $entity_type_raw ) ) ? sanitize_text_field( $entity_type_raw ) : '';
+		$description_raw = isset( $_POST['description'] ) ? wp_unslash( $_POST['description'] ) : null;
+		$description = ( $description_raw !== null && is_string( $description_raw ) ) ? sanitize_textarea_field( $description_raw ) : '';
 		$user_id     = get_current_user_id();
 
 		if ( empty( $entity_type ) ) {
@@ -2121,9 +2141,12 @@ class Dataviz_AI_AJAX_Handler {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
 		}
 
-		$plan = isset( $_POST['plan'] ) ? sanitize_text_field( $_POST['plan'] ) : 'pro';
+		// PHP 8.1+ compatibility: Ensure values are strings before sanitization
+		$plan_raw = isset( $_POST['plan'] ) ? $_POST['plan'] : null;
+		$plan = ( $plan_raw !== null && is_string( $plan_raw ) ) ? sanitize_text_field( $plan_raw ) : 'pro';
 		$amount = isset( $_POST['amount'] ) ? floatval( $_POST['amount'] ) : 15.00;
-		$currency = isset( $_POST['currency'] ) ? sanitize_text_field( $_POST['currency'] ) : 'USD';
+		$currency_raw = isset( $_POST['currency'] ) ? $_POST['currency'] : null;
+		$currency = ( $currency_raw !== null && is_string( $currency_raw ) ) ? sanitize_text_field( $currency_raw ) : 'USD';
 
 		$payment_handler = new Dataviz_AI_Payment_Handler();
 		$result = $payment_handler->create_stripe_payment_intent( $plan, $amount, $currency );
@@ -2150,9 +2173,13 @@ class Dataviz_AI_AJAX_Handler {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
 		}
 
-		$plan = isset( $_POST['plan'] ) ? sanitize_text_field( $_POST['plan'] ) : 'pro';
-		$payment_id = isset( $_POST['payment_id'] ) ? sanitize_text_field( $_POST['payment_id'] ) : '';
-		$payment_method = isset( $_POST['payment_method'] ) ? sanitize_text_field( $_POST['payment_method'] ) : 'stripe';
+		// PHP 8.1+ compatibility: Ensure values are strings before sanitization
+		$plan_raw = isset( $_POST['plan'] ) ? $_POST['plan'] : null;
+		$plan = ( $plan_raw !== null && is_string( $plan_raw ) ) ? sanitize_text_field( $plan_raw ) : 'pro';
+		$payment_id_raw = isset( $_POST['payment_id'] ) ? $_POST['payment_id'] : null;
+		$payment_id = ( $payment_id_raw !== null && is_string( $payment_id_raw ) ) ? sanitize_text_field( $payment_id_raw ) : '';
+		$payment_method_raw = isset( $_POST['payment_method'] ) ? $_POST['payment_method'] : null;
+		$payment_method = ( $payment_method_raw !== null && is_string( $payment_method_raw ) ) ? sanitize_text_field( $payment_method_raw ) : 'stripe';
 
 		if ( empty( $payment_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Payment ID is required.', 'dataviz-ai-woocommerce' ) ), 400 );
@@ -2200,7 +2227,9 @@ class Dataviz_AI_AJAX_Handler {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
 		}
 
-		$category = isset( $_GET['category'] ) ? sanitize_text_field( wp_unslash( $_GET['category'] ) ) : '';
+		// PHP 8.1+ compatibility: Ensure value is string before sanitization
+		$category_raw = isset( $_GET['category'] ) ? wp_unslash( $_GET['category'] ) : null;
+		$category = ( $category_raw !== null && is_string( $category_raw ) ) ? sanitize_text_field( $category_raw ) : '';
 
 		if ( ! empty( $category ) ) {
 			$faqs = $this->faq_handler->get_faqs_by_category( $category );

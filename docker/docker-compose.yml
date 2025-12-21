@@ -14,7 +14,7 @@ services:
       - db_data:/var/lib/mysql
 
   wordpress:
-    image: wordpress:6.6-php8.2-apache
+    image: wordpress:6.7-php8.3-apache
     container_name: wp_app
     depends_on:
       - db
@@ -31,7 +31,7 @@ services:
       - ./wordpress:/var/www/html
 
   wpcli:
-    image: wordpress:cli-php8.2
+    image: wordpress:cli-php8.3
     container_name: wp_cli
     depends_on:
       - wordpress

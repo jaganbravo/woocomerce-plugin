@@ -27,15 +27,20 @@ class Dataviz_AI_FAQ_Handler {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->init_faq_entries();
+		// Don't initialize FAQ entries in constructor to avoid translation loading too early
+		// Will be initialized lazily when first needed (after init hook)
 	}
 
 	/**
-	 * Initialize FAQ entries.
+	 * Initialize FAQ entries (lazy loading).
 	 *
 	 * @return void
 	 */
 	protected function init_faq_entries() {
+		// If already initialized, return
+		if ( ! empty( $this->faq_entries ) ) {
+			return;
+		}
 		$this->faq_entries = array(
 			// General queries
 			array(
@@ -169,6 +174,13 @@ class Dataviz_AI_FAQ_Handler {
 			return false;
 		}
 
+		// Lazy load FAQ entries (after init, translations available)
+		if ( empty( $this->faq_entries ) ) {
+			$this->init_faq_entries();
+		}
+
+		// Ensure question is a string before processing (PHP 8.1+ compatibility)
+		$question = is_string( $question ) ? $question : '';
 		$question_lower = strtolower( trim( $question ) );
 
 		// Score each FAQ entry based on keyword matches
@@ -178,7 +190,8 @@ class Dataviz_AI_FAQ_Handler {
 			$matched_keywords = array();
 
 			foreach ( $entry['keywords'] as $keyword ) {
-				if ( strpos( $question_lower, strtolower( $keyword ) ) !== false ) {
+				// Ensure keyword is not null before using string functions (PHP 8.1+ compatibility)
+				if ( ! empty( $keyword ) && is_string( $keyword ) && strpos( $question_lower, strtolower( $keyword ) ) !== false ) {
 					$score++;
 					$matched_keywords[] = $keyword;
 				}
@@ -219,6 +232,10 @@ class Dataviz_AI_FAQ_Handler {
 	 * @return array All FAQ entries.
 	 */
 	public function get_all_faqs() {
+		// Lazy load FAQ entries (after init, translations available)
+		if ( empty( $this->faq_entries ) ) {
+			$this->init_faq_entries();
+		}
 		return $this->faq_entries;
 	}
 
@@ -229,6 +246,11 @@ class Dataviz_AI_FAQ_Handler {
 	 * @return array Filtered FAQ entries.
 	 */
 	public function get_faqs_by_category( $category = '' ) {
+		// Lazy load FAQ entries (after init, translations available)
+		if ( empty( $this->faq_entries ) ) {
+			$this->init_faq_entries();
+		}
+		
 		if ( empty( $category ) ) {
 			return $this->faq_entries;
 		}
