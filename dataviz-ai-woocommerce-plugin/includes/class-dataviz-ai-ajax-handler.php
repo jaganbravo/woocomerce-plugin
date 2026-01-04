@@ -313,8 +313,104 @@ class Dataviz_AI_AJAX_Handler {
 			}
 		}
 
+		// Check if user is asking for multiple entities (not supported yet)
+		$multiple_entities = Dataviz_AI_Intent_Classifier::detect_multiple_entities( $question );
+		if ( ! empty( $multiple_entities ) && count( $multiple_entities ) > 1 ) {
+			// User asked for multiple entities - suggest feature request
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] Multiple entities detected: %s for question: %s', implode( ', ', $multiple_entities ), $question ) );
+			}
+			
+			// Create a fake tool result with error to trigger feature request flow
+			$entity_list = implode( ', ', $multiple_entities );
+			$tool_call_id = 'multi-entity-detected-' . uniqid();
+			$fake_tool_result = array(
+				'error'              => true,
+				'error_type'         => 'unsupported_feature',
+				'message'            => sprintf(
+					/* translators: %s: list of entity types */
+					__( 'Currently, I can only fetch one type of data at a time. You asked about: %s. Please ask about one entity type at a time, or submit a feature request for multi-entity queries.', 'dataviz-ai-woocommerce' ),
+					$entity_list
+				),
+				'requested_entity'   => 'multi-entity-queries',
+				'can_submit_request' => true,
+				'submission_prompt'  => sprintf(
+					/* translators: %s: list of entity types */
+					__( 'Would you like to request support for queries about multiple entity types (like "%s") at once? Just say "yes" or "request this feature" and I\'ll submit a feature request to the administrators.', 'dataviz-ai-woocommerce' ),
+					$entity_list
+				),
+				'suggestion'         => __( 'You can ask about one entity type at a time, such as "show me orders" or "show me products".', 'dataviz-ai-woocommerce' ),
+			);
+			
+			// Build messages array with the error response
+			$messages = $this->build_smart_analysis_messages( $question );
+			
+			// Add the error as a fake tool result and let LLM handle it
+			$messages[] = array(
+				'role'         => 'assistant',
+				'content'      => null,
+				'tool_calls'   => array(
+					array(
+						'id'       => $tool_call_id,
+						'type'     => 'function',
+						'function' => array(
+							'name'      => 'get_woocommerce_data',
+							'arguments' => wp_json_encode( array( 'entity_type' => 'multi-entity' ) ),
+						),
+					),
+				),
+			);
+			
+			$messages[] = array(
+				'role'         => 'tool',
+				'tool_call_id' => $tool_call_id,
+				'content'      => wp_json_encode( $fake_tool_result ),
+			);
+			
+			// Store entity type in transient for feature request
+			$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
+			set_transient( $transient_key, 'multi-entity-queries', HOUR_IN_SECONDS );
+			
+			// Add final prompt and let LLM handle the error response
+			$final_prompt = 'You are a WooCommerce data analyst. The user asked: "' . $question . '". ';
+			$final_prompt .= 'I attempted to fetch the data but encountered an error. ';
+			$final_prompt .= "Please inform the user about the limitation and ask if they'd like to submit a feature request using the submission_prompt from the tool error response.";
+			$final_prompt .= "\n\nCRITICAL: Do NOT greet the user. Answer directly and professionally.";
+			
+			$messages[] = array(
+				'role'    => 'user',
+				'content' => $final_prompt,
+			);
+			
+			// Stream the response
+			$this->streaming_content = '';
+			$stream_result = $this->api_client->send_openai_chat_stream(
+				$messages,
+				function( $chunk ) {
+					$this->streaming_content .= $chunk;
+					$this->send_stream_chunk( $chunk );
+				},
+				array(
+					'model' => 'gpt-4o-mini',
+				)
+			);
+			
+			if ( is_wp_error( $stream_result ) ) {
+				$this->send_stream_error( $stream_result->get_error_message() );
+				return;
+			}
+			
+			// Save AI response to chat history.
+			if ( ! empty( $this->streaming_content ) ) {
+				$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			}
+			
+			$this->send_stream_end();
+			return;
+		}
+
 		// Use intent classification to determine which tools to call (no LLM needed for tool selection)
-		$tool_calls = $this->classify_intent_and_get_tools( $question );
+		$tool_calls = Dataviz_AI_Intent_Classifier::classify_intent_and_get_tools( $question );
 		
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 			if ( ! empty( $tool_calls ) ) {
@@ -418,7 +514,7 @@ class Dataviz_AI_AJAX_Handler {
 			);
 		} else {
 			// No tools detected - handle non-data questions or fallback cases
-			if ( $this->question_requires_data( $question ) ) {
+			if ( Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
 				// This shouldn't happen because classify_intent_and_get_tools has a fallback for data questions
 				// But if it does, log it and return an error
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
@@ -460,7 +556,7 @@ class Dataviz_AI_AJAX_Handler {
 		$this->streaming_content = '';
 		
 		// For data questions, filter out greetings from the stream
-		$is_data_question = $this->question_requires_data( $question );
+		$is_data_question = Dataviz_AI_Intent_Classifier::question_requires_data( $question );
 		$greeting_pattern = '/^hello[!.]?\s*(how can i assist you|how may i help)/i';
 
 		// Stream the final response.
@@ -573,295 +669,6 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
-	 * Check if question requires data from WooCommerce.
-	 *
-	 * @param string $question User's question.
-	 * @return bool
-	 */
-	protected function question_requires_data( $question ) {
-		$data_keywords = array(
-			'order', 'product', 'customer', 'sale', 'revenue', 'transaction',
-			'purchase', 'buy', 'item', 'inventory', 'stock', 'buyer',
-			'client', 'purchased', 'sold', 'total', 'recent', 'list',
-			'show me', 'display', 'what are', 'how many', 'tell me about',
-		);
-		
-		$lower_question = strtolower( $question );
-		foreach ( $data_keywords as $keyword ) {
-			if ( strpos( $lower_question, $keyword ) !== false ) {
-				return true;
-			}
-		}
-		
-		return false;
-	}
-
-	/**
-	 * Classify intent and determine which tools to call based on question.
-	 * This replaces LLM-based tool selection with rule-based intent classification.
-	 *
-	 * @param string $question User's question.
-	 * @return array Array of tool call structures with function name and arguments.
-	 */
-	protected function classify_intent_and_get_tools( $question ) {
-		$tool_calls = array();
-		$lower_question = strtolower( trim( $question ) );
-		
-		// Check if question requires data
-		if ( ! $this->question_requires_data( $question ) ) {
-			return array(); // Not a data question, no tools needed
-		}
-		
-		// Extract entity type from question
-		$entity_type = $this->extract_entity_type( $question );
-		$query_type = $this->extract_query_type( $question );
-		$filters = $this->extract_filters( $question, $entity_type );
-		
-		// Check for statistics/aggregated queries (revenue, total, count, average, etc.)
-		$is_statistics_query = preg_match( '/\b(total|revenue|count|average|sum|statistics|stats|how many|revenue by|total sales|avg|mean)\b/i', $question );
-		
-		// Handle order-related queries
-		if ( $entity_type === 'orders' || preg_match( '/\b(order|orders|sale|sales|transaction|purchase|recent order)\b/i', $question ) ) {
-			if ( $is_statistics_query || $query_type === 'statistics' ) {
-				// Use order statistics for aggregated queries
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_order_statistics',
-						'arguments' => wp_json_encode( $filters ),
-					),
-					'id' => 'intent-order-stats-' . uniqid(),
-				);
-			} else {
-				// Use flexible query for list/sample queries
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_woocommerce_data',
-						'arguments' => wp_json_encode( array(
-							'entity_type' => 'orders',
-							'query_type' => $query_type,
-							'filters' => $filters,
-						) ),
-					),
-					'id' => 'intent-orders-' . uniqid(),
-				);
-			}
-		}
-		// Handle product-related queries
-		elseif ( $entity_type === 'products' || preg_match( '/\b(product|products|item|items)\b/i', $question ) ) {
-			if ( preg_match( '/\b(top|best|popular|selling|bestselling)\b/i', $question ) ) {
-				$limit = $this->extract_number( $question, 10 );
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_top_products',
-						'arguments' => wp_json_encode( array( 'limit' => $limit ) ),
-					),
-					'id' => 'intent-top-products-' . uniqid(),
-				);
-			} else {
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_woocommerce_data',
-						'arguments' => wp_json_encode( array(
-							'entity_type' => 'products',
-							'query_type' => $query_type,
-							'filters' => $filters,
-						) ),
-					),
-					'id' => 'intent-products-' . uniqid(),
-				);
-			}
-		}
-		// Handle customer-related queries
-		elseif ( $entity_type === 'customers' || preg_match( '/\b(customer|customers|buyer|buyers|client|clients)\b/i', $question ) ) {
-			if ( $is_statistics_query || preg_match( '/\b(summary|overview|total)\b/i', $question ) ) {
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_customer_summary',
-						'arguments' => wp_json_encode( array() ),
-					),
-					'id' => 'intent-customer-summary-' . uniqid(),
-				);
-			} else {
-				$limit = $this->extract_number( $question, 10 );
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_customers',
-						'arguments' => wp_json_encode( array( 'limit' => $limit ) ),
-					),
-					'id' => 'intent-customers-' . uniqid(),
-				);
-			}
-		}
-		// Handle inventory/stock queries
-		elseif ( $entity_type === 'stock' || $entity_type === 'inventory' || preg_match( '/\b(inventory|stock|low stock|out of stock)\b/i', $question ) ) {
-			$tool_calls[] = array(
-				'function' => array(
-					'name' => 'get_woocommerce_data',
-					'arguments' => wp_json_encode( array(
-						'entity_type' => $entity_type,
-						'query_type' => $query_type,
-						'filters' => $filters,
-					) ),
-				),
-				'id' => 'intent-' . $entity_type . '-' . uniqid(),
-			);
-		}
-		// Handle other entity types (categories, tags, coupons, refunds, etc.)
-		elseif ( $entity_type ) {
-			$tool_calls[] = array(
-				'function' => array(
-					'name' => 'get_woocommerce_data',
-					'arguments' => wp_json_encode( array(
-						'entity_type' => $entity_type,
-						'query_type' => $query_type,
-						'filters' => $filters,
-					) ),
-				),
-				'id' => 'intent-' . $entity_type . '-' . uniqid(),
-			);
-		}
-		// Default fallback - get recent orders
-		elseif ( $this->question_requires_data( $question ) ) {
-			$tool_calls[] = array(
-				'function' => array(
-					'name' => 'get_woocommerce_data',
-					'arguments' => wp_json_encode( array(
-						'entity_type' => 'orders',
-						'query_type' => 'list',
-						'filters' => array( 'limit' => 20 ),
-					) ),
-				),
-				'id' => 'intent-default-' . uniqid(),
-			);
-		}
-		
-		return $tool_calls;
-	}
-	
-	/**
-	 * Extract entity type from question.
-	 *
-	 * @param string $question User's question.
-	 * @return string|null Entity type or null.
-	 */
-	protected function extract_entity_type( $question ) {
-		$lower_question = strtolower( $question );
-		
-		// Entity type mappings with synonyms
-		$entity_patterns = array(
-			'orders'     => array( 'order', 'orders', 'sale', 'sales', 'transaction', 'transactions', 'purchase', 'purchases' ),
-			'products'   => array( 'product', 'products', 'item', 'items', 'goods' ),
-			'customers'  => array( 'customer', 'customers', 'buyer', 'buyers', 'client', 'clients' ),
-			'categories' => array( 'category', 'categories', 'product category', 'product categories' ),
-			'tags'       => array( 'tag', 'tags', 'product tag', 'product tags' ),
-			'coupons'    => array( 'coupon', 'coupons', 'discount', 'discounts', 'promo code', 'promo codes' ),
-			'refunds'    => array( 'refund', 'refunds' ),
-			'stock'      => array( 'stock', 'stock level', 'stock levels', 'low stock' ),
-			'inventory'  => array( 'inventory', 'inventories' ),
-		);
-		
-		foreach ( $entity_patterns as $entity_type => $patterns ) {
-			foreach ( $patterns as $pattern ) {
-				if ( preg_match( '/\b' . preg_quote( $pattern, '/' ) . '\b/i', $lower_question ) ) {
-					return $entity_type;
-				}
-			}
-		}
-		
-		return null;
-	}
-	
-	/**
-	 * Extract query type from question (list, statistics, sample, by_period).
-	 *
-	 * @param string $question User's question.
-	 * @return string Query type (default: 'list').
-	 */
-	protected function extract_query_type( $question ) {
-		$lower_question = strtolower( $question );
-		
-		// Check for statistics queries
-		if ( preg_match( '/\b(total|revenue|count|average|sum|statistics|stats|how many|revenue by|total sales|avg|mean)\b/i', $question ) ) {
-			return 'statistics';
-		}
-		
-		// Check for time-series queries
-		if ( preg_match( '/\b(by (day|week|month|year|hour)|over time|trend|daily|weekly|monthly|hourly)\b/i', $question ) ) {
-			return 'by_period';
-		}
-		
-		// Check for sample queries
-		if ( preg_match( '/\b(sample|example|few|some)\b/i', $question ) ) {
-			return 'sample';
-		}
-		
-		// Default to list
-		return 'list';
-	}
-	
-	/**
-	 * Extract filters from question (status, date ranges, limits, etc.).
-	 *
-	 * @param string $question User's question.
-	 * @param string|null $entity_type Entity type.
-	 * @return array Filters array.
-	 */
-	protected function extract_filters( $question, $entity_type = null ) {
-		$filters = array();
-		$lower_question = strtolower( $question );
-		
-		// Extract limit
-		$limit = $this->extract_number( $question );
-		if ( $limit ) {
-			$filters['limit'] = min( 100, max( 1, $limit ) );
-		}
-		
-		// Extract order status
-		if ( $entity_type === 'orders' || preg_match( '/\b(order|orders)\b/i', $question ) ) {
-			$status_patterns = array(
-				'completed' => array( 'completed', 'finished', 'done', 'processed' ),
-				'pending'   => array( 'pending', 'waiting', 'unpaid' ),
-				'processing' => array( 'processing', 'in progress', 'being processed' ),
-				'on-hold'   => array( 'on hold', 'on-hold', 'held' ),
-				'cancelled' => array( 'cancelled', 'canceled', 'cancelled' ),
-				'refunded'  => array( 'refunded', 'refund' ),
-				'failed'    => array( 'failed', 'failure' ),
-			);
-			
-			foreach ( $status_patterns as $status => $patterns ) {
-				foreach ( $patterns as $pattern ) {
-					if ( preg_match( '/\b' . preg_quote( $pattern, '/' ) . '\b/i', $lower_question ) ) {
-						$filters['status'] = $status;
-						break 2;
-					}
-				}
-			}
-		}
-		
-		// Extract date ranges (basic - could be enhanced)
-		if ( preg_match( '/\b(today|yesterday|this week|this month|last week|last month|this year|last year)\b/i', $lower_question ) ) {
-			// Could implement date parsing here
-			// For now, we'll let the tool handle default date ranges
-		}
-		
-		return $filters;
-	}
-	
-	/**
-	 * Extract number from question (for limits, thresholds, etc.).
-	 *
-	 * @param string $question User's question.
-	 * @param int $default Default value if no number found.
-	 * @return int|null Number or default.
-	 */
-	protected function extract_number( $question, $default = null ) {
-		if ( preg_match( '/\b(\d+)\b/', $question, $matches ) ) {
-			return (int) $matches[1];
-		}
-		return $default;
-	}
-
-	/**
 	 * Auto-detect which tools to call based on question.
 	 * DEPRECATED: Use classify_intent_and_get_tools() instead.
 	 *
@@ -944,7 +751,7 @@ class Dataviz_AI_AJAX_Handler {
 		}
 		
 		// If no specific match but question is about data, default to getting orders.
-		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
+		if ( empty( $tool_calls ) && Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
 			$tool_calls[] = array(
 				'function' => array(
 					'name' => 'get_recent_orders',
@@ -1545,7 +1352,7 @@ class Dataviz_AI_AJAX_Handler {
 
 		// Normalize entity_type (handle synonyms) but keep original for context
 		// Note: "inventory" is NOT normalized to "stock" - they are different
-		$entity_type_normalized = $this->normalize_entity_type( $entity_type );
+		$entity_type_normalized = Dataviz_AI_Intent_Classifier::normalize_entity_type( $entity_type );
 
 		switch ( $entity_type_normalized ) {
 			case 'orders':
@@ -2009,30 +1816,6 @@ class Dataviz_AI_AJAX_Handler {
 		}
 		
 		return false;
-	}
-
-	/**
-	 * Normalize entity type (handle synonyms).
-	 *
-	 * @param string $entity_type Entity type from user.
-	 * @return string Normalized entity type.
-	 */
-	protected function normalize_entity_type( $entity_type ) {
-		$normalized = strtolower( trim( $entity_type ) );
-		
-		// Handle synonyms - map to supported types
-		// Note: "inventory" is NOT mapped - it's handled separately to show all inventory
-		$synonyms = array(
-			'stock levels' => 'stock',
-			'stock level' => 'stock',
-		);
-		
-		if ( isset( $synonyms[ $normalized ] ) ) {
-			return $synonyms[ $normalized ];
-		}
-		
-		// Keep "inventory" as-is (not normalized to "stock")
-		return $normalized;
 	}
 
 	/**
