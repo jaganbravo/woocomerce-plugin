@@ -425,10 +425,12 @@ class Dataviz_AI_AJAX_Handler {
 
 		// If intent classification detected tools, execute them and then stream the final response.
 		if ( ! empty( $tool_calls ) ) {
-			// Don't add assistant message - we're using intent classification, not LLM tool selection
-
 			// Store tool results for frontend (to avoid redundant AJAX calls).
 			$tool_results_for_frontend = array();
+
+			// Build assistant message with tool_calls (required by OpenAI API even when using intent classification)
+			$assistant_tool_calls = array();
+			$tool_results_messages = array();
 
 			foreach ( $tool_calls as $tool_call ) {
 				// Handle both OpenAI format and auto-detected format.
@@ -436,7 +438,7 @@ class Dataviz_AI_AJAX_Handler {
 					$function_name = $tool_call['function']['name'];
 					$arguments_json = isset( $tool_call['function']['arguments'] ) ? $tool_call['function']['arguments'] : '{}';
 					$arguments = is_string( $arguments_json ) ? json_decode( $arguments_json, true ) : $arguments_json;
-					$tool_call_id = isset( $tool_call['id'] ) ? $tool_call['id'] : 'auto-' . uniqid();
+					$tool_call_id = isset( $tool_call['id'] ) ? $tool_call['id'] : 'intent-' . uniqid();
 				} else {
 					// Skip invalid tool calls.
 					continue;
@@ -445,6 +447,16 @@ class Dataviz_AI_AJAX_Handler {
 				if ( empty( $function_name ) ) {
 					continue;
 				}
+
+				// Build tool_call structure for assistant message
+				$assistant_tool_calls[] = array(
+					'id'       => $tool_call_id,
+					'type'     => 'function',
+					'function' => array(
+						'name'      => $function_name,
+						'arguments' => is_string( $arguments_json ) ? $arguments_json : wp_json_encode( $arguments ),
+					),
+				);
 
 				$tool_result = $this->execute_tool( $function_name, is_array( $arguments ) ? $arguments : array() );
 				
@@ -480,12 +492,23 @@ class Dataviz_AI_AJAX_Handler {
 					}
 				}
 				
-				$messages[]  = array(
+				// Build tool result message
+				$tool_results_messages[] = array(
 					'role'         => 'tool',
 					'tool_call_id' => $tool_call_id,
 					'content'      => wp_json_encode( $tool_result ),
 				);
 			}
+
+			// Add assistant message with tool_calls (required by OpenAI API)
+			$messages[] = array(
+				'role'       => 'assistant',
+				'content'    => null,
+				'tool_calls' => $assistant_tool_calls,
+			);
+
+			// Add tool result messages
+			$messages = array_merge( $messages, $tool_results_messages );
 			
 			// Send tool results to frontend as metadata (before text response).
 			if ( ! empty( $tool_results_for_frontend ) ) {
