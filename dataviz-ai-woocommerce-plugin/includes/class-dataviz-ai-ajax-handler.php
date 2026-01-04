@@ -313,69 +313,23 @@ class Dataviz_AI_AJAX_Handler {
 			}
 		}
 
-		// First, check if LLM wants to call tools.
-		// If question clearly requires data, suggest tools more strongly.
-		$options = array(
-			'model' => 'gpt-4o-mini',
-			'tools' => $tools,
-		);
+		// Use intent classification to determine which tools to call (no LLM needed for tool selection)
+		$tool_calls = $this->classify_intent_and_get_tools( $question );
 		
-		// For data-related questions, strongly encourage tool usage.
-		if ( $this->question_requires_data( $question ) ) {
-			// Use 'required' to force tool usage, but we'll fall back to auto-detect if LLM still doesn't call tools
-			// We can't use 'required' with multiple tools, so use 'auto' but detect and fix if LLM doesn't comply
-			$options['tool_choice'] = 'auto';
-		}
-		
-		$first_response = $this->api_client->send_openai_chat(
-			$messages,
-			$options
-		);
-
-		if ( is_wp_error( $first_response ) ) {
-			$this->send_stream_error( $first_response->get_error_message() );
-			return;
-		}
-
-		$assistant_message = $first_response['choices'][0]['message'] ?? array();
-		$tool_calls        = $assistant_message['tool_calls'] ?? array();
-		
-		// If LLM responds with content instead of calling tools, check if question requires data.
-		// If it does, ignore the content response and auto-detect tool calls instead.
-		if ( empty( $tool_calls ) && isset( $assistant_message['content'] ) && ! empty( $assistant_message['content'] ) ) {
-			if ( $this->question_requires_data( $question ) ) {
-				// Question requires data but LLM didn't call tools - auto-detect and call tools.
-				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-					error_log( sprintf( '[Dataviz AI] LLM returned content instead of calling tools for data question. Question: %s', $question ) );
-				}
-				$tool_calls = $this->auto_detect_tool_calls( $question );
-				// Don't add the assistant message with content - we'll fetch data instead.
-				unset( $assistant_message['content'] );
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			if ( ! empty( $tool_calls ) ) {
+				$tool_names = array_map( function( $tc ) {
+					return $tc['function']['name'] ?? 'unknown';
+				}, $tool_calls );
+				error_log( sprintf( '[Dataviz AI] Intent classification detected tools: %s for question: %s', implode( ', ', $tool_names ), $question ) );
+			} else {
+				error_log( sprintf( '[Dataviz AI] Intent classification: No tools detected for question: %s', $question ) );
 			}
 		}
 
-		// If LLM doesn't call tools but question is clearly about data, proactively fetch data.
-		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
-			// Automatically fetch relevant data based on question keywords.
-			$tool_calls = $this->auto_detect_tool_calls( $question );
-			// If we auto-detected tool calls, don't use any content from assistant_message
-			if ( ! empty( $tool_calls ) && isset( $assistant_message['content'] ) ) {
-				unset( $assistant_message['content'] );
-			}
-		}
-
-		// If LLM wants to call tools (or we auto-detected), execute them and then stream the final response.
+		// If intent classification detected tools, execute them and then stream the final response.
 		if ( ! empty( $tool_calls ) ) {
-			// Only add assistant message if it has tool_calls (from LLM), not if we auto-detected.
-			// Also ensure it doesn't have unwanted content (greeting).
-			if ( isset( $assistant_message['tool_calls'] ) && ! empty( $assistant_message['tool_calls'] ) ) {
-				// Remove any content if present (shouldn't be, but safety check)
-				if ( isset( $assistant_message['content'] ) && ! empty( $assistant_message['content'] ) ) {
-					unset( $assistant_message['content'] );
-				}
-				$messages[] = $assistant_message;
-			}
-			// If we auto-detected tool calls, don't add assistant_message (it might contain greeting)
+			// Don't add assistant message - we're using intent classification, not LLM tool selection
 
 			// Store tool results for frontend (to avoid redundant AJAX calls).
 			$tool_results_for_frontend = array();
@@ -463,17 +417,41 @@ class Dataviz_AI_AJAX_Handler {
 				'content' => $final_prompt,
 			);
 		} else {
-			// No tools needed - but double-check: if question requires data, we should have called tools
-			// This else block should only be reached for non-data questions
-			if ( isset( $assistant_message['content'] ) && ! $this->question_requires_data( $question ) ) {
-				$messages[] = $assistant_message;
-			} elseif ( $this->question_requires_data( $question ) ) {
-				// Question requires data but no tool calls - this is an error case
-				// Log it but don't stream the greeting - return an error instead
+			// No tools detected - handle non-data questions or fallback cases
+			if ( $this->question_requires_data( $question ) ) {
+				// This shouldn't happen because classify_intent_and_get_tools has a fallback for data questions
+				// But if it does, log it and return an error
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 					error_log( sprintf( '[Dataviz AI] ERROR: No tool calls detected for data question: %s', $question ) );
 				}
 				$this->send_stream_error( __( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' ) );
+				return;
+			} else {
+				// Non-data question (e.g., greeting, general chat) - use LLM to respond directly
+				$messages = $this->build_smart_analysis_messages( $question );
+				$this->streaming_content = '';
+				$stream_result = $this->api_client->send_openai_chat_stream(
+					$messages,
+					function( $chunk ) {
+						$this->streaming_content .= $chunk;
+						$this->send_stream_chunk( $chunk );
+					},
+					array(
+						'model' => 'gpt-4o-mini',
+					)
+				);
+				
+				if ( is_wp_error( $stream_result ) ) {
+					$this->send_stream_error( $stream_result->get_error_message() );
+					return;
+				}
+				
+				// Save AI response to chat history.
+				if ( ! empty( $this->streaming_content ) ) {
+					$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+				}
+				
+				$this->send_stream_end();
 				return;
 			}
 		}
@@ -619,7 +597,273 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
+	 * Classify intent and determine which tools to call based on question.
+	 * This replaces LLM-based tool selection with rule-based intent classification.
+	 *
+	 * @param string $question User's question.
+	 * @return array Array of tool call structures with function name and arguments.
+	 */
+	protected function classify_intent_and_get_tools( $question ) {
+		$tool_calls = array();
+		$lower_question = strtolower( trim( $question ) );
+		
+		// Check if question requires data
+		if ( ! $this->question_requires_data( $question ) ) {
+			return array(); // Not a data question, no tools needed
+		}
+		
+		// Extract entity type from question
+		$entity_type = $this->extract_entity_type( $question );
+		$query_type = $this->extract_query_type( $question );
+		$filters = $this->extract_filters( $question, $entity_type );
+		
+		// Check for statistics/aggregated queries (revenue, total, count, average, etc.)
+		$is_statistics_query = preg_match( '/\b(total|revenue|count|average|sum|statistics|stats|how many|revenue by|total sales|avg|mean)\b/i', $question );
+		
+		// Handle order-related queries
+		if ( $entity_type === 'orders' || preg_match( '/\b(order|orders|sale|sales|transaction|purchase|recent order)\b/i', $question ) ) {
+			if ( $is_statistics_query || $query_type === 'statistics' ) {
+				// Use order statistics for aggregated queries
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_order_statistics',
+						'arguments' => wp_json_encode( $filters ),
+					),
+					'id' => 'intent-order-stats-' . uniqid(),
+				);
+			} else {
+				// Use flexible query for list/sample queries
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_woocommerce_data',
+						'arguments' => wp_json_encode( array(
+							'entity_type' => 'orders',
+							'query_type' => $query_type,
+							'filters' => $filters,
+						) ),
+					),
+					'id' => 'intent-orders-' . uniqid(),
+				);
+			}
+		}
+		// Handle product-related queries
+		elseif ( $entity_type === 'products' || preg_match( '/\b(product|products|item|items)\b/i', $question ) ) {
+			if ( preg_match( '/\b(top|best|popular|selling|bestselling)\b/i', $question ) ) {
+				$limit = $this->extract_number( $question, 10 );
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_top_products',
+						'arguments' => wp_json_encode( array( 'limit' => $limit ) ),
+					),
+					'id' => 'intent-top-products-' . uniqid(),
+				);
+			} else {
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_woocommerce_data',
+						'arguments' => wp_json_encode( array(
+							'entity_type' => 'products',
+							'query_type' => $query_type,
+							'filters' => $filters,
+						) ),
+					),
+					'id' => 'intent-products-' . uniqid(),
+				);
+			}
+		}
+		// Handle customer-related queries
+		elseif ( $entity_type === 'customers' || preg_match( '/\b(customer|customers|buyer|buyers|client|clients)\b/i', $question ) ) {
+			if ( $is_statistics_query || preg_match( '/\b(summary|overview|total)\b/i', $question ) ) {
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_customer_summary',
+						'arguments' => wp_json_encode( array() ),
+					),
+					'id' => 'intent-customer-summary-' . uniqid(),
+				);
+			} else {
+				$limit = $this->extract_number( $question, 10 );
+				$tool_calls[] = array(
+					'function' => array(
+						'name' => 'get_customers',
+						'arguments' => wp_json_encode( array( 'limit' => $limit ) ),
+					),
+					'id' => 'intent-customers-' . uniqid(),
+				);
+			}
+		}
+		// Handle inventory/stock queries
+		elseif ( $entity_type === 'stock' || $entity_type === 'inventory' || preg_match( '/\b(inventory|stock|low stock|out of stock)\b/i', $question ) ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_woocommerce_data',
+					'arguments' => wp_json_encode( array(
+						'entity_type' => $entity_type,
+						'query_type' => $query_type,
+						'filters' => $filters,
+					) ),
+				),
+				'id' => 'intent-' . $entity_type . '-' . uniqid(),
+			);
+		}
+		// Handle other entity types (categories, tags, coupons, refunds, etc.)
+		elseif ( $entity_type ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_woocommerce_data',
+					'arguments' => wp_json_encode( array(
+						'entity_type' => $entity_type,
+						'query_type' => $query_type,
+						'filters' => $filters,
+					) ),
+				),
+				'id' => 'intent-' . $entity_type . '-' . uniqid(),
+			);
+		}
+		// Default fallback - get recent orders
+		elseif ( $this->question_requires_data( $question ) ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name' => 'get_woocommerce_data',
+					'arguments' => wp_json_encode( array(
+						'entity_type' => 'orders',
+						'query_type' => 'list',
+						'filters' => array( 'limit' => 20 ),
+					) ),
+				),
+				'id' => 'intent-default-' . uniqid(),
+			);
+		}
+		
+		return $tool_calls;
+	}
+	
+	/**
+	 * Extract entity type from question.
+	 *
+	 * @param string $question User's question.
+	 * @return string|null Entity type or null.
+	 */
+	protected function extract_entity_type( $question ) {
+		$lower_question = strtolower( $question );
+		
+		// Entity type mappings with synonyms
+		$entity_patterns = array(
+			'orders'     => array( 'order', 'orders', 'sale', 'sales', 'transaction', 'transactions', 'purchase', 'purchases' ),
+			'products'   => array( 'product', 'products', 'item', 'items', 'goods' ),
+			'customers'  => array( 'customer', 'customers', 'buyer', 'buyers', 'client', 'clients' ),
+			'categories' => array( 'category', 'categories', 'product category', 'product categories' ),
+			'tags'       => array( 'tag', 'tags', 'product tag', 'product tags' ),
+			'coupons'    => array( 'coupon', 'coupons', 'discount', 'discounts', 'promo code', 'promo codes' ),
+			'refunds'    => array( 'refund', 'refunds' ),
+			'stock'      => array( 'stock', 'stock level', 'stock levels', 'low stock' ),
+			'inventory'  => array( 'inventory', 'inventories' ),
+		);
+		
+		foreach ( $entity_patterns as $entity_type => $patterns ) {
+			foreach ( $patterns as $pattern ) {
+				if ( preg_match( '/\b' . preg_quote( $pattern, '/' ) . '\b/i', $lower_question ) ) {
+					return $entity_type;
+				}
+			}
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Extract query type from question (list, statistics, sample, by_period).
+	 *
+	 * @param string $question User's question.
+	 * @return string Query type (default: 'list').
+	 */
+	protected function extract_query_type( $question ) {
+		$lower_question = strtolower( $question );
+		
+		// Check for statistics queries
+		if ( preg_match( '/\b(total|revenue|count|average|sum|statistics|stats|how many|revenue by|total sales|avg|mean)\b/i', $question ) ) {
+			return 'statistics';
+		}
+		
+		// Check for time-series queries
+		if ( preg_match( '/\b(by (day|week|month|year|hour)|over time|trend|daily|weekly|monthly|hourly)\b/i', $question ) ) {
+			return 'by_period';
+		}
+		
+		// Check for sample queries
+		if ( preg_match( '/\b(sample|example|few|some)\b/i', $question ) ) {
+			return 'sample';
+		}
+		
+		// Default to list
+		return 'list';
+	}
+	
+	/**
+	 * Extract filters from question (status, date ranges, limits, etc.).
+	 *
+	 * @param string $question User's question.
+	 * @param string|null $entity_type Entity type.
+	 * @return array Filters array.
+	 */
+	protected function extract_filters( $question, $entity_type = null ) {
+		$filters = array();
+		$lower_question = strtolower( $question );
+		
+		// Extract limit
+		$limit = $this->extract_number( $question );
+		if ( $limit ) {
+			$filters['limit'] = min( 100, max( 1, $limit ) );
+		}
+		
+		// Extract order status
+		if ( $entity_type === 'orders' || preg_match( '/\b(order|orders)\b/i', $question ) ) {
+			$status_patterns = array(
+				'completed' => array( 'completed', 'finished', 'done', 'processed' ),
+				'pending'   => array( 'pending', 'waiting', 'unpaid' ),
+				'processing' => array( 'processing', 'in progress', 'being processed' ),
+				'on-hold'   => array( 'on hold', 'on-hold', 'held' ),
+				'cancelled' => array( 'cancelled', 'canceled', 'cancelled' ),
+				'refunded'  => array( 'refunded', 'refund' ),
+				'failed'    => array( 'failed', 'failure' ),
+			);
+			
+			foreach ( $status_patterns as $status => $patterns ) {
+				foreach ( $patterns as $pattern ) {
+					if ( preg_match( '/\b' . preg_quote( $pattern, '/' ) . '\b/i', $lower_question ) ) {
+						$filters['status'] = $status;
+						break 2;
+					}
+				}
+			}
+		}
+		
+		// Extract date ranges (basic - could be enhanced)
+		if ( preg_match( '/\b(today|yesterday|this week|this month|last week|last month|this year|last year)\b/i', $lower_question ) ) {
+			// Could implement date parsing here
+			// For now, we'll let the tool handle default date ranges
+		}
+		
+		return $filters;
+	}
+	
+	/**
+	 * Extract number from question (for limits, thresholds, etc.).
+	 *
+	 * @param string $question User's question.
+	 * @param int $default Default value if no number found.
+	 * @return int|null Number or default.
+	 */
+	protected function extract_number( $question, $default = null ) {
+		if ( preg_match( '/\b(\d+)\b/', $question, $matches ) ) {
+			return (int) $matches[1];
+		}
+		return $default;
+	}
+
+	/**
 	 * Auto-detect which tools to call based on question.
+	 * DEPRECATED: Use classify_intent_and_get_tools() instead.
 	 *
 	 * @param string $question User's question.
 	 * @return array Array of tool call structures.

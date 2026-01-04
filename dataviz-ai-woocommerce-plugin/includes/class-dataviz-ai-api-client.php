@@ -188,7 +188,7 @@ class Dataviz_AI_API_Client {
 
 		$request_body = array_merge(
 			array(
-				'model'       => isset( $options['model'] ) ? sanitize_text_field( $options['model'] ) : 'gpt-4o-mini',
+				'model'       => isset( $options['model'] ) ? sanitize_text_field( $options['model'] ) : 'gpt-4o',
 				'temperature' => isset( $options['temperature'] ) ? (float) $options['temperature'] : 0.6,
 				'messages'    => $messages,
 			),
@@ -256,7 +256,7 @@ class Dataviz_AI_API_Client {
 
 		$request_body = array_merge(
 			array(
-				'model'       => isset( $options['model'] ) ? sanitize_text_field( $options['model'] ) : 'gpt-4o-mini',
+				'model'       => isset( $options['model'] ) ? sanitize_text_field( $options['model'] ) : 'gpt-4o',
 				'temperature' => isset( $options['temperature'] ) ? (float) $options['temperature'] : 0.6,
 				'messages'    => $messages,
 				'stream'      => true, // Enable streaming.
@@ -272,6 +272,8 @@ class Dataviz_AI_API_Client {
 
 		// Use cURL for proper streaming support.
 		$ch = curl_init();
+		$error_buffer = ''; // Buffer to capture error responses
+		$has_error = false;
 		
 		curl_setopt_array(
 			$ch,
@@ -284,7 +286,18 @@ class Dataviz_AI_API_Client {
 					'Content-Type: application/json',
 					'Authorization: Bearer ' . $api_key,
 				),
-				CURLOPT_WRITEFUNCTION  => function( $ch, $data ) use ( &$buffer, $callback ) {
+				CURLOPT_WRITEFUNCTION  => function( $ch, $data ) use ( &$buffer, &$error_buffer, &$has_error, $callback ) {
+					// Check HTTP status code first
+					$status_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+					
+					if ( $status_code >= 400 ) {
+						// This is an error response, capture it
+						$has_error = true;
+						$error_buffer .= $data;
+						return strlen( $data );
+					}
+					
+					// Normal streaming response
 					$buffer .= $data;
 					$lines   = explode( "\n", $buffer );
 					$buffer  = array_pop( $lines ); // Keep incomplete line.
@@ -302,6 +315,14 @@ class Dataviz_AI_API_Client {
 						}
 
 						$chunk = json_decode( $data_str, true );
+						
+						// Check if this chunk contains an error
+						if ( is_array( $chunk ) && isset( $chunk['error'] ) ) {
+							$has_error = true;
+							$error_buffer = json_encode( $chunk['error'] );
+							continue;
+						}
+						
 						if ( ! is_array( $chunk ) || ! isset( $chunk['choices'][0]['delta']['content'] ) ) {
 							continue;
 						}
@@ -329,13 +350,41 @@ class Dataviz_AI_API_Client {
 			);
 		}
 
-		if ( $status_code >= 400 ) {
+		if ( $status_code >= 400 || $has_error ) {
+			// Try to parse error response
+			$error_message = __( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' );
+			$error_details = array( 'status' => $status_code );
+			
+			if ( ! empty( $error_buffer ) ) {
+				$error_data = json_decode( $error_buffer, true );
+				if ( is_array( $error_data ) ) {
+					if ( isset( $error_data['error'] ) ) {
+						$error_obj = $error_data['error'];
+						if ( is_array( $error_obj ) && isset( $error_obj['message'] ) ) {
+							$error_message .= ' ' . $error_obj['message'];
+						} elseif ( is_string( $error_obj ) ) {
+							$error_message .= ' ' . $error_obj;
+						}
+						$error_details['error'] = $error_obj;
+					} elseif ( isset( $error_data['message'] ) ) {
+						$error_message .= ' ' . $error_data['message'];
+						$error_details['error'] = $error_data;
+					}
+				} else {
+					// If not JSON, try to extract message from raw response
+					$error_details['raw_response'] = $error_buffer;
+				}
+			}
+			
+			// Log detailed error for debugging
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] OpenAI Streaming API Error (HTTP %d): %s', $status_code, wp_json_encode( $error_details, JSON_PRETTY_PRINT ) ) );
+			}
+			
 			return new WP_Error(
 				'dataviz_ai_openai_error',
-				__( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' ),
-				array(
-					'status' => $status_code,
-				)
+				$error_message,
+				$error_details
 			);
 		}
 
