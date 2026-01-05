@@ -174,91 +174,149 @@ class Dataviz_AI_Data_Fetcher {
 	 * @return array Aggregated statistics.
 	 */
 	public function get_order_statistics( array $args = array() ) {
-		global $wpdb;
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return array(
+				'summary'         => array(
+					'total_orders'      => 0,
+					'total_revenue'     => 0,
+					'avg_order_value'   => 0,
+					'min_order_value'   => 0,
+					'max_order_value'   => 0,
+					'unique_customers'  => 0,
+				),
+				'status_breakdown' => array(),
+				'daily_trend'      => array(),
+				'date_range'       => array(
+					'from' => null,
+					'to'   => null,
+				),
+			);
+		}
 
 		$date_from = isset( $args['date_from'] ) ? sanitize_text_field( $args['date_from'] ) : null;
 		$date_to   = isset( $args['date_to'] ) ? sanitize_text_field( $args['date_to'] ) : null;
 		$status    = isset( $args['status'] ) ? sanitize_text_field( $args['status'] ) : null;
 
-		// Build WHERE clause.
-		$where = array( "p.post_type = 'shop_order'" );
-		
-		if ( $date_from ) {
-			$where[] = $wpdb->prepare( "p.post_date >= %s", $date_from . ' 00:00:00' );
+		// Debug logging
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf( '[Dataviz AI] get_order_statistics called with args: %s', wp_json_encode( $args ) ) );
+			error_log( sprintf( '[Dataviz AI] Using wc_get_orders() instead of direct SQL' ) );
 		}
-		
-		if ( $date_to ) {
-			$where[] = $wpdb->prepare( "p.post_date <= %s", $date_to . ' 23:59:59' );
-		}
-		
+
+		// Build query args for wc_get_orders - WooCommerce handles status automatically
+		$query_args = array(
+			'limit'  => -1, // Get all matching orders
+		);
+
+		// Add status filter - WooCommerce handles the 'wc-' prefix automatically
 		if ( $status ) {
-			$where[] = $wpdb->prepare( "p.post_status = %s", 'wc-' . $status );
+			$query_args['status'] = array( $status );
 		}
 
-		$where_clause = implode( ' AND ', $where );
+		// Add date filters
+		if ( $date_from || $date_to ) {
+			$date_query = array();
+			if ( $date_from ) {
+				$date_query['after'] = $date_from . ' 00:00:00';
+			}
+		if ( $date_to ) {
+				$date_query['before'] = $date_to . ' 23:59:59';
+			}
+			$query_args['date_created'] = $date_query;
+		}
 
-		// Single query to get all aggregated stats.
-		$query = "
-			SELECT 
-				COUNT(DISTINCT p.ID) as total_orders,
-				SUM(CAST(pm_total.meta_value AS DECIMAL(10,2))) as total_revenue,
-				AVG(CAST(pm_total.meta_value AS DECIMAL(10,2))) as avg_order_value,
-				MIN(CAST(pm_total.meta_value AS DECIMAL(10,2))) as min_order_value,
-				MAX(CAST(pm_total.meta_value AS DECIMAL(10,2))) as max_order_value,
-				COUNT(DISTINCT pm_customer.meta_value) as unique_customers
-			FROM {$wpdb->posts} p
-			LEFT JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
-			LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_customer_user'
-			WHERE {$where_clause}
-		";
+		// Get orders using WooCommerce API - this handles all the complexity automatically
+		$orders = wc_get_orders( $query_args );
 
-		$stats = $wpdb->get_row( $query, ARRAY_A );
+		// Debug logging
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf( '[Dataviz AI] Found %d orders using wc_get_orders()', count( $orders ) ) );
+		}
 
-		// Get status breakdown.
-		$status_query = "
-			SELECT 
-				REPLACE(p.post_status, 'wc-', '') as status,
-				COUNT(*) as count,
-				SUM(CAST(pm_total.meta_value AS DECIMAL(10,2))) as revenue
-			FROM {$wpdb->posts} p
-			LEFT JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
-			WHERE {$where_clause}
-			GROUP BY p.post_status
-		";
+		// Calculate statistics from order objects
+		$total_orders = count( $orders );
+		$total_revenue = 0;
+		$order_values = array();
+		$customer_ids = array();
+		$status_counts = array();
+		$daily_revenue = array();
 
-		$status_breakdown = $wpdb->get_results( $status_query, ARRAY_A );
+		foreach ( $orders as $order ) {
+			$order_total = (float) $order->get_total();
+			$total_revenue += $order_total;
+			$order_values[] = $order_total;
 
-		// Get daily revenue trend (last 30 days or date range).
+			$customer_id = $order->get_customer_id();
+			if ( $customer_id ) {
+				$customer_ids[ $customer_id ] = true;
+			}
+
+			$order_status = $order->get_status();
+			if ( ! isset( $status_counts[ $order_status ] ) ) {
+				$status_counts[ $order_status ] = array(
+					'count'   => 0,
+					'revenue' => 0,
+				);
+			}
+			$status_counts[ $order_status ]['count']++;
+			$status_counts[ $order_status ]['revenue'] += $order_total;
+
+			// Daily trend
+			$order_date = $order->get_date_created();
+			if ( $order_date ) {
+				$date_key = $order_date->date( 'Y-m-d' );
+				if ( ! isset( $daily_revenue[ $date_key ] ) ) {
+					$daily_revenue[ $date_key ] = array(
+						'order_count' => 0,
+						'revenue'     => 0,
+					);
+				}
+				$daily_revenue[ $date_key ]['order_count']++;
+				$daily_revenue[ $date_key ]['revenue'] += $order_total;
+			}
+		}
+
+		// Calculate averages
+		$avg_order_value = $total_orders > 0 ? ( $total_revenue / $total_orders ) : 0;
+		$min_order_value = ! empty( $order_values ) ? min( $order_values ) : 0;
+		$max_order_value = ! empty( $order_values ) ? max( $order_values ) : 0;
+		$unique_customers = count( $customer_ids );
+
+		// Format status breakdown
+		$status_breakdown = array();
+		foreach ( $status_counts as $status_name => $data ) {
+			$status_breakdown[] = array(
+				'status'  => $status_name,
+				'count'   => $data['count'],
+				'revenue' => $data['revenue'],
+			);
+		}
+
+		// Format daily trend (last 30 days or date range)
 		$trend_days = 30;
 		if ( $date_from && $date_to ) {
 			$days_diff = ( strtotime( $date_to ) - strtotime( $date_from ) ) / DAY_IN_SECONDS;
-			$trend_days = min( 90, max( 7, (int) $days_diff ) ); // Between 7-90 days.
+			$trend_days = min( 90, max( 7, (int) $days_diff ) );
 		}
 
-		$trend_query = "
-			SELECT 
-				DATE(p.post_date) as date,
-				COUNT(*) as order_count,
-				SUM(CAST(pm_total.meta_value AS DECIMAL(10,2))) as revenue
-			FROM {$wpdb->posts} p
-			LEFT JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
-			WHERE {$where_clause}
-			AND p.post_date >= DATE_SUB(NOW(), INTERVAL {$trend_days} DAY)
-			GROUP BY DATE(p.post_date)
-			ORDER BY date DESC
-			LIMIT {$trend_days}
-		";
-
-		$daily_trend = $wpdb->get_results( $trend_query, ARRAY_A );
+		// Sort daily trend by date and limit
+		ksort( $daily_revenue );
+		$daily_trend = array_slice( array_map( function( $date, $data ) {
+			return array(
+				'date'        => $date,
+				'order_count' => $data['order_count'],
+				'revenue'     => $data['revenue'],
+			);
+		}, array_keys( $daily_revenue ), $daily_revenue ), -$trend_days );
 
 		return array(
 			'summary'         => array(
-				'total_orders'      => (int) ( $stats['total_orders'] ?? 0 ),
-				'total_revenue'     => (float) ( $stats['total_revenue'] ?? 0 ),
-				'avg_order_value'   => (float) ( $stats['avg_order_value'] ?? 0 ),
-				'min_order_value'    => (float) ( $stats['min_order_value'] ?? 0 ),
-				'max_order_value'    => (float) ( $stats['max_order_value'] ?? 0 ),
-				'unique_customers'   => (int) ( $stats['unique_customers'] ?? 0 ),
+				'total_orders'      => $total_orders,
+				'total_revenue'     => $total_revenue,
+				'avg_order_value'   => $avg_order_value,
+				'min_order_value'   => $min_order_value,
+				'max_order_value'   => $max_order_value,
+				'unique_customers'  => $unique_customers,
 			),
 			'status_breakdown' => $status_breakdown,
 			'daily_trend'      => $daily_trend,

@@ -515,13 +515,83 @@ class Dataviz_AI_AJAX_Handler {
 				$this->send_stream_chunk( '', array( 'tool_data' => $tool_results_for_frontend ) );
 			}
 
-			// Now get the final streaming response.
+			// Extract key numbers from tool results
+			$extracted_numbers = array();
+			$direct_response_data = null;
+			foreach ( $tool_results_messages as $tool_msg ) {
+				$tool_data = json_decode( $tool_msg['content'], true );
+				if ( is_array( $tool_data ) && ! isset( $tool_data['error'] ) ) {
+					if ( isset( $tool_data['summary']['total_orders'] ) ) {
+						$extracted_numbers['total_orders'] = (int) $tool_data['summary']['total_orders'];
+						$direct_response_data = $tool_data;
+					}
+					if ( isset( $tool_data['summary']['total_revenue'] ) ) {
+						$extracted_numbers['total_revenue'] = (float) $tool_data['summary']['total_revenue'];
+					}
+				}
+			}
+
+			// For simple "how many" questions, format response directly from data (bypass LLM hallucination)
+			$is_how_many_question = preg_match( '/\bhow many\b/i', $question );
+			if ( $is_how_many_question && ! empty( $direct_response_data ) && isset( $extracted_numbers['total_orders'] ) ) {
+				// Determine the entity type from the question
+				$status_text = '';
+				if ( preg_match( '/\b(completed|pending|processing|cancelled|refunded|failed|on.?hold)\b/i', $question, $status_matches ) ) {
+					$status_text = strtolower( $status_matches[1] );
+					if ( $status_text === 'on-hold' || $status_text === 'on hold' ) {
+						$status_text = 'on-hold';
+					}
+				}
+				
+				$count = $extracted_numbers['total_orders'];
+				$entity_name = 'orders';
+				if ( ! empty( $status_text ) ) {
+					$entity_name = $status_text . ' orders';
+				}
+				
+				// Format direct response (bypass LLM to avoid hallucination)
+				if ( $count === 1 ) {
+					$direct_response = sprintf( __( 'There is %d %s in the WooCommerce store.', 'dataviz-ai-woocommerce' ), $count, $entity_name );
+				} else {
+					$direct_response = sprintf( __( 'There are %d %s in the WooCommerce store.', 'dataviz-ai-woocommerce' ), $count, $entity_name );
+				}
+				
+				// Stream the direct response
+				$this->streaming_content = $direct_response;
+				$this->send_stream_chunk( $direct_response );
+				
+				// Save to chat history
+				$this->chat_history->save_message( 'ai', $direct_response, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
+				
+				$this->send_stream_end();
+				return;
+			}
+
+			// Now get the final streaming response (for non-simple questions).
 			$final_prompt = 'You are a WooCommerce data analyst. The user asked: "' . $question . '". ';
 			$final_prompt .= 'I have just fetched the relevant data from the WooCommerce store using tools. ';
+			
+			// Add extracted numbers directly to prompt for clarity
+			if ( ! empty( $extracted_numbers ) ) {
+				$final_prompt .= "\n\nKEY DATA FROM TOOLS: ";
+				if ( isset( $extracted_numbers['total_orders'] ) ) {
+					$final_prompt .= "Total orders: " . $extracted_numbers['total_orders'] . ". ";
+				}
+				if ( isset( $extracted_numbers['total_revenue'] ) ) {
+					$final_prompt .= "Total revenue: " . $extracted_numbers['total_revenue'] . ". ";
+				}
+				$final_prompt .= "The full tool response data is also available in the tool messages above. ";
+			}
+			
 			$final_prompt .= 'Your task is to analyze this data and provide a clear, helpful answer to the user\'s question. ';
 			$final_prompt .= "\n\nCRITICAL: Do NOT greet the user or say 'Hello' or 'How can I assist you'. ";
 			$final_prompt .= "The user has already asked a specific question - answer it directly with the data provided. ";
 			$final_prompt .= "Start your response by directly addressing their question. ";
+			$final_prompt .= "\n\nCRITICAL: If the user asked 'how many', 'count', or requested a number, you MUST include the exact numeric value. ";
+			$final_prompt .= "Use the numbers provided in 'KEY DATA FROM TOOLS' above, or extract them from the tool response JSON. ";
+			$final_prompt .= "NEVER say generic phrases like 'there are orders' or 'you have orders' - ALWAYS include the specific number. ";
+			$final_prompt .= "Examples: 'There are 42 completed orders' (NOT 'There are completed orders'), 'You have 15 orders' (NOT 'You have orders'). ";
+			$final_prompt .= "If the count is 0, say 'There are 0 completed orders' explicitly. ";
 			$final_prompt .= "\n\nIMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
 			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported or not yet available. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format without mentioning chart limitations. ";
 			$final_prompt .= "If the error response includes 'can_submit_request': true and 'submission_prompt', ask the user if they would like to submit a feature request using the exact prompt provided. ";
