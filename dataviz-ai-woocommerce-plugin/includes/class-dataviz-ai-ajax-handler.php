@@ -313,72 +313,124 @@ class Dataviz_AI_AJAX_Handler {
 			}
 		}
 
-		// First, check if LLM wants to call tools.
-		// If question clearly requires data, suggest tools more strongly.
-		$options = array(
-			'model' => 'gpt-4o-mini',
-			'tools' => $tools,
-		);
-		
-		// For data-related questions, strongly encourage tool usage.
-		if ( $this->question_requires_data( $question ) ) {
-			// Use 'required' to force tool usage, but we'll fall back to auto-detect if LLM still doesn't call tools
-			// We can't use 'required' with multiple tools, so use 'auto' but detect and fix if LLM doesn't comply
-			$options['tool_choice'] = 'auto';
-		}
-		
-		$first_response = $this->api_client->send_openai_chat(
-			$messages,
-			$options
-		);
-
-		if ( is_wp_error( $first_response ) ) {
-			$this->send_stream_error( $first_response->get_error_message() );
+		// Check if user is asking for multiple entities (not supported yet)
+		$multiple_entities = Dataviz_AI_Intent_Classifier::detect_multiple_entities( $question );
+		if ( ! empty( $multiple_entities ) && count( $multiple_entities ) > 1 ) {
+			// User asked for multiple entities - suggest feature request
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] Multiple entities detected: %s for question: %s', implode( ', ', $multiple_entities ), $question ) );
+			}
+			
+			// Create a fake tool result with error to trigger feature request flow
+			$entity_list = implode( ', ', $multiple_entities );
+			$tool_call_id = 'multi-entity-detected-' . uniqid();
+			$fake_tool_result = array(
+				'error'              => true,
+				'error_type'         => 'unsupported_feature',
+				'message'            => sprintf(
+					/* translators: %s: list of entity types */
+					__( 'Currently, I can only fetch one type of data at a time. You asked about: %s. Please ask about one entity type at a time, or submit a feature request for multi-entity queries.', 'dataviz-ai-woocommerce' ),
+					$entity_list
+				),
+				'requested_entity'   => 'multi-entity-queries',
+				'can_submit_request' => true,
+				'submission_prompt'  => sprintf(
+					/* translators: %s: list of entity types */
+					__( 'Would you like to request support for queries about multiple entity types (like "%s") at once? Just say "yes" or "request this feature" and I\'ll submit a feature request to the administrators.', 'dataviz-ai-woocommerce' ),
+					$entity_list
+				),
+				'suggestion'         => __( 'You can ask about one entity type at a time, such as "show me orders" or "show me products".', 'dataviz-ai-woocommerce' ),
+			);
+			
+			// Build messages array with the error response
+			$messages = $this->build_smart_analysis_messages( $question );
+			
+			// Add the error as a fake tool result and let LLM handle it
+			$messages[] = array(
+				'role'         => 'assistant',
+				'content'      => null,
+				'tool_calls'   => array(
+					array(
+						'id'       => $tool_call_id,
+						'type'     => 'function',
+						'function' => array(
+							'name'      => 'get_woocommerce_data',
+							'arguments' => wp_json_encode( array( 'entity_type' => 'multi-entity' ) ),
+						),
+					),
+				),
+			);
+			
+			$messages[] = array(
+				'role'         => 'tool',
+				'tool_call_id' => $tool_call_id,
+				'content'      => wp_json_encode( $fake_tool_result ),
+			);
+			
+			// Store entity type in transient for feature request
+			$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
+			set_transient( $transient_key, 'multi-entity-queries', HOUR_IN_SECONDS );
+			
+			// Add final prompt and let LLM handle the error response
+			$final_prompt = 'You are a WooCommerce data analyst. The user asked: "' . $question . '". ';
+			$final_prompt .= 'I attempted to fetch the data but encountered an error. ';
+			$final_prompt .= "Please inform the user about the limitation and ask if they'd like to submit a feature request using the submission_prompt from the tool error response.";
+			$final_prompt .= "\n\nCRITICAL: Do NOT greet the user. Answer directly and professionally.";
+			
+			$messages[] = array(
+				'role'    => 'user',
+				'content' => $final_prompt,
+			);
+			
+			// Stream the response
+			$this->streaming_content = '';
+			$stream_result = $this->api_client->send_openai_chat_stream(
+				$messages,
+				function( $chunk ) {
+					$this->streaming_content .= $chunk;
+					$this->send_stream_chunk( $chunk );
+				},
+				array(
+					'model' => 'gpt-4o-mini',
+				)
+			);
+			
+			if ( is_wp_error( $stream_result ) ) {
+				$this->send_stream_error( $stream_result->get_error_message() );
+				return;
+			}
+			
+			// Save AI response to chat history.
+			if ( ! empty( $this->streaming_content ) ) {
+				$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			}
+			
+			$this->send_stream_end();
 			return;
 		}
 
-		$assistant_message = $first_response['choices'][0]['message'] ?? array();
-		$tool_calls        = $assistant_message['tool_calls'] ?? array();
+		// Use intent classification to determine which tools to call (no LLM needed for tool selection)
+		$tool_calls = Dataviz_AI_Intent_Classifier::classify_intent_and_get_tools( $question );
 		
-		// If LLM responds with content instead of calling tools, check if question requires data.
-		// If it does, ignore the content response and auto-detect tool calls instead.
-		if ( empty( $tool_calls ) && isset( $assistant_message['content'] ) && ! empty( $assistant_message['content'] ) ) {
-			if ( $this->question_requires_data( $question ) ) {
-				// Question requires data but LLM didn't call tools - auto-detect and call tools.
-				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-					error_log( sprintf( '[Dataviz AI] LLM returned content instead of calling tools for data question. Question: %s', $question ) );
-				}
-				$tool_calls = $this->auto_detect_tool_calls( $question );
-				// Don't add the assistant message with content - we'll fetch data instead.
-				unset( $assistant_message['content'] );
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			if ( ! empty( $tool_calls ) ) {
+				$tool_names = array_map( function( $tc ) {
+					return $tc['function']['name'] ?? 'unknown';
+				}, $tool_calls );
+				error_log( sprintf( '[Dataviz AI] Intent classification detected tools: %s for question: %s', implode( ', ', $tool_names ), $question ) );
+			} else {
+				error_log( sprintf( '[Dataviz AI] Intent classification: No tools detected for question: %s', $question ) );
 			}
 		}
 
-		// If LLM doesn't call tools but question is clearly about data, proactively fetch data.
-		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
-			// Automatically fetch relevant data based on question keywords.
-			$tool_calls = $this->auto_detect_tool_calls( $question );
-			// If we auto-detected tool calls, don't use any content from assistant_message
-			if ( ! empty( $tool_calls ) && isset( $assistant_message['content'] ) ) {
-				unset( $assistant_message['content'] );
-			}
-		}
-
-		// If LLM wants to call tools (or we auto-detected), execute them and then stream the final response.
+		// If intent classification detected tools, execute them and then stream the final response.
 		if ( ! empty( $tool_calls ) ) {
-			// Only add assistant message if it has tool_calls (from LLM), not if we auto-detected.
-			// Also ensure it doesn't have unwanted content (greeting).
-			if ( isset( $assistant_message['tool_calls'] ) && ! empty( $assistant_message['tool_calls'] ) ) {
-				// Remove any content if present (shouldn't be, but safety check)
-				if ( isset( $assistant_message['content'] ) && ! empty( $assistant_message['content'] ) ) {
-					unset( $assistant_message['content'] );
-				}
-				$messages[] = $assistant_message;
-			}
-			// If we auto-detected tool calls, don't add assistant_message (it might contain greeting)
-
 			// Store tool results for frontend (to avoid redundant AJAX calls).
 			$tool_results_for_frontend = array();
+
+			// Build assistant message with tool_calls (required by OpenAI API even when using intent classification)
+			$assistant_tool_calls = array();
+			$tool_results_messages = array();
 
 			foreach ( $tool_calls as $tool_call ) {
 				// Handle both OpenAI format and auto-detected format.
@@ -386,7 +438,7 @@ class Dataviz_AI_AJAX_Handler {
 					$function_name = $tool_call['function']['name'];
 					$arguments_json = isset( $tool_call['function']['arguments'] ) ? $tool_call['function']['arguments'] : '{}';
 					$arguments = is_string( $arguments_json ) ? json_decode( $arguments_json, true ) : $arguments_json;
-					$tool_call_id = isset( $tool_call['id'] ) ? $tool_call['id'] : 'auto-' . uniqid();
+					$tool_call_id = isset( $tool_call['id'] ) ? $tool_call['id'] : 'intent-' . uniqid();
 				} else {
 					// Skip invalid tool calls.
 					continue;
@@ -395,6 +447,16 @@ class Dataviz_AI_AJAX_Handler {
 				if ( empty( $function_name ) ) {
 					continue;
 				}
+
+				// Build tool_call structure for assistant message
+				$assistant_tool_calls[] = array(
+					'id'       => $tool_call_id,
+					'type'     => 'function',
+					'function' => array(
+						'name'      => $function_name,
+						'arguments' => is_string( $arguments_json ) ? $arguments_json : wp_json_encode( $arguments ),
+					),
+				);
 
 				$tool_result = $this->execute_tool( $function_name, is_array( $arguments ) ? $arguments : array() );
 				
@@ -426,29 +488,138 @@ class Dataviz_AI_AJAX_Handler {
 						$entity_type = strtolower( $arguments['entity_type'] );
 						if ( in_array( $entity_type, array( 'inventory', 'stock' ), true ) ) {
 							$tool_results_for_frontend['inventory'] = $tool_result;
+						} elseif ( $entity_type === 'orders' && isset( $arguments['query_type'] ) && $arguments['query_type'] === 'list' ) {
+							// Send order data for chart rendering when query_type is 'list'
+							// The tool_result should contain an array of formatted orders
+							if ( isset( $tool_result['orders'] ) && is_array( $tool_result['orders'] ) ) {
+								$tool_results_for_frontend['orders'] = $tool_result['orders'];
+							} elseif ( is_array( $tool_result ) && ! empty( $tool_result ) && isset( $tool_result[0]['id'] ) ) {
+								// If tool_result is directly an array of orders
+								$tool_results_for_frontend['orders'] = $tool_result;
+							}
+						}
+					} elseif ( $function_name === 'get_order_statistics' ) {
+						// For statistics queries, we can use status_breakdown for pie charts
+						if ( isset( $tool_result['status_breakdown'] ) && is_array( $tool_result['status_breakdown'] ) ) {
+							// Convert status_breakdown to order format for chart compatibility
+							$orders_for_chart = array();
+							foreach ( $tool_result['status_breakdown'] as $status_data ) {
+								// Create a representative order entry for each status
+								for ( $i = 0; $i < $status_data['count']; $i++ ) {
+									$orders_for_chart[] = array(
+										'id'     => 'stat-' . $status_data['status'] . '-' . $i,
+										'status' => $status_data['status'],
+										'total'  => isset( $status_data['revenue'] ) ? (float) $status_data['revenue'] / $status_data['count'] : 0,
+									);
+								}
+							}
+							if ( ! empty( $orders_for_chart ) ) {
+								$tool_results_for_frontend['orders'] = $orders_for_chart;
+							}
 						}
 					}
 				}
 				
-				$messages[]  = array(
+				// Build tool result message
+				$tool_results_messages[] = array(
 					'role'         => 'tool',
 					'tool_call_id' => $tool_call_id,
 					'content'      => wp_json_encode( $tool_result ),
 				);
 			}
+
+			// Add assistant message with tool_calls (required by OpenAI API)
+			$messages[] = array(
+				'role'       => 'assistant',
+				'content'    => null,
+				'tool_calls' => $assistant_tool_calls,
+			);
+
+			// Add tool result messages
+			$messages = array_merge( $messages, $tool_results_messages );
 			
 			// Send tool results to frontend as metadata (before text response).
 			if ( ! empty( $tool_results_for_frontend ) ) {
 				$this->send_stream_chunk( '', array( 'tool_data' => $tool_results_for_frontend ) );
 			}
 
-			// Now get the final streaming response.
+			// Extract key numbers from tool results
+			$extracted_numbers = array();
+			$direct_response_data = null;
+			foreach ( $tool_results_messages as $tool_msg ) {
+				$tool_data = json_decode( $tool_msg['content'], true );
+				if ( is_array( $tool_data ) && ! isset( $tool_data['error'] ) ) {
+					if ( isset( $tool_data['summary']['total_orders'] ) ) {
+						$extracted_numbers['total_orders'] = (int) $tool_data['summary']['total_orders'];
+						$direct_response_data = $tool_data;
+					}
+					if ( isset( $tool_data['summary']['total_revenue'] ) ) {
+						$extracted_numbers['total_revenue'] = (float) $tool_data['summary']['total_revenue'];
+					}
+				}
+			}
+
+			// For simple "how many" questions, format response directly from data (bypass LLM hallucination)
+			$is_how_many_question = preg_match( '/\bhow many\b/i', $question );
+			if ( $is_how_many_question && ! empty( $direct_response_data ) && isset( $extracted_numbers['total_orders'] ) ) {
+				// Determine the entity type from the question
+				$status_text = '';
+				if ( preg_match( '/\b(completed|pending|processing|cancelled|refunded|failed|on.?hold)\b/i', $question, $status_matches ) ) {
+					$status_text = strtolower( $status_matches[1] );
+					if ( $status_text === 'on-hold' || $status_text === 'on hold' ) {
+						$status_text = 'on-hold';
+					}
+				}
+				
+				$count = $extracted_numbers['total_orders'];
+				$entity_name = 'orders';
+				if ( ! empty( $status_text ) ) {
+					$entity_name = $status_text . ' orders';
+				}
+				
+				// Format direct response (bypass LLM to avoid hallucination)
+				if ( $count === 1 ) {
+					$direct_response = sprintf( __( 'There is %d %s in the WooCommerce store.', 'dataviz-ai-woocommerce' ), $count, $entity_name );
+				} else {
+					$direct_response = sprintf( __( 'There are %d %s in the WooCommerce store.', 'dataviz-ai-woocommerce' ), $count, $entity_name );
+				}
+				
+				// Stream the direct response
+				$this->streaming_content = $direct_response;
+				$this->send_stream_chunk( $direct_response );
+				
+				// Save to chat history
+				$this->chat_history->save_message( 'ai', $direct_response, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
+				
+				$this->send_stream_end();
+				return;
+			}
+
+			// Now get the final streaming response (for non-simple questions).
 			$final_prompt = 'You are a WooCommerce data analyst. The user asked: "' . $question . '". ';
 			$final_prompt .= 'I have just fetched the relevant data from the WooCommerce store using tools. ';
+			
+			// Add extracted numbers directly to prompt for clarity
+			if ( ! empty( $extracted_numbers ) ) {
+				$final_prompt .= "\n\nKEY DATA FROM TOOLS: ";
+				if ( isset( $extracted_numbers['total_orders'] ) ) {
+					$final_prompt .= "Total orders: " . $extracted_numbers['total_orders'] . ". ";
+				}
+				if ( isset( $extracted_numbers['total_revenue'] ) ) {
+					$final_prompt .= "Total revenue: " . $extracted_numbers['total_revenue'] . ". ";
+				}
+				$final_prompt .= "The full tool response data is also available in the tool messages above. ";
+			}
+			
 			$final_prompt .= 'Your task is to analyze this data and provide a clear, helpful answer to the user\'s question. ';
 			$final_prompt .= "\n\nCRITICAL: Do NOT greet the user or say 'Hello' or 'How can I assist you'. ";
 			$final_prompt .= "The user has already asked a specific question - answer it directly with the data provided. ";
 			$final_prompt .= "Start your response by directly addressing their question. ";
+			$final_prompt .= "\n\nCRITICAL: If the user asked 'how many', 'count', or requested a number, you MUST include the exact numeric value. ";
+			$final_prompt .= "Use the numbers provided in 'KEY DATA FROM TOOLS' above, or extract them from the tool response JSON. ";
+			$final_prompt .= "NEVER say generic phrases like 'there are orders' or 'you have orders' - ALWAYS include the specific number. ";
+			$final_prompt .= "Examples: 'There are 42 completed orders' (NOT 'There are completed orders'), 'You have 15 orders' (NOT 'You have orders'). ";
+			$final_prompt .= "If the count is 0, say 'There are 0 completed orders' explicitly. ";
 			$final_prompt .= "\n\nIMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
 			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported or not yet available. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format without mentioning chart limitations. ";
 			$final_prompt .= "If the error response includes 'can_submit_request': true and 'submission_prompt', ask the user if they would like to submit a feature request using the exact prompt provided. ";
@@ -463,17 +634,41 @@ class Dataviz_AI_AJAX_Handler {
 				'content' => $final_prompt,
 			);
 		} else {
-			// No tools needed - but double-check: if question requires data, we should have called tools
-			// This else block should only be reached for non-data questions
-			if ( isset( $assistant_message['content'] ) && ! $this->question_requires_data( $question ) ) {
-				$messages[] = $assistant_message;
-			} elseif ( $this->question_requires_data( $question ) ) {
-				// Question requires data but no tool calls - this is an error case
-				// Log it but don't stream the greeting - return an error instead
+			// No tools detected - handle non-data questions or fallback cases
+			if ( Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
+				// This shouldn't happen because classify_intent_and_get_tools has a fallback for data questions
+				// But if it does, log it and return an error
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 					error_log( sprintf( '[Dataviz AI] ERROR: No tool calls detected for data question: %s', $question ) );
 				}
 				$this->send_stream_error( __( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' ) );
+				return;
+			} else {
+				// Non-data question (e.g., greeting, general chat) - use LLM to respond directly
+				$messages = $this->build_smart_analysis_messages( $question );
+				$this->streaming_content = '';
+				$stream_result = $this->api_client->send_openai_chat_stream(
+					$messages,
+					function( $chunk ) {
+						$this->streaming_content .= $chunk;
+						$this->send_stream_chunk( $chunk );
+					},
+					array(
+						'model' => 'gpt-4o-mini',
+					)
+				);
+				
+				if ( is_wp_error( $stream_result ) ) {
+					$this->send_stream_error( $stream_result->get_error_message() );
+					return;
+				}
+				
+				// Save AI response to chat history.
+				if ( ! empty( $this->streaming_content ) ) {
+					$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+				}
+				
+				$this->send_stream_end();
 				return;
 			}
 		}
@@ -482,7 +677,7 @@ class Dataviz_AI_AJAX_Handler {
 		$this->streaming_content = '';
 		
 		// For data questions, filter out greetings from the stream
-		$is_data_question = $this->question_requires_data( $question );
+		$is_data_question = Dataviz_AI_Intent_Classifier::question_requires_data( $question );
 		$greeting_pattern = '/^hello[!.]?\s*(how can i assist you|how may i help)/i';
 
 		// Stream the final response.
@@ -595,31 +790,8 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
-	 * Check if question requires data from WooCommerce.
-	 *
-	 * @param string $question User's question.
-	 * @return bool
-	 */
-	protected function question_requires_data( $question ) {
-		$data_keywords = array(
-			'order', 'product', 'customer', 'sale', 'revenue', 'transaction',
-			'purchase', 'buy', 'item', 'inventory', 'stock', 'buyer',
-			'client', 'purchased', 'sold', 'total', 'recent', 'list',
-			'show me', 'display', 'what are', 'how many', 'tell me about',
-		);
-		
-		$lower_question = strtolower( $question );
-		foreach ( $data_keywords as $keyword ) {
-			if ( strpos( $lower_question, $keyword ) !== false ) {
-				return true;
-			}
-		}
-		
-		return false;
-	}
-
-	/**
 	 * Auto-detect which tools to call based on question.
+	 * DEPRECATED: Use classify_intent_and_get_tools() instead.
 	 *
 	 * @param string $question User's question.
 	 * @return array Array of tool call structures.
@@ -700,7 +872,7 @@ class Dataviz_AI_AJAX_Handler {
 		}
 		
 		// If no specific match but question is about data, default to getting orders.
-		if ( empty( $tool_calls ) && $this->question_requires_data( $question ) ) {
+		if ( empty( $tool_calls ) && Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
 			$tool_calls[] = array(
 				'function' => array(
 					'name' => 'get_recent_orders',
@@ -1301,7 +1473,7 @@ class Dataviz_AI_AJAX_Handler {
 
 		// Normalize entity_type (handle synonyms) but keep original for context
 		// Note: "inventory" is NOT normalized to "stock" - they are different
-		$entity_type_normalized = $this->normalize_entity_type( $entity_type );
+		$entity_type_normalized = Dataviz_AI_Intent_Classifier::normalize_entity_type( $entity_type );
 
 		switch ( $entity_type_normalized ) {
 			case 'orders':
@@ -1389,9 +1561,21 @@ class Dataviz_AI_AJAX_Handler {
 
 			case 'list':
 			default:
-				$args = array(
-					'limit' => isset( $filters['limit'] ) ? min( 100, max( 1, (int) $filters['limit'] ) ) : 20,
-				);
+				// For list queries, handle limit properly
+				// -1 means unlimited (get all orders), otherwise use specified limit or default
+				if ( isset( $filters['limit'] ) ) {
+					$limit = (int) $filters['limit'];
+					if ( $limit === -1 ) {
+						// Unlimited - get all orders
+						$args['limit'] = -1;
+					} else {
+						// Cap at 1000 to avoid memory issues, but allow higher than default
+						$args['limit'] = min( 1000, max( 1, $limit ) );
+					}
+				} else {
+					// Default limit if not specified
+					$args['limit'] = 20;
+				}
 
 				if ( isset( $filters['status'] ) ) {
 					$args['status'] = sanitize_text_field( $filters['status'] );
@@ -1765,30 +1949,6 @@ class Dataviz_AI_AJAX_Handler {
 		}
 		
 		return false;
-	}
-
-	/**
-	 * Normalize entity type (handle synonyms).
-	 *
-	 * @param string $entity_type Entity type from user.
-	 * @return string Normalized entity type.
-	 */
-	protected function normalize_entity_type( $entity_type ) {
-		$normalized = strtolower( trim( $entity_type ) );
-		
-		// Handle synonyms - map to supported types
-		// Note: "inventory" is NOT mapped - it's handled separately to show all inventory
-		$synonyms = array(
-			'stock levels' => 'stock',
-			'stock level' => 'stock',
-		);
-		
-		if ( isset( $synonyms[ $normalized ] ) ) {
-			return $synonyms[ $normalized ];
-		}
-		
-		// Keep "inventory" as-is (not normalized to "stock")
-		return $normalized;
 	}
 
 	/**

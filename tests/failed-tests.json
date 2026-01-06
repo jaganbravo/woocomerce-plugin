@@ -1,0 +1,27 @@
+[
+  {
+    "question": "How many orders are currently completed?",
+    "response": "There are currently  completed orders in the store.",
+    "reason": "The response is missing the actual number of completed orders and does not provide any useful information."
+  },
+  {
+    "question": "How many orders are there in the processing status?",
+    "response": "There are currently  orders in the processing status.",
+    "reason": "The response does not contain any actual data about the number of orders in the processing status."
+  },
+  {
+    "question": "Generate a bar chart to visualize total revenue per month.",
+    "response": "Currently, there are no records matching the query for total revenue per month in the WooCommerce store database. This means that there have been no orders recorded for the specified date range (2023-",
+    "reason": "The response indicates that there are no records for total revenue per month, and thus does not provide any actual data or a valid bar chart as requested."
+  },
+  {
+    "question": "Show me a line chart of daily orders for this week.",
+    "response": "There are currently no records matching your query for daily orders this week in the WooCommerce store database.",
+    "reason": "The response indicates there are no records matching the query for daily orders this week, which is not useful information. Additionally, it is misleading as a chart indicating no data was displayed, conflicting with the requirement for a line chart."
+  },
+  {
+    "question": "List all product categories and their associated tags.",
+    "response": "Sales performance this week (October 9 - October 15) compared to last week (October 2 - October 8) shows no recorded sales activity. - **This Week:**  - Total Orders:   - Total Revenue: $  - Average O",
+    "reason": "The response does not address the question about product categories and tags; instead, it provides sales performance information which is irrelevant to the query."
+  }
+]
