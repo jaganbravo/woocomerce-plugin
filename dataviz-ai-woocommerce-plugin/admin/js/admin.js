@@ -295,8 +295,19 @@
 		const $chartContainer = $( '<div class="dataviz-ai-chart-wrapper"></div>' );
 		$messageContainer.append( $chartContainer );
 
-		if ( dataType === 'orders' && DatavizAIAdmin.orderChartData && DatavizAIAdmin.orderChartData.length > 0 ) {
-			const orders = DatavizAIAdmin.orderChartData;
+		// Use streamToolData if available (from actual query), otherwise fall back to static data
+		let orders = null;
+		if ( dataType === 'orders' ) {
+			if ( streamToolData && streamToolData.orders && streamToolData.orders.length > 0 ) {
+				// Use data from actual tool response (most accurate)
+				orders = streamToolData.orders;
+			} else if ( DatavizAIAdmin.orderChartData && DatavizAIAdmin.orderChartData.length > 0 ) {
+				// Fallback to static pre-loaded data
+				orders = DatavizAIAdmin.orderChartData;
+			}
+		}
+
+		if ( dataType === 'orders' && orders && orders.length > 0 ) {
 			
 			if ( chartType === 'pie' ) {
 				// Order status pie chart

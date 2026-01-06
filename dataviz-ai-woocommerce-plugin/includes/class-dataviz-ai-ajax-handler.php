@@ -488,6 +488,34 @@ class Dataviz_AI_AJAX_Handler {
 						$entity_type = strtolower( $arguments['entity_type'] );
 						if ( in_array( $entity_type, array( 'inventory', 'stock' ), true ) ) {
 							$tool_results_for_frontend['inventory'] = $tool_result;
+						} elseif ( $entity_type === 'orders' && isset( $arguments['query_type'] ) && $arguments['query_type'] === 'list' ) {
+							// Send order data for chart rendering when query_type is 'list'
+							// The tool_result should contain an array of formatted orders
+							if ( isset( $tool_result['orders'] ) && is_array( $tool_result['orders'] ) ) {
+								$tool_results_for_frontend['orders'] = $tool_result['orders'];
+							} elseif ( is_array( $tool_result ) && ! empty( $tool_result ) && isset( $tool_result[0]['id'] ) ) {
+								// If tool_result is directly an array of orders
+								$tool_results_for_frontend['orders'] = $tool_result;
+							}
+						}
+					} elseif ( $function_name === 'get_order_statistics' ) {
+						// For statistics queries, we can use status_breakdown for pie charts
+						if ( isset( $tool_result['status_breakdown'] ) && is_array( $tool_result['status_breakdown'] ) ) {
+							// Convert status_breakdown to order format for chart compatibility
+							$orders_for_chart = array();
+							foreach ( $tool_result['status_breakdown'] as $status_data ) {
+								// Create a representative order entry for each status
+								for ( $i = 0; $i < $status_data['count']; $i++ ) {
+									$orders_for_chart[] = array(
+										'id'     => 'stat-' . $status_data['status'] . '-' . $i,
+										'status' => $status_data['status'],
+										'total'  => isset( $status_data['revenue'] ) ? (float) $status_data['revenue'] / $status_data['count'] : 0,
+									);
+								}
+							}
+							if ( ! empty( $orders_for_chart ) ) {
+								$tool_results_for_frontend['orders'] = $orders_for_chart;
+							}
 						}
 					}
 				}
@@ -1533,9 +1561,21 @@ class Dataviz_AI_AJAX_Handler {
 
 			case 'list':
 			default:
-				$args = array(
-					'limit' => isset( $filters['limit'] ) ? min( 100, max( 1, (int) $filters['limit'] ) ) : 20,
-				);
+				// For list queries, handle limit properly
+				// -1 means unlimited (get all orders), otherwise use specified limit or default
+				if ( isset( $filters['limit'] ) ) {
+					$limit = (int) $filters['limit'];
+					if ( $limit === -1 ) {
+						// Unlimited - get all orders
+						$args['limit'] = -1;
+					} else {
+						// Cap at 1000 to avoid memory issues, but allow higher than default
+						$args['limit'] = min( 1000, max( 1, $limit ) );
+					}
+				} else {
+					// Default limit if not specified
+					$args['limit'] = 20;
+				}
 
 				if ( isset( $filters['status'] ) ) {
 					$args['status'] = sanitize_text_field( $filters['status'] );

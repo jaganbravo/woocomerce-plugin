@@ -38,7 +38,23 @@ class Dataviz_AI_Data_Fetcher {
 			$args['date_created'] = absint( $from ) . '...' . absint( $to );
 		}
 
-		return wc_get_orders( wp_parse_args( $args, $defaults ) );
+		// Merge args with defaults (args take precedence)
+		$query_args = wp_parse_args( $args, $defaults );
+		
+		// Debug logging
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf( '[Dataviz AI] get_recent_orders called with args: %s', wp_json_encode( $args ) ) );
+			error_log( sprintf( '[Dataviz AI] get_recent_orders query_args: %s', wp_json_encode( $query_args ) ) );
+		}
+
+		$orders = wc_get_orders( $query_args );
+		
+		// Debug logging
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf( '[Dataviz AI] get_recent_orders returned %d orders', count( $orders ) ) );
+		}
+
+		return $orders;
 	}
 
 	/**
@@ -335,80 +351,66 @@ class Dataviz_AI_Data_Fetcher {
 	 * @return array Sampled orders.
 	 */
 	public function get_sampled_orders( array $args = array() ) {
-		global $wpdb;
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return array();
+		}
 
 		$sample_size = isset( $args['sample_size'] ) ? (int) $args['sample_size'] : 100;
 		$date_from   = isset( $args['date_from'] ) ? sanitize_text_field( $args['date_from'] ) : null;
 		$date_to     = isset( $args['date_to'] ) ? sanitize_text_field( $args['date_to'] ) : null;
 		$status      = isset( $args['status'] ) ? sanitize_text_field( $args['status'] ) : null;
 
-		// Build WHERE clause.
-		$where = array( "p.post_type = 'shop_order'" );
-		
-		if ( $date_from ) {
-			$where[] = $wpdb->prepare( "p.post_date >= %s", $date_from . ' 00:00:00' );
-		}
-		
-		if ( $date_to ) {
-			$where[] = $wpdb->prepare( "p.post_date <= %s", $date_to . ' 23:59:59' );
-		}
-		
+		// Build query args for wc_get_orders
+		$wc_args = array(
+			'limit'    => -1, // Get all matching orders first
+			'orderby'  => 'date',
+			'order'    => 'DESC',
+			'return'   => 'objects',
+		);
+
 		if ( $status ) {
-			$where[] = $wpdb->prepare( "p.post_status = %s", 'wc-' . $status );
+			$wc_args['status'] = $status; // wc_get_orders handles 'wc-' prefix internally
 		}
 
-		$where_clause = implode( ' AND ', $where );
+		if ( $date_from && $date_to ) {
+			$wc_args['date_created'] = $date_from . '...' . $date_to;
+		} elseif ( $date_from ) {
+			$wc_args['date_created'] = '>=' . $date_from;
+		} elseif ( $date_to ) {
+			$wc_args['date_created'] = '<=' . $date_to;
+		}
 
-		// Get total count first.
-		$total_query = "SELECT COUNT(*) FROM {$wpdb->posts} p WHERE {$where_clause}";
-		$total_count = (int) $wpdb->get_var( $total_query );
+		// Get all matching orders using WooCommerce API
+		$all_orders = wc_get_orders( $wc_args );
 
-		if ( $total_count === 0 ) {
+		if ( empty( $all_orders ) ) {
 			return array();
 		}
 
-		// If total is less than sample size, just get all.
+		$total_count = count( $all_orders );
+
+		// If total is less than sample size, just return all.
 		if ( $total_count <= $sample_size ) {
-			return $this->get_recent_orders( $args );
+			return $all_orders;
 		}
 
-		// Use random sampling for large datasets.
-		// For very large datasets, use systematic sampling.
+		// Use systematic sampling for large datasets.
+		// Calculate sampling interval to get representative sample.
 		$sampling_interval = floor( $total_count / $sample_size );
 
-		$query = "
-			SELECT p.ID
-			FROM {$wpdb->posts} p
-			WHERE {$where_clause}
-			ORDER BY p.post_date DESC
-			LIMIT {$sample_size}
-		";
-
-		// For truly random sampling (slower but more accurate):
-		// $query = "
-		// 	SELECT p.ID
-		// 	FROM {$wpdb->posts} p
-		// 	WHERE {$where_clause}
-		// 	ORDER BY RAND()
-		// 	LIMIT {$sample_size}
-		// ";
-
-		$order_ids = $wpdb->get_col( $query );
-		
-		if ( empty( $order_ids ) ) {
-			return array();
-		}
-
-		// Fetch full order objects.
-		$orders = array();
-		foreach ( $order_ids as $order_id ) {
-			$order = wc_get_order( $order_id );
-			if ( $order ) {
-				$orders[] = $order;
+		// Sample orders at regular intervals
+		$sampled_orders = array();
+		for ( $i = 0; $i < $total_count; $i += $sampling_interval ) {
+			if ( isset( $all_orders[ $i ] ) ) {
+				$sampled_orders[] = $all_orders[ $i ];
+			}
+			// Stop if we have enough samples
+			if ( count( $sampled_orders ) >= $sample_size ) {
+				break;
 			}
 		}
 
-		return $orders;
+		return $sampled_orders;
 	}
 
 	/**
@@ -420,55 +422,115 @@ class Dataviz_AI_Data_Fetcher {
 	 * @return array Aggregated data by time period.
 	 */
 	public function get_orders_by_period( $period = 'day', array $args = array() ) {
-		global $wpdb;
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return array();
+		}
 
 		$date_from = isset( $args['date_from'] ) ? sanitize_text_field( $args['date_from'] ) : null;
 		$date_to   = isset( $args['date_to'] ) ? sanitize_text_field( $args['date_to'] ) : null;
 		$status    = isset( $args['status'] ) ? sanitize_text_field( $args['status'] ) : null;
 
-		// Build WHERE clause.
-		$where = array( "p.post_type = 'shop_order'" );
-		
-		if ( $date_from ) {
-			$where[] = $wpdb->prepare( "p.post_date >= %s", $date_from . ' 00:00:00' );
-		}
-		
-		if ( $date_to ) {
-			$where[] = $wpdb->prepare( "p.post_date <= %s", $date_to . ' 23:59:59' );
-		}
-		
-		if ( $status ) {
-			$where[] = $wpdb->prepare( "p.post_status = %s", 'wc-' . $status );
+		// Validate period
+		$valid_periods = array( 'hour', 'day', 'week', 'month' );
+		if ( ! in_array( $period, $valid_periods, true ) ) {
+			$period = 'day';
 		}
 
-		$where_clause = implode( ' AND ', $where );
-
-		// Determine date format based on period.
-		$date_formats = array(
-			'hour'  => '%Y-%m-%d %H:00:00',
-			'day'   => '%Y-%m-%d',
-			'week'  => '%Y-%u', // Year-week.
-			'month' => '%Y-%m',
+		// Build query args for wc_get_orders
+		$wc_args = array(
+			'limit'    => -1, // Get all matching orders for aggregation
+			'orderby'  => 'date',
+			'order'    => 'DESC',
+			'return'   => 'objects',
 		);
 
-		$date_format = isset( $date_formats[ $period ] ) ? $date_formats[ $period ] : $date_formats['day'];
+		if ( $status ) {
+			$wc_args['status'] = $status; // wc_get_orders handles 'wc-' prefix internally
+		}
 
-		$query = "
-			SELECT 
-				DATE_FORMAT(p.post_date, %s) as period,
-				COUNT(*) as order_count,
-				SUM(CAST(pm_total.meta_value AS DECIMAL(10,2))) as revenue,
-				AVG(CAST(pm_total.meta_value AS DECIMAL(10,2))) as avg_order_value
-			FROM {$wpdb->posts} p
-			LEFT JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
-			WHERE {$where_clause}
-			GROUP BY period
-			ORDER BY period DESC
-		";
+		if ( $date_from && $date_to ) {
+			$wc_args['date_created'] = $date_from . '...' . $date_to;
+		} elseif ( $date_from ) {
+			$wc_args['date_created'] = '>=' . $date_from;
+		} elseif ( $date_to ) {
+			$wc_args['date_created'] = '<=' . $date_to;
+		}
 
-		$query = $wpdb->prepare( $query, $date_format );
+		// Get all matching orders using WooCommerce API
+		$orders = wc_get_orders( $wc_args );
 
-		return $wpdb->get_results( $query, ARRAY_A );
+		if ( empty( $orders ) ) {
+			return array();
+		}
+
+		// Aggregate orders by period in PHP
+		$aggregated = array();
+
+		foreach ( $orders as $order ) {
+			$order_date = $order->get_date_created();
+			if ( ! $order_date ) {
+				continue;
+			}
+
+			// Format period key based on period type
+			switch ( $period ) {
+				case 'hour':
+					$period_key = $order_date->date( 'Y-m-d H:00:00' );
+					break;
+				case 'day':
+					$period_key = $order_date->date( 'Y-m-d' );
+					break;
+				case 'week':
+					// Format: YYYY-WW (week number)
+					$week_number = $order_date->format( 'W' );
+					$year = $order_date->format( 'Y' );
+					$period_key = $year . '-' . $week_number;
+					break;
+				case 'month':
+					$period_key = $order_date->date( 'Y-m' );
+					break;
+				default:
+					$period_key = $order_date->date( 'Y-m-d' );
+			}
+
+			// Initialize period if not exists
+			if ( ! isset( $aggregated[ $period_key ] ) ) {
+				$aggregated[ $period_key ] = array(
+					'period'         => $period_key,
+					'order_count'    => 0,
+					'revenue'        => 0.0,
+					'order_values'   => array(), // For calculating average
+				);
+			}
+
+			// Aggregate data
+			$order_total = (float) $order->get_total();
+			$aggregated[ $period_key ]['order_count']++;
+			$aggregated[ $period_key ]['revenue'] += $order_total;
+			$aggregated[ $period_key ]['order_values'][] = $order_total;
+		}
+
+		// Calculate average order value and format result
+		$result = array();
+		foreach ( $aggregated as $period_key => $data ) {
+			$avg_order_value = count( $data['order_values'] ) > 0
+				? array_sum( $data['order_values'] ) / count( $data['order_values'] )
+				: 0.0;
+
+			$result[] = array(
+				'period'         => $data['period'],
+				'order_count'    => $data['order_count'],
+				'revenue'        => $data['revenue'],
+				'avg_order_value' => $avg_order_value,
+			);
+		}
+
+		// Sort by period descending (most recent first)
+		usort( $result, function( $a, $b ) {
+			return strcmp( $b['period'], $a['period'] );
+		} );
+
+		return $result;
 	}
 
 	/**

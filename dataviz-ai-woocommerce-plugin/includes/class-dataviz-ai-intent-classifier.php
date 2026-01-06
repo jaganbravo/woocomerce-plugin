@@ -140,10 +140,17 @@ class Dataviz_AI_Intent_Classifier {
 		$filters = array();
 		$lower_question = strtolower( $question );
 		
+		// Check if user wants "all" orders (for charts or comprehensive views)
+		$wants_all = preg_match( '/\b(all|every|entire|complete|full)\b/i', $question );
+		
 		// Extract limit
 		$limit = self::extract_number( $question );
 		if ( $limit ) {
 			$filters['limit'] = min( 100, max( 1, $limit ) );
+		} elseif ( $wants_all ) {
+			// If user wants "all" and no specific limit, use -1 to get ALL orders
+			// This is especially important for charts to show accurate distribution
+			$filters['limit'] = -1; // -1 means unlimited (get all orders)
 		}
 		
 		// Extract order status
