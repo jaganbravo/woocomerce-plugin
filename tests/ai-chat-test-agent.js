@@ -11,6 +11,9 @@
 
 const { chromium } = require('playwright');
 const OpenAI = require('openai');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const openai = new OpenAI({ 
@@ -31,6 +34,7 @@ const testResults = {
     passed: [],
     failed: [],
     total: 0,
+    allTests: [], // Store all tests with full Q&A
 };
 
 /**
@@ -489,6 +493,18 @@ async function testChatQuestion(page, question, questionNumber) {
         // Verify response with AI
         const verification = await verifyResponse(question, responseText, chartExists);
         
+        // Store full test result
+        const testResult = {
+            question,
+            response: responseText,
+            passed: verification.valid,
+            reason: verification.reason,
+            chartDisplayed: chartExists,
+            timestamp: new Date().toISOString()
+        };
+        
+        testResults.allTests.push(testResult);
+        
         // Log result
         if (verification.valid) {
             console.log('[SUCCESS] PASSED: ' + verification.reason + '');
@@ -511,6 +527,15 @@ async function testChatQuestion(page, question, questionNumber) {
         
     } catch (error) {
         console.log('[FAIL] ERROR: ' + error.message + '');
+        const testResult = {
+            question,
+            response: '',
+            passed: false,
+            reason: 'Error: ' + error.message,
+            chartDisplayed: false,
+            timestamp: new Date().toISOString()
+        };
+        testResults.allTests.push(testResult);
         testResults.failed.push({ 
             question, 
             error: error.message 
@@ -555,6 +580,9 @@ async function runTests() {
     
     // Print summary
     printSummary();
+    
+    // Generate PDF report
+    await generatePDFReport();
 }
 
 /**
@@ -587,6 +615,141 @@ if (require.main === module) {
     runTests().catch(console.error);
 }
 
-module.exports = { runTests, testChatQuestion, verifyResponse };
+/**
+ * Generate PDF report with all questions and answers
+ */
+async function generatePDFReport() {
+    console.log('\n[PDF] Generating PDF report...');
+    
+    const outputDir = path.join(__dirname, 'reports');
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `test-report-${timestamp}.pdf`;
+    const filepath = path.join(outputDir, filename);
+    
+    const doc = new PDFDocument({ margin: 50 });
+    const stream = fs.createWriteStream(filepath);
+    doc.pipe(stream);
+    
+    // Header
+    doc.fontSize(20).text('Dataviz AI WooCommerce Plugin', { align: 'center' });
+    doc.fontSize(16).text('Test Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(10).text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+    doc.moveDown(2);
+    
+    // Summary
+    doc.fontSize(14).text('Test Summary', { underline: true });
+    doc.moveDown(0.5);
+    doc.fontSize(11);
+    doc.text(`Total Tests: ${testResults.total}`);
+    doc.text(`Passed: ${testResults.passed.length}`, { continued: true, indent: 20 });
+    doc.text(`Failed: ${testResults.failed.length}`, { continued: true, indent: 20 });
+    doc.text(`Success Rate: ${((testResults.passed.length / testResults.total) * 100).toFixed(1)}%`);
+    doc.moveDown(2);
+    
+    // Test Results
+    doc.fontSize(14).text('Test Results', { underline: true });
+    doc.moveDown();
+    
+    testResults.allTests.forEach((test, index) => {
+        // Add page break if needed (every 3 tests)
+        if (index > 0 && index % 3 === 0) {
+            doc.addPage();
+        }
+        
+        // Test number and status
+        const status = test.passed ? '✅ PASSED' : '❌ FAILED';
+        doc.fontSize(12).fillColor(test.passed ? 'green' : 'red');
+        doc.text(`Test ${index + 1}: ${status}`, { continued: false });
+        doc.fillColor('black');
+        doc.moveDown(0.3);
+        
+        // Question
+        doc.fontSize(11).fillColor('blue');
+        doc.text('Question:', { continued: false });
+        doc.fillColor('black');
+        doc.fontSize(10);
+        doc.text(test.question, { indent: 20, align: 'left' });
+        doc.moveDown(0.5);
+        
+        // Response
+        doc.fontSize(11).fillColor('blue');
+        doc.text('Response:', { continued: false });
+        doc.fillColor('black');
+        doc.fontSize(9);
+        
+        // Wrap long responses
+        const maxWidth = 500;
+        const responseLines = doc.heightOfString(test.response, { width: maxWidth });
+        if (responseLines > 15) {
+            // Truncate very long responses
+            const truncated = test.response.substring(0, 500) + '...';
+            doc.text(truncated, { indent: 20, width: maxWidth });
+        } else {
+            doc.text(test.response, { indent: 20, width: maxWidth });
+        }
+        doc.moveDown(0.5);
+        
+        // Additional info
+        if (test.chartDisplayed) {
+            doc.fontSize(9).fillColor('green');
+            doc.text('📊 Chart displayed', { indent: 20 });
+            doc.fillColor('black');
+        }
+        
+        if (test.reason && !test.passed) {
+            doc.fontSize(9).fillColor('red');
+            doc.text(`Reason: ${test.reason}`, { indent: 20 });
+            doc.fillColor('black');
+        }
+        
+        doc.moveDown(1);
+        
+        // Add separator line
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.moveDown(0.5);
+    });
+    
+    // Failed tests summary (if any)
+    if (testResults.failed.length > 0) {
+        doc.addPage();
+        doc.fontSize(14).text('Failed Tests Summary', { underline: true });
+        doc.moveDown();
+        
+        testResults.failed.forEach((test, index) => {
+            doc.fontSize(11).fillColor('red');
+            doc.text(`${index + 1}. ${test.question}`, { continued: false });
+            doc.fillColor('black');
+            doc.fontSize(9);
+            if (test.reason) {
+                doc.text(`   Reason: ${test.reason}`, { indent: 20 });
+            }
+            if (test.error) {
+                doc.text(`   Error: ${test.error}`, { indent: 20 });
+            }
+            doc.moveDown(0.5);
+        });
+    }
+    
+    // Footer on last page
+    doc.fontSize(8).fillColor('gray');
+    doc.text('Generated by Dataviz AI Test Agent', 50, doc.page.height - 50, { align: 'center' });
+    
+    doc.end();
+    
+    return new Promise((resolve, reject) => {
+        stream.on('finish', () => {
+            console.log(`[SUCCESS] PDF report generated: ${filepath}`);
+            resolve(filepath);
+        });
+        stream.on('error', reject);
+    });
+}
+
+module.exports = { runTests, testChatQuestion, verifyResponse, generatePDFReport };
 
 
