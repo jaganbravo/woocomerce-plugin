@@ -9,6 +9,7 @@ Automated testing for the Dataviz AI WooCommerce plugin using Playwright and Ope
 - 📊 **Chart Detection**: Automatically detects if charts are displayed
 - 🔄 **Conversational Testing**: Tests the full chat flow
 - 📈 **Test Reports**: Generates detailed test summaries
+- 📄 **PDF Reports**: Automatically generates PDF with all questions and answers
 
 ## Setup
 
@@ -85,6 +86,7 @@ The agent provides:
 - 📊 Chart detection status
 - 📝 Response verification
 - 📈 Summary statistics
+- 📄 **PDF Report** with all questions and answers
 
 Example output:
 ```
@@ -100,7 +102,23 @@ Total Tests: 15
 ✅ Passed: 14
 ❌ Failed: 1
 Success Rate: 93.3%
+
+[PDF] Generating PDF report...
+[SUCCESS] PDF report generated: tests/reports/test-report-2024-01-15T10-30-45.pdf
 ```
+
+### PDF Report
+
+After running tests, a PDF report is automatically generated in the `tests/reports/` directory containing:
+- Test summary (total, passed, failed, success rate)
+- All questions asked
+- Full responses received
+- Pass/fail status for each test
+- Chart detection status
+- Failure reasons (if any)
+- Timestamp for each test
+
+The PDF filename includes a timestamp: `test-report-YYYY-MM-DDTHH-MM-SS.pdf`
 
 ## Customization
 

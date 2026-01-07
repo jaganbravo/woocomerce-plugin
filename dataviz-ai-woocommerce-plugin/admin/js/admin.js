@@ -297,9 +297,13 @@
 
 		// Use streamToolData if available (from actual query), otherwise fall back to static data
 		let orders = null;
+		let orderStatistics = null;
 		if ( dataType === 'orders' ) {
-			if ( streamToolData && streamToolData.orders && streamToolData.orders.length > 0 ) {
-				// Use data from actual tool response (most accurate)
+			// Prefer status_breakdown from statistics query (most accurate for charts)
+			if ( streamToolData && streamToolData.order_statistics && streamToolData.order_statistics.status_breakdown ) {
+				orderStatistics = streamToolData.order_statistics;
+			} else if ( streamToolData && streamToolData.orders && streamToolData.orders.length > 0 ) {
+				// Use individual orders from list query
 				orders = streamToolData.orders;
 			} else if ( DatavizAIAdmin.orderChartData && DatavizAIAdmin.orderChartData.length > 0 ) {
 				// Fallback to static pre-loaded data
@@ -307,20 +311,36 @@
 			}
 		}
 
-		if ( dataType === 'orders' && orders && orders.length > 0 ) {
-			
+		if ( dataType === 'orders' ) {
 			if ( chartType === 'pie' ) {
 				// Order status pie chart
-				const statusCounts = {};
-				orders.forEach( function( order ) {
-					const status = order.status || 'unknown';
-					statusCounts[ status ] = ( statusCounts[ status ] || 0 ) + 1;
-				} );
+				let statusCounts = {};
+				let labels = [];
+				let data = [];
+				
+				// Use status_breakdown if available (most accurate)
+				if ( orderStatistics && orderStatistics.status_breakdown ) {
+					orderStatistics.status_breakdown.forEach( function( statusData ) {
+						const status = statusData.status || 'unknown';
+						// Remove 'wc-' prefix if present
+						const cleanStatus = status.replace( /^wc-/, '' );
+						statusCounts[ cleanStatus ] = statusData.count || 0;
+					} );
+					labels = Object.keys( statusCounts );
+					data = Object.values( statusCounts );
+				} else if ( orders && orders.length > 0 ) {
+					// Fallback: count from individual orders
+					orders.forEach( function( order ) {
+						const status = order.status || 'unknown';
+						// Remove 'wc-' prefix if present
+						const cleanStatus = status.replace( /^wc-/, '' );
+						statusCounts[ cleanStatus ] = ( statusCounts[ cleanStatus ] || 0 ) + 1;
+					} );
+					labels = Object.keys( statusCounts );
+					data = Object.values( statusCounts );
+				}
 
-				const labels = Object.keys( statusCounts );
-				const data = Object.values( statusCounts );
-
-				if ( labels.length > 0 ) {
+				if ( labels.length > 0 && data.length > 0 ) {
 					renderPieChart( $chartContainer, data, labels, 'Order Status Distribution' );
 				}
 			} else if ( chartType === 'bar' ) {

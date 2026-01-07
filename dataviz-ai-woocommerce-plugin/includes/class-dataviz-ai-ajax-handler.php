@@ -499,9 +499,15 @@ class Dataviz_AI_AJAX_Handler {
 							}
 						}
 					} elseif ( $function_name === 'get_order_statistics' ) {
-						// For statistics queries, we can use status_breakdown for pie charts
+						// For statistics queries, send status_breakdown directly for accurate chart rendering
 						if ( isset( $tool_result['status_breakdown'] ) && is_array( $tool_result['status_breakdown'] ) ) {
-							// Convert status_breakdown to order format for chart compatibility
+							// Send status_breakdown directly (more accurate than converting to individual orders)
+							$tool_results_for_frontend['order_statistics'] = array(
+								'status_breakdown' => $tool_result['status_breakdown'],
+								'summary'          => isset( $tool_result['summary'] ) ? $tool_result['summary'] : array(),
+							);
+							
+							// Also convert to order format for backward compatibility with existing chart code
 							$orders_for_chart = array();
 							foreach ( $tool_result['status_breakdown'] as $status_data ) {
 								// Create a representative order entry for each status
@@ -596,38 +602,49 @@ class Dataviz_AI_AJAX_Handler {
 			}
 
 			// Now get the final streaming response (for non-simple questions).
-			$final_prompt = 'You are a WooCommerce data analyst. The user asked: "' . $question . '". ';
-			$final_prompt .= 'I have just fetched the relevant data from the WooCommerce store using tools. ';
+			// Use LangChain-style prompt templates for structured prompting.
+			$data_template = Dataviz_AI_Prompt_Template::data_analysis();
 			
-			// Add extracted numbers directly to prompt for clarity
+			// Build key data section if we have extracted numbers.
+			$key_data_section = '';
 			if ( ! empty( $extracted_numbers ) ) {
-				$final_prompt .= "\n\nKEY DATA FROM TOOLS: ";
+				$key_data_parts = array();
 				if ( isset( $extracted_numbers['total_orders'] ) ) {
-					$final_prompt .= "Total orders: " . $extracted_numbers['total_orders'] . ". ";
+					$key_data_parts[] = 'Total orders: ' . $extracted_numbers['total_orders'];
 				}
 				if ( isset( $extracted_numbers['total_revenue'] ) ) {
-					$final_prompt .= "Total revenue: " . $extracted_numbers['total_revenue'] . ". ";
+					$key_data_parts[] = 'Total revenue: ' . $extracted_numbers['total_revenue'];
 				}
-				$final_prompt .= "The full tool response data is also available in the tool messages above. ";
+				if ( ! empty( $key_data_parts ) ) {
+					$key_data_section = "\n\nKEY DATA FROM TOOLS: " . implode( '. ', $key_data_parts ) . ". ";
+					$key_data_section .= "The full tool response data is also available in the tool messages above.";
+				}
 			}
 			
-			$final_prompt .= 'Your task is to analyze this data and provide a clear, helpful answer to the user\'s question. ';
-			$final_prompt .= "\n\nCRITICAL: Do NOT greet the user or say 'Hello' or 'How can I assist you'. ";
-			$final_prompt .= "The user has already asked a specific question - answer it directly with the data provided. ";
-			$final_prompt .= "Start your response by directly addressing their question. ";
-			$final_prompt .= "\n\nCRITICAL: If the user asked 'how many', 'count', or requested a number, you MUST include the exact numeric value. ";
-			$final_prompt .= "Use the numbers provided in 'KEY DATA FROM TOOLS' above, or extract them from the tool response JSON. ";
-			$final_prompt .= "NEVER say generic phrases like 'there are orders' or 'you have orders' - ALWAYS include the specific number. ";
-			$final_prompt .= "Examples: 'There are 42 completed orders' (NOT 'There are completed orders'), 'You have 15 orders' (NOT 'You have orders'). ";
-			$final_prompt .= "If the count is 0, say 'There are 0 completed orders' explicitly. ";
-			$final_prompt .= "\n\nIMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
-			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported or not yet available. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format without mentioning chart limitations. ";
-			$final_prompt .= "If the error response includes 'can_submit_request': true and 'submission_prompt', ask the user if they would like to submit a feature request using the exact prompt provided. ";
-			$final_prompt .= "CRITICAL: If in a follow-up message the user says 'yes', 'request this feature', 'submit request', or any affirmative response, you MUST IMMEDIATELY call submit_feature_request tool. Extract the entity_type from the 'requested_entity' field in the most recent tool error response. Do NOT ask for clarification - just call the tool with the entity_type from the error response. ";
-			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database. ";
-			$final_prompt .= "If a feature request was successfully submitted (check for 'success': true in tool responses), confirm this to the user and let them know the administrators have been notified. ";
-			$final_prompt .= "Otherwise, provide a comprehensive and helpful answer using the actual data that was retrieved. ";
-			$final_prompt .= "\n\nRemember: Answer the question directly. Do not greet the user.";
+			// Format the data analysis template with variables.
+			$final_prompt = $data_template->format(
+				array(
+					'question' => $question,
+				)
+			);
+			
+			// Add key data section if available.
+			if ( ! empty( $key_data_section ) ) {
+				$final_prompt .= $key_data_section;
+			}
+			
+			// Combine with other specialized templates.
+			$final_prompt = Dataviz_AI_Prompt_Template::combine(
+				array(
+					$final_prompt,
+					Dataviz_AI_Prompt_Template::error_handling()->format(),
+					Dataviz_AI_Prompt_Template::chart_request()->format(),
+					Dataviz_AI_Prompt_Template::empty_data()->format(),
+					"If a feature request was successfully submitted (check for 'success': true in tool responses), confirm this to the user and let them know the administrators have been notified.",
+					"Otherwise, provide a comprehensive and helpful answer using the actual data that was retrieved.",
+					"\n\nRemember: Answer the question directly. Do not greet the user.",
+				)
+			);
 			
 			$messages[] = array(
 				'role'    => 'user',
@@ -892,10 +909,30 @@ class Dataviz_AI_AJAX_Handler {
 	 * @return array
 	 */
 	protected function build_smart_analysis_messages( $question ) {
+		// Use LangChain-style prompt template for system message.
+		$system_template = Dataviz_AI_Prompt_Template::system_analyst();
+		
+		// Add additional instructions for this specific use case.
+		$system_template->add_instructions(
+			array(
+				'When the user asks about ANY store data (orders, products, customers, sales, revenue, commission, sales commission, reviews, shipping, taxes, inventory, stock, or ANY other data type), you MUST use the available tools to fetch that data.',
+				'Even if you think the data type might not be supported, still call the get_woocommerce_data tool with the exact entity_type the user mentioned (e.g., if they say "commission" or "sales commission", use entity_type: "commission").',
+				'Only provide answers after you have retrieved the relevant data using the tools.',
+			)
+		);
+		
+		// Combine with error handling template.
+		$system_content = Dataviz_AI_Prompt_Template::combine(
+			array(
+				$system_template->format(),
+				Dataviz_AI_Prompt_Template::error_handling()->format(),
+			)
+		);
+		
 		return array(
 			array(
 				'role'    => 'system',
-				'content' => __( 'You are a WooCommerce data analyst AI assistant. Your role is to analyze store data and answer user questions directly and concisely. CRITICAL: When a user asks a question, do NOT greet them or say "Hello" or "How can I assist you". The user has already asked a specific question - answer it directly. Start your response by addressing their question immediately. You have access to tools that can fetch real data from the WooCommerce store including orders, products, and customer information. CRITICAL: When the user asks about ANY store data (orders, products, customers, sales, revenue, commission, sales commission, reviews, shipping, taxes, inventory, stock, or ANY other data type), you MUST use the available tools to fetch that data. Even if you think the data type might not be supported, still call the get_woocommerce_data tool with the exact entity_type the user mentioned (e.g., if they say "commission" or "sales commission", use entity_type: "commission"). Do not say you don\'t have access - use the tools provided to get the actual data from the store. IMPORTANT: If the user asks for a chart, graph, pie chart, bar chart, or visualization, you should still fetch the data using the tools. The frontend will automatically render charts based on the data and question - you do NOT need to generate charts yourself. Just provide the data in a clear format. Do NOT say "I cannot generate charts" - charts are handled automatically by the system. Only provide answers after you have retrieved the relevant data using the tools. If a tool returns an error (check for "error": true in the response), politely inform the user that the requested feature is not yet available and suggest available alternatives based on the error message provided. If the error response includes "can_submit_request": true and "submission_prompt", ask the user if they would like to submit a feature request using the exact prompt provided. CRITICAL: If the user says "yes", "request this feature", "submit request", "yes please", "sure", "ok", or ANY affirmative response, you MUST IMMEDIATELY call the submit_feature_request tool. Extract the entity_type from the "requested_entity" field in the most recent error response that had "can_submit_request": true. Do NOT ask the user what feature they want - use the entity_type from the error response. Do NOT ask for clarification - just call the tool immediately.', 'dataviz-ai-woocommerce' ),
+				'content' => $system_content,
 			),
 			array(
 				'role'    => 'user',
@@ -1067,11 +1104,11 @@ class Dataviz_AI_AJAX_Handler {
 		// Convert empty arrays to empty objects before encoding.
 		$tools = $this->convert_empty_arrays_to_objects( $tools );
 		
+		// Use LangChain-style prompt template for system message.
+		$system_template = Dataviz_AI_Prompt_Template::system_analyst();
+		
 		$messages = array(
-			array(
-				'role'    => 'system',
-				'content' => 'You are a helpful WooCommerce data analyst. You have direct access to the WooCommerce store database through tools. IMPORTANT: When the user asks about store data (orders, products, customers, sales, revenue, inventory, stock, etc.), you MUST use the available tools to fetch that data. Never say you don\'t have access - use the tools provided to get real data from the store. CRITICAL: If the user asks for a chart, graph, pie chart, bar chart, or visualization, you should still fetch the data using the tools. The frontend will automatically render charts based on the data and question - you do NOT need to generate charts yourself. Just provide the data in a clear format. Do NOT say "I cannot generate charts" or "charts are not yet supported" - charts are handled automatically by the system. Analyze the user\'s question and use the appropriate tools to fetch the required data.',
-			),
+			$system_template->build_message( 'system' ),
 			array(
 				'role'    => 'user',
 				'content' => $question,

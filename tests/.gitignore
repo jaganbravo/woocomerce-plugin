@@ -12,6 +12,8 @@ yarn.lock
 test-results/
 playwright-report/
 playwright/.cache/
+reports/
+*.pdf
 
 # Logs
 *.log
