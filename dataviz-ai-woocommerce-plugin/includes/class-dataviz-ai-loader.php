@@ -16,6 +16,7 @@ require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-feature-reque
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-classifier.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-prompt-template.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-admin.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-onboarding.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-widget.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-ajax-handler.php';
 
@@ -44,6 +45,13 @@ class Dataviz_AI_Loader {
 	 * @var Dataviz_AI_Admin
 	 */
 	protected $admin;
+
+	/**
+	 * Onboarding component.
+	 *
+	 * @var Dataviz_AI_Onboarding
+	 */
+	protected $onboarding;
 
 	/**
 	 * AJAX handler.
@@ -76,6 +84,12 @@ class Dataviz_AI_Loader {
 			$api_client
 		);
 
+		$this->onboarding = new Dataviz_AI_Onboarding(
+			$this->plugin_name,
+			$this->version,
+			$api_client
+		);
+
 		$this->ajax = new Dataviz_AI_AJAX_Handler(
 			$this->plugin_name,
 			$data_fetcher,
@@ -104,6 +118,7 @@ class Dataviz_AI_Loader {
 	protected function define_admin_hooks() {
 		add_action( 'admin_menu', array( $this->admin, 'register_menu_page' ) );
 		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_assets' ) );
+		$this->onboarding->init();
 	}
 
 	/**
@@ -123,6 +138,8 @@ class Dataviz_AI_Loader {
 		add_action( 'wp_ajax_dataviz_ai_submit_feature_request', array( $this->ajax, 'handle_submit_feature_request' ) );
 
 		add_action( 'wp_ajax_dataviz_ai_get_inventory_chart', array( $this->ajax, 'handle_get_inventory_chart' ) );
+
+		add_action( 'wp_ajax_dataviz_ai_save_onboarding_step', array( $this->onboarding, 'ajax_save_onboarding_step' ) );
 	}
 
 	/**
