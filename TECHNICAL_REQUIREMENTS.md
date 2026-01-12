@@ -6,7 +6,7 @@
 
 **WordPress:**
 - WordPress 5.8 or higher (your plugin requires 6.0+)
-- PHP 7.4 or higher (your plugin requires 7.4+)
+- PHP 8.3 or higher (your plugin requires 8.3+)
 - MySQL/MariaDB database
 
 **WooCommerce:**
@@ -52,7 +52,7 @@ your-plugin-name/
  * Author: Your Name
  * Text Domain: your-plugin-textdomain
  * Requires at least: 6.0
- * Requires PHP: 7.4
+ * Requires PHP: 8.3
  * WC requires at least: 6.0
  * WC tested up to: 8.5
  */
@@ -127,7 +127,7 @@ Based on your `dataviz-ai-woocommerce.php`:
 
 ```php
 Requires at least: 6.0        // WordPress 6.0+
-Requires PHP: 7.4             // PHP 7.4+
+Requires PHP: 8.3             // PHP 8.3+
 WC requires at least: 6.0     // WooCommerce 6.0+
 WC tested up to: 8.5          // Tested with WooCommerce 8.5
 ```
@@ -162,7 +162,7 @@ WC tested up to: 8.5          // Tested with WooCommerce 8.5
 ## Quick Checklist
 
 - [x] WordPress 6.0+ installed
-- [x] PHP 7.4+ installed
+- [x] PHP 8.3+ installed
 - [x] WooCommerce 6.0+ installed
 - [x] Local development environment set up
 - [x] Plugin folder structure created

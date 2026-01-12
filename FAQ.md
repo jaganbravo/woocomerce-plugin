@@ -49,7 +49,7 @@
 
 **Answer:** The plugin requires:
 - **WordPress**: Version 6.0 or higher
-- **PHP**: Version 7.4 or higher
+- **PHP**: Version 8.3 or higher
 - **WooCommerce**: Version 6.0 or higher (must be installed and activated)
 - **WooCommerce Tested**: Up to version 8.5
 
@@ -186,7 +186,7 @@ Example: `[dataviz_ai_chat]`
 **Answer:** 
 1. Ensure WooCommerce is installed and activated
 2. Check that your WordPress version is 6.0 or higher
-3. Verify PHP version is 7.4 or higher
+3. Verify PHP version is 8.3 or higher
 4. Check for plugin conflicts by deactivating other plugins temporarily
 5. Review the error message displayed during activation
 
