@@ -266,7 +266,7 @@ dataviz-ai-woocommerce-plugin/
 
 ### WordPress
 - WordPress 6.0+
-- PHP 7.4+
+- PHP 8.3+
 
 ### WooCommerce
 - WooCommerce 6.0+

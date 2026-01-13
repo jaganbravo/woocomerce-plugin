@@ -178,6 +178,9 @@ class Dataviz_AI_Admin {
 	public function render_admin_page() {
 		$api_url   = $this->api_client->get_api_url();
 		$api_key   = $this->api_client->get_api_key();
+		
+		// Get onboarding instance
+		$onboarding = new Dataviz_AI_Onboarding( $this->plugin_name, $this->version, $this->api_client );
 		?>
 		<div class="wrap dataviz-ai-admin">
 			<h1><?php esc_html_e( 'Dataviz AI for WooCommerce', 'dataviz-ai-woocommerce' ); ?></h1>
@@ -235,6 +238,8 @@ class Dataviz_AI_Admin {
 			</div>
 		</div>
 		<?php
+		// Render onboarding overlay if not completed
+		$onboarding->render_onboarding_overlay();
 	}
 
 }
