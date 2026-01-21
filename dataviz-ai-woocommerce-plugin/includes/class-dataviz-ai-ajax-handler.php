@@ -1351,7 +1351,7 @@ class Dataviz_AI_AJAX_Handler {
 				'type' => 'function',
 				'function' => array(
 					'name'        => 'get_order_statistics',
-					'description' => 'Get aggregated order statistics (totals, averages, counts, status breakdown). USE THIS TOOL when user asks for totals like "total revenue", "how many orders", "average order value", "revenue by status". This is optimized for large datasets (millions of orders).',
+					'description' => 'Get aggregated order statistics (totals, averages, counts, status breakdown). USE THIS TOOL when user asks for totals like "total revenue", "how many orders", "average order value", "revenue by status", OR when asking about "order status" or "show me order status" to get a complete breakdown of all order statuses. This is optimized for large datasets (millions of orders).',
 					'parameters'  => array(
 						'type'       => 'object',
 						'properties' => array(

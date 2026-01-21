@@ -1,210 +1,114 @@
-# AI Chat Test Agent
+# Test Agent for Dataviz AI WooCommerce Plugin
 
-Automated testing for the Dataviz AI WooCommerce plugin using Playwright and OpenAI.
-
-## Features
-
-- 🤖 **AI-Generated Test Questions**: Uses GPT to generate diverse, natural test questions
-- ✅ **AI-Powered Verification**: Uses AI to verify if responses are correct
-- 📊 **Chart Detection**: Automatically detects if charts are displayed
-- 🔄 **Conversational Testing**: Tests the full chat flow
-- 📈 **Test Reports**: Generates detailed test summaries
-- 📄 **PDF Reports**: Automatically generates PDF with all questions and answers
+Automated testing using Playwright and OpenAI for generating and verifying test questions.
 
 ## Setup
 
-### 1. Install Dependencies
-
+1. Install dependencies:
 ```bash
-cd tests
 npm install
 ```
 
-### 2. Install Playwright Browsers
-
-```bash
-npx playwright install chromium
-```
-
-### 3. Configure Environment
-
-Create a `.env` file in the `tests` directory:
-
+2. Configure environment variables (create `.env` file):
 ```env
-OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_API_KEY=your_api_key_here
 PLUGIN_URL=http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-woocommerce
 WP_ADMIN_USER=admin
-WP_ADMIN_PASS=your-password
+WP_ADMIN_PASS=admin
 ```
 
-## Usage
+## Test Commands
 
-### Run Tests (with browser visible)
-
+### 1. AI-Generated Questions (Default)
+Generates new questions using AI and saves them for future use:
 ```bash
-npm test
+npm test                    # Shortcut (works without 'run')
+# or
+npm run test               # Full command
+npm run test:headless      # Run in headless mode
 ```
 
-### Run Tests (headless mode)
+**Behavior:**
+- First run: Generates 30-50 questions using OpenAI API
+- Saves questions to `saved-questions.json`
+- Subsequent runs: Uses saved questions (unless file is deleted)
 
+### 2. Static Testing (Predefined Questions)
+Uses a fixed set of predefined questions for consistent testing:
 ```bash
-npm run test:headless
+npm run test:static        # Note: Must use 'npm run' for scripts with colons
+npm run test:static:headless  # Run in headless mode
 ```
 
-Or set environment variable:
+**Note:** Scripts with colons (`:`) require `npm run` prefix. Only `test`, `start`, `stop` can be run without `run`.
 
-```bash
-HEADLESS=true npm test
+**Behavior:**
+- Always uses the same predefined questions
+- No AI generation required
+- Consistent test results across runs
+
+## File Structure
+
+```
+tests/
+├── ai-chat-test-agent.js    # Main test script
+├── package.json              # Dependencies and scripts
+├── saved-questions.json      # Auto-generated (gitignored)
+├── reports/                  # PDF test reports (gitignored)
+└── README.md                 # This file
 ```
 
-## What It Tests
+## How It Works
 
-The agent automatically tests:
+1. **Question Generation:**
+   - AI mode: Uses OpenAI to generate diverse test questions
+   - Static mode: Uses predefined questions from code
 
-1. **Basic Questions**
-   - "Show me inventory in a pie chart"
-   - "What are my top selling products?"
-   - "How many orders do I have?"
+2. **Test Execution:**
+   - Opens browser (Playwright)
+   - Logs into WordPress admin
+   - Navigates to plugin page
+   - Sends each question to chat interface
+   - Waits for AI response
+   - Verifies response quality using AI
 
-2. **Chart Requests**
-   - Verifies charts are displayed
-   - Checks chart rendering
+3. **Report Generation:**
+   - Creates PDF report with all Q&A pairs
+   - Shows pass/fail status
+   - Includes charts detection
+   - Saves to `reports/test-report-{timestamp}.pdf`
 
-3. **Data Queries**
-   - Products, orders, customers, inventory
-   - Statistics and analytics
+## Saved Questions
 
-4. **Edge Cases**
-   - Feature requests for unsupported features
-   - Invalid questions
-   - Empty data scenarios
-
-## Test Output
-
-The agent provides:
-- ✅ Pass/fail for each test
-- 📊 Chart detection status
-- 📝 Response verification
-- 📈 Summary statistics
-- 📄 **PDF Report** with all questions and answers
-
-Example output:
-```
-📝 Test 1: "Show me inventory in a pie chart"
-✅ PASSED: Response contains data and chart is displayed
-   📊 Chart displayed
-
-📝 Test 2: "What are my top selling products?"
-✅ PASSED: Response contains relevant product data
-
-📊 TEST SUMMARY
-Total Tests: 15
-✅ Passed: 14
-❌ Failed: 1
-Success Rate: 93.3%
-
-[PDF] Generating PDF report...
-[SUCCESS] PDF report generated: tests/reports/test-report-2024-01-15T10-30-45.pdf
-```
-
-### PDF Report
-
-After running tests, a PDF report is automatically generated in the `tests/reports/` directory containing:
-- Test summary (total, passed, failed, success rate)
-- All questions asked
-- Full responses received
-- Pass/fail status for each test
-- Chart detection status
-- Failure reasons (if any)
-- Timestamp for each test
-
-The PDF filename includes a timestamp: `test-report-YYYY-MM-DDTHH-MM-SS.pdf`
-
-## Customization
-
-### Add Custom Test Questions
-
-Edit `getPredefinedQuestions()` in `ai-chat-test-agent.js`:
-
-```javascript
-function getPredefinedQuestions() {
-    return [
-        'Your custom question here',
-        'Another test question',
-    ];
+When using AI-generated questions, they are saved to `saved-questions.json`:
+```json
+{
+  "questions": ["question1", "question2", ...],
+  "generatedAt": "2025-01-12T10:30:00.000Z",
+  "count": 45
 }
 ```
 
-### Adjust Verification Logic
+To regenerate questions:
+- Delete `saved-questions.json` and run `npm test`
+- Or manually edit the file
 
-Modify `verifyResponse()` function to change how responses are validated.
+## Test Results
 
-### Change Test Timeout
-
-Update `CONFIG.timeout` in the script.
-
-## CI/CD Integration
-
-### GitHub Actions Example
-
-```yaml
-name: AI Chat Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-      - name: Install dependencies
-        run: |
-          cd tests
-          npm install
-          npx playwright install chromium
-      - name: Run tests
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          PLUGIN_URL: ${{ secrets.PLUGIN_URL }}
-        run: |
-          cd tests
-          npm run test:headless
-```
+- **Console Output:** Real-time test progress and results
+- **PDF Report:** Detailed report in `reports/` directory
+- **Summary:** Pass/fail counts and success rate
 
 ## Troubleshooting
 
-### "Could not find chat input field"
+**AI generation fails:**
+- Check OpenAI API key in `.env`
+- Falls back to predefined questions automatically
 
-- Check that the plugin page is accessible
-- Verify the page has loaded completely
-- Update selectors in the script if plugin UI changed
+**Browser issues:**
+- Ensure Docker WordPress is running on `http://localhost:8080`
+- Check WordPress admin credentials in `.env`
 
-### "No response received within timeout"
-
-- Increase timeout in CONFIG
-- Check that OpenAI API key is valid
-- Verify plugin is working manually first
-
-### Tests failing
-
-- Run tests with `headless: false` to see what's happening
-- Check browser console for errors
-- Verify WordPress admin credentials
-
-## Cost Estimate
-
-- **Playwright**: Free (open source)
-- **OpenAI API**: ~$0.01-0.05 per test run (15 questions)
-- **Total**: Very affordable for regular testing
-
-## Next Steps
-
-1. Run initial test suite
-2. Review failed tests
-3. Fix plugin issues
-4. Re-run tests
-5. Set up CI/CD for automated testing
-
+**Questions not loading:**
+- Check `saved-questions.json` exists and is valid JSON
+- Delete file to regenerate

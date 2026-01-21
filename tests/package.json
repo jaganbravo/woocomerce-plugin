@@ -5,7 +5,9 @@
   "main": "ai-chat-test-agent.js",
   "scripts": {
     "test": "node ai-chat-test-agent.js",
-    "test:headless": "HEADLESS=true node ai-chat-test-agent.js"
+    "test:headless": "HEADLESS=true node ai-chat-test-agent.js",
+    "test:static": "node ai-chat-test-agent.js --static",
+    "test:static:headless": "HEADLESS=true node ai-chat-test-agent.js --static"
   },
   "keywords": [
     "testing",

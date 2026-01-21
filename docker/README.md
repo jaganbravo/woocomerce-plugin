@@ -56,11 +56,22 @@ Alternatively, import `dummy-data.xml` via `Tools → Import → WordPress`.
 
 ## 5. Install the Dataviz AI sample plugin
 
+### Initial Setup
 ```bash
-cp -R /Users/antonyprinston/Documents/sideProject/woocomerce-plugin/dataviz-ai-woocommerce-plugin \
-      /Users/antonyprinston/Documents/sideProject/woocomerce-plugin/docker/wordpress/wp-content/plugins/
+# Copy plugin files to Docker
+./sync-plugin.sh
 
+# Activate the plugin
 docker compose exec wpcli bash -c "wp plugin activate dataviz-ai-woocommerce"
+```
+
+### Updating Plugin Files (after making changes)
+```bash
+# Sync latest plugin files to Docker
+./sync-plugin.sh
+
+# Optionally restart WordPress container
+docker compose restart wordpress
 ```
 
 Refresh `wp-admin`; the **Dataviz AI** menu should appear.

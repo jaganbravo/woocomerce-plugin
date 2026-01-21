@@ -115,6 +115,11 @@ class Dataviz_AI_Intent_Classifier {
 			return 'statistics';
 		}
 		
+		// Check for status breakdown queries (should use statistics to get all statuses)
+		if ( preg_match( '/\b(order )?status|status(es)?\b/i', $question ) && preg_match( '/\b(order|orders)\b/i', $question ) ) {
+			return 'statistics';
+		}
+		
 		// Check for time-series queries
 		if ( preg_match( '/\b(by (day|week|month|year|hour)|over time|trend|daily|weekly|monthly|hourly)\b/i', $question ) ) {
 			return 'by_period';
@@ -245,13 +250,16 @@ class Dataviz_AI_Intent_Classifier {
 		// Check for statistics/aggregated queries (revenue, total, count, average, etc.)
 		$is_statistics_query = preg_match( '/\b(total|revenue|count|average|sum|statistics|stats|how many|revenue by|total sales|avg|mean)\b/i', $question );
 		
+		// Check for status breakdown queries (should use statistics to show all statuses)
+		$is_status_query = preg_match( '/\b(order )?status|status(es)?\b/i', $question ) && preg_match( '/\b(order|orders)\b/i', $question );
+		
 		// Check if user is asking for a chart/visualization (pie chart, bar chart, etc.)
 		// For charts, we should use statistics to get accurate status breakdown
 		$is_chart_request = preg_match( '/\b(chart|graph|pie chart|bar chart|visualization|visualize|show.*chart|display.*chart)\b/i', $question );
 		
 		// Handle order-related queries
 		if ( $entity_type === 'orders' || preg_match( '/\b(order|orders|sale|sales|transaction|purchase|recent order)\b/i', $question ) ) {
-			if ( $is_statistics_query || $query_type === 'statistics' || $is_chart_request ) {
+			if ( $is_statistics_query || $query_type === 'statistics' || $is_chart_request || $is_status_query ) {
 				// Use order statistics for aggregated queries and charts (more accurate for status breakdown)
 				$tool_calls[] = array(
 					'function' => array(
