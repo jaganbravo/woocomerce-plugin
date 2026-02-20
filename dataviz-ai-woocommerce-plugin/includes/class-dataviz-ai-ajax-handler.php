@@ -409,21 +409,28 @@ class Dataviz_AI_AJAX_Handler {
 			return;
 		}
 
-		// Use intent classification to determine which tools to call (no LLM needed for tool selection)
+		// Use intent classification to extract hints and determine if we need LLM
 		$tool_calls = Dataviz_AI_Intent_Classifier::classify_intent_and_get_tools( $question );
+		$hints = Dataviz_AI_Intent_Classifier::extract_intent_hints( $question );
 		
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 			if ( ! empty( $tool_calls ) ) {
 				$tool_names = array_map( function( $tc ) {
 					return $tc['function']['name'] ?? 'unknown';
 				}, $tool_calls );
-				error_log( sprintf( '[Dataviz AI] Intent classification detected tools: %s for question: %s', implode( ', ', $tool_names ), $question ) );
+				error_log( sprintf( '[Dataviz AI] Rule-based classification detected tools: %s for question: %s', implode( ', ', $tool_names ), $question ) );
 			} else {
-				error_log( sprintf( '[Dataviz AI] Intent classification: No tools detected for question: %s', $question ) );
+				error_log( sprintf( '[Dataviz AI] Complex query detected - using LLM with hints. Hints: %s', wp_json_encode( $hints ) ) );
 			}
 		}
 
-		// If intent classification detected tools, execute them and then stream the final response.
+		// If intent classification returned empty (complex case), use LLM with hints
+		if ( empty( $tool_calls ) ) {
+			// Use LLM-based tool selection with hints for guidance
+			return $this->handle_smart_analysis_with_hints( $question, $hints );
+		}
+
+		// If intent classification detected tools (simple case), execute them and then stream the final response.
 		if ( ! empty( $tool_calls ) ) {
 			// Store tool results for frontend (to avoid redundant AJAX calls).
 			$tool_results_for_frontend = array();
@@ -458,7 +465,18 @@ class Dataviz_AI_AJAX_Handler {
 					),
 				);
 
-				$tool_result = $this->execute_tool( $function_name, is_array( $arguments ) ? $arguments : array() );
+				// Validate arguments before execution (validation layer)
+				$arguments = $this->validate_tool_arguments( $function_name, is_array( $arguments ) ? $arguments : array() );
+				
+				// Check if validation returned an error
+				if ( isset( $arguments['error'] ) && $arguments['error'] === true ) {
+					$tool_result = array(
+						'error'   => true,
+						'message' => $arguments['message'] ?? 'Validation failed',
+					);
+				} else {
+					$tool_result = $this->execute_tool( $function_name, $arguments );
+				}
 				
 				// Convert WP_Error to user-friendly format for LLM.
 				if ( is_wp_error( $tool_result ) ) {
@@ -1400,13 +1418,318 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
-	 * Execute a tool/function call requested by the LLM.
+	 * Validate and sanitize tool arguments before execution.
+	 * This is the validation layer that prevents bad tool calls.
 	 *
-	 * @param string $function_name Function name to execute.
-	 * @param array  $arguments     Function arguments.
-	 *
-	 * @return array|WP_Error
+	 * @param string $function_name Tool function name.
+	 * @param array  $arguments     Tool arguments.
+	 * @return array|WP_Error Validated and sanitized arguments, or error array if validation fails.
 	 */
+	protected function validate_tool_arguments( $function_name, array $arguments ) {
+		// Validate tool exists
+		$valid_tools = array( 'get_woocommerce_data', 'get_order_statistics', 'get_top_products', 
+		                      'get_customers', 'get_customer_summary', 'submit_feature_request',
+		                      'get_recent_orders' ); // Legacy tool
+		
+		if ( ! in_array( $function_name, $valid_tools, true ) ) {
+			// Invalid tool - return error structure
+			return array( 'error' => true, 'error_type' => 'invalid_tool', 'message' => 'Invalid tool: ' . $function_name );
+		}
+
+		// Validate entity_type if present
+		if ( isset( $arguments['entity_type'] ) ) {
+			$arguments['entity_type'] = $this->validate_and_normalize_entity_type( 
+				$arguments['entity_type'], 
+				$arguments 
+			);
+		}
+
+		// Validate query_type enum
+		if ( isset( $arguments['query_type'] ) ) {
+			$valid_types = array( 'list', 'statistics', 'sample', 'by_period' );
+			if ( ! in_array( $arguments['query_type'], $valid_types, true ) ) {
+				$arguments['query_type'] = 'list'; // Safe default
+			}
+		}
+
+		// Sanitize filters
+		if ( isset( $arguments['filters'] ) && is_array( $arguments['filters'] ) ) {
+			$arguments['filters'] = $this->sanitize_filters( $arguments['filters'] );
+		}
+
+		// Validate limit if present
+		if ( isset( $arguments['limit'] ) ) {
+			$arguments['limit'] = max( 1, min( 1000, (int) $arguments['limit'] ) );
+		}
+
+		// Validate filters.limit if present
+		if ( isset( $arguments['filters']['limit'] ) ) {
+			$arguments['filters']['limit'] = max( -1, min( 1000, (int) $arguments['filters']['limit'] ) );
+		}
+
+		return $arguments;
+	}
+
+	/**
+	 * Validate and normalize entity type.
+	 *
+	 * @param string $entity_type Entity type to validate.
+	 * @param array  $context     Full arguments context for better validation.
+	 * @return string Normalized entity type.
+	 */
+	protected function validate_and_normalize_entity_type( $entity_type, array $context = array() ) {
+		$normalized = strtolower( trim( $entity_type ) );
+
+		// Map common mistakes/singular forms to plural
+		$normalization_map = array(
+			'product'  => 'products',
+			'order'    => 'orders',
+			'customer' => 'customers',
+			'category' => 'categories',
+			'tag'      => 'tags',
+			'coupon'   => 'coupons',
+			'refund'   => 'refunds',
+		);
+
+		if ( isset( $normalization_map[ $normalized ] ) ) {
+			$normalized = $normalization_map[ $normalized ];
+		}
+
+		// Use the classifier's normalization
+		$normalized = Dataviz_AI_Intent_Classifier::normalize_entity_type( $normalized );
+
+		// Check if it's a valid entity (let execute_flexible_query handle unsupported types)
+		$valid_entities = array( 'orders', 'products', 'customers', 'categories', 
+		                         'tags', 'coupons', 'refunds', 'stock', 'inventory' );
+
+		// If not valid, return as-is - execute_flexible_query will handle it gracefully
+		return $normalized;
+	}
+
+	/**
+	 * Sanitize filters array.
+	 *
+	 * @param array $filters Filters to sanitize.
+	 * @return array Sanitized filters.
+	 */
+	protected function sanitize_filters( array $filters ) {
+		$sanitized = array();
+
+		// Sanitize common filter fields
+		if ( isset( $filters['status'] ) ) {
+			$sanitized['status'] = sanitize_text_field( $filters['status'] );
+		}
+
+		if ( isset( $filters['date_from'] ) ) {
+			$sanitized['date_from'] = sanitize_text_field( $filters['date_from'] );
+		}
+
+		if ( isset( $filters['date_to'] ) ) {
+			$sanitized['date_to'] = sanitize_text_field( $filters['date_to'] );
+		}
+
+		if ( isset( $filters['limit'] ) ) {
+			$sanitized['limit'] = max( -1, min( 1000, (int) $filters['limit'] ) );
+		}
+
+		if ( isset( $filters['stock_threshold'] ) ) {
+			$sanitized['stock_threshold'] = max( 0, (int) $filters['stock_threshold'] );
+		}
+
+		if ( isset( $filters['category_id'] ) ) {
+			$sanitized['category_id'] = max( 0, (int) $filters['category_id'] );
+		}
+
+		if ( isset( $filters['period'] ) ) {
+			$valid_periods = array( 'hour', 'day', 'week', 'month' );
+			if ( in_array( $filters['period'], $valid_periods, true ) ) {
+				$sanitized['period'] = $filters['period'];
+			}
+		}
+
+		if ( isset( $filters['sample_size'] ) ) {
+			$sanitized['sample_size'] = max( 50, min( 500, (int) $filters['sample_size'] ) );
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Handle smart analysis with intent hints for guidance.
+	 *
+	 * @param string $question User's question.
+	 * @param array  $hints    Intent hints from classifier.
+	 * @return void
+	 */
+	protected function handle_smart_analysis_with_hints( $question, array $hints ) {
+		// Get available tools
+		$tools = $this->get_available_tools();
+
+		// Enhance tool descriptions with hints
+		$hints_prompt = '';
+		if ( ! empty( $hints['primary_entity'] ) ) {
+			$hints_prompt = "\n\nINTENT HINTS (use these to guide your decision):\n";
+			$hints_prompt .= "- Primary entity: " . $hints['primary_entity'] . "\n";
+			if ( ! empty( $hints['secondary_entities'] ) ) {
+				$hints_prompt .= "- Secondary entities: " . implode( ', ', $hints['secondary_entities'] ) . "\n";
+			}
+			$hints_prompt .= "- Query type: " . $hints['query_type'] . "\n";
+			$hints_prompt .= "- Confidence: " . $hints['confidence'] . "\n";
+			$hints_prompt .= "- Complexity: " . $hints['complexity'] . "\n";
+			$hints_prompt .= "\nCRITICAL RULES based on hints:\n";
+			$hints_prompt .= "- If hints say 'stock' and question mentions 'products', use entity_type: 'stock' (NOT 'products')\n";
+			$hints_prompt .= "- If hints say 'inventory' and question mentions 'categories', use entity_type: 'inventory' (NOT 'categories')\n";
+			$hints_prompt .= "- Always prioritize the primary_entity from hints over generic entity matching\n";
+		}
+
+		// Update tool descriptions to include hints
+		foreach ( $tools as &$tool ) {
+			if ( isset( $tool['function']['description'] ) ) {
+				$tool['function']['description'] .= $hints_prompt;
+			}
+		}
+
+		// Use the existing handle_smart_analysis but with enhanced tools
+		// For now, we'll use the existing method but log that hints were used
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf( '[Dataviz AI] Using LLM with hints for complex query. Hints: %s', wp_json_encode( $hints ) ) );
+		}
+
+		// Use the existing smart analysis method
+		// We'll enhance it to include hints in the system prompt
+		$system_template = Dataviz_AI_Prompt_Template::system_analyst();
+		$system_message = $system_template->build_message( 'system' );
+		
+		// Add hints to system message
+		if ( ! empty( $hints_prompt ) ) {
+			$system_message['content'] .= $hints_prompt;
+		}
+
+		$messages = array(
+			$system_message,
+			array(
+				'role'    => 'user',
+				'content' => $question,
+			),
+		);
+
+		// Fix empty properties arrays to be objects for OpenAI API
+		$tools = $this->convert_empty_arrays_to_objects( $tools );
+
+		$response = $this->api_client->send_openai_chat(
+			$messages,
+			array(
+				'tools'       => $tools,
+				'tool_choice' => 'auto',
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$this->send_stream_error( $response->get_error_message() );
+			return;
+		}
+
+		$message = $response['choices'][0]['message'];
+
+		// Execute tool calls with validation
+		$tool_results = array();
+		if ( isset( $message['tool_calls'] ) && is_array( $message['tool_calls'] ) ) {
+			foreach ( $message['tool_calls'] as $tool_call ) {
+				$function_name = $tool_call['function']['name'] ?? '';
+				$arguments     = json_decode( $tool_call['function']['arguments'] ?? '{}', true );
+
+				if ( ! is_array( $arguments ) ) {
+					$arguments = array();
+				}
+
+				// Validate arguments before execution
+				$arguments = $this->validate_tool_arguments( $function_name, $arguments );
+
+				// Check if validation returned an error
+				if ( isset( $arguments['error'] ) && $arguments['error'] === true ) {
+					$tool_results[] = array(
+						'tool_call_id' => $tool_call['id'] ?? '',
+						'role'         => 'tool',
+						'name'         => $function_name,
+						'content'      => wp_json_encode( array(
+							'error'   => true,
+							'message' => $arguments['message'] ?? 'Validation failed',
+						) ),
+					);
+					continue;
+				}
+
+				$result = $this->execute_tool( $function_name, $arguments );
+
+				// Convert WP_Error to user-friendly format
+				if ( is_wp_error( $result ) ) {
+					$result = array(
+						'error'      => true,
+						'error_type' => 'execution_error',
+						'message'    => $result->get_error_message(),
+						'error_code' => $result->get_error_code(),
+					);
+				}
+
+				$tool_results[] = array(
+					'tool_call_id' => $tool_call['id'] ?? '',
+					'role'         => 'tool',
+					'name'         => $function_name,
+					'content'      => wp_json_encode( $result ),
+				);
+			}
+		}
+
+		// Send tool results back to LLM for final answer
+		if ( ! empty( $tool_results ) ) {
+			$messages[] = $message;
+			$messages   = array_merge( $messages, $tool_results );
+
+			$final_prompt = 'Based on the data you just fetched, please answer the original question: ' . $question . "\n\n";
+			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
+			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format. ";
+			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.";
+
+			$messages[] = array(
+				'role'    => 'user',
+				'content' => $final_prompt,
+			);
+
+			// Stream the final response
+			$this->streaming_content = '';
+			$stream_result = $this->api_client->send_openai_chat_stream(
+				$messages,
+				function( $chunk ) {
+					$this->streaming_content .= $chunk;
+					$this->send_stream_chunk( $chunk );
+				},
+				array(
+					'model' => 'gpt-4o-mini',
+				)
+			);
+
+			if ( is_wp_error( $stream_result ) ) {
+				$this->send_stream_error( $stream_result->get_error_message() );
+				return;
+			}
+
+			// Save AI response to chat history
+			if ( ! empty( $this->streaming_content ) ) {
+				$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			}
+
+			$this->send_stream_end();
+		} else {
+			// No tools called - stream direct response
+			if ( isset( $message['content'] ) ) {
+				$this->streaming_content = $message['content'];
+				$this->send_stream_chunk( $message['content'] );
+				$this->chat_history->save_message( 'ai', $message['content'], $this->session_id, array( 'provider' => 'openai' ) );
+				$this->send_stream_end();
+			}
+		}
+	}
+
 	protected function execute_tool( $function_name, array $arguments ) {
 		switch ( $function_name ) {
 			case 'get_woocommerce_data':
@@ -1649,21 +1972,43 @@ class Dataviz_AI_AJAX_Handler {
 	 * @return array|WP_Error
 	 */
 	protected function handle_products_query( $query_type, array $filters ) {
-		$limit = isset( $filters['limit'] ) ? min( 50, max( 1, (int) $filters['limit'] ) ) : 10;
+		// Handle limit properly - -1 means unlimited (get all products)
+		if ( isset( $filters['limit'] ) ) {
+			$limit = (int) $filters['limit'];
+			if ( $limit === -1 ) {
+				// Unlimited - get all products
+				$limit = -1;
+			} else {
+				// Cap at 500 to avoid memory issues, but allow higher than default
+				$limit = min( 500, max( 1, $limit ) );
+			}
+		} else {
+			// Default limit if not specified
+			$limit = 10;
+		}
 
 		switch ( $query_type ) {
 			case 'list':
 			default:
 				if ( isset( $filters['category_id'] ) ) {
-					return $this->data_fetcher->get_products_by_category( (int) $filters['category_id'], $limit );
+					// For category queries, use category-specific method
+					$category_limit = $limit === -1 ? 500 : $limit; // Cap at 500 for categories
+					return $this->data_fetcher->get_products_by_category( (int) $filters['category_id'], $category_limit );
 				} else {
-					return $this->data_fetcher->get_top_products( $limit );
+					// Check if user wants "all" products or just top products
+					// If limit is -1 or very high, use get_all_products instead of get_top_products
+					if ( $limit === -1 || $limit > 50 ) {
+						return $this->data_fetcher->get_all_products( $limit );
+					} else {
+						// For small limits, use top products (default behavior)
+						return $this->data_fetcher->get_top_products( $limit );
+					}
 				}
 
 			case 'statistics':
-				// For now, return top products as statistics
-				// Can be enhanced later with actual product statistics
-				return $this->data_fetcher->get_top_products( $limit );
+				// For statistics, use top products (can be enhanced later)
+				$stats_limit = $limit === -1 ? 100 : $limit;
+				return $this->data_fetcher->get_top_products( $stats_limit );
 		}
 	}
 

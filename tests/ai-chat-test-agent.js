@@ -316,6 +316,47 @@ function validateResponseData(question, response) {
         }
     }
 
+    // Check for "all/every/entire" queries - must return multiple items
+    const wantsAll = /\b(all|every|entire|complete|full|list all|show all|display all)\b/i.test(question);
+    if (wantsAll) {
+        // Count items in response (look for numbered lists, bullet points, or multiple entries)
+        const numberedListMatches = response.match(/\d+[\.\)]\s+[A-Z]/g) || [];
+        const bulletMatches = response.match(/[•\-\*]\s+[A-Z]/g) || [];
+        const lineBreaks = (response.match(/\n/g) || []).length;
+        
+        // Look for patterns like "1. Product Name", "Product 1", "Product A", etc.
+        const itemPatterns = [
+            /\d+[\.\)]\s+[A-Z][a-z]+/g,  // "1. Product"
+            /[•\-\*]\s+[A-Z][a-z]+/g,    // "• Product"
+            /^[A-Z][a-z]+.*$/gm,         // Lines starting with capital (potential list items)
+        ];
+        
+        let itemCount = 0;
+        itemPatterns.forEach(pattern => {
+            const matches = response.match(pattern);
+            if (matches) {
+                itemCount = Math.max(itemCount, matches.length);
+            }
+        });
+        
+        // Also check for explicit counts in response
+        const countMatches = response.match(/\b(\d+)\s+(product|order|customer|item)/gi);
+        if (countMatches) {
+            const explicitCount = parseInt(countMatches[0].match(/\d+/)[0]);
+            itemCount = Math.max(itemCount, explicitCount);
+        }
+        
+        // Check if response indicates completeness ("all X products", "complete list", etc.)
+        const indicatesComplete = /\b(all|every|entire|complete|full list|all \d+|total of \d+)\b/i.test(response);
+        
+        // If user wants "all" but response shows only 1 item and doesn't indicate completeness
+        if (itemCount <= 1 && !indicatesComplete && lineBreaks < 3) {
+            issues.push('User requested "all" but response appears to show only 1 item or incomplete list');
+        } else if (itemCount > 1 || indicatesComplete) {
+            validations.push(`Contains ${itemCount > 1 ? itemCount + ' items' : 'complete list'} for "all" query`);
+        }
+    }
+
     return {
         issues,
         validations,
@@ -360,8 +401,10 @@ IMPORTANT:
 - A response that provides data but doesn't have a chart (when chart was requested) should still be VALID if it contains the data
 - For count/statistics queries, response MUST contain numeric values
 - For revenue queries, response should contain currency or numbers
-- Only mark as INVALID if the response is clearly irrelevant, contains no data, or is just a greeting
-${dataValidation.issues.length > 0 ? `\nNOTE: The response has validation issues: ${dataValidation.issues.join(', ')}. Consider this when evaluating.` : ''}
+- **CRITICAL: If user asks for "all" items (e.g., "list all products", "show all orders") and response shows only 1 item, mark as INVALID** - "all" means multiple items, not just one
+- If user asks for "all" and response shows multiple items or explicitly states completeness (e.g., "all 50 products"), mark as VALID
+- Only mark as INVALID if the response is clearly irrelevant, contains no data, is just a greeting, OR violates the "all" requirement above
+${dataValidation.issues.length > 0 ? `\n⚠️ VALIDATION ISSUES DETECTED: ${dataValidation.issues.join(', ')}. These should cause the test to FAIL if they indicate incomplete data (especially "all" queries showing only 1 item).` : ''}
 
 Return ONLY a JSON object with:
 {
@@ -399,20 +442,44 @@ Return ONLY a JSON object with:
         const hasDataKeywords = /order|product|customer|revenue|sale|inventory|stock|statistic|total|count/i.test(response);
         const hasNumbers = /\d+/.test(response);
         const isNotGreeting = !/^hello[!.]?\s*(how can i assist you|how may i help)/i.test(response);
+        
+        // Check for "all" queries - must have multiple items or indicate completeness
+        const wantsAll = /\b(all|every|entire|complete|full|list all|show all|display all)\b/i.test(question);
+        let allQueryValid = true;
+        if (wantsAll) {
+            // Count items in response
+            const itemCount = (response.match(/\d+[\.\)]\s+[A-Z]/g) || []).length + 
+                            (response.match(/[•\-\*]\s+[A-Z]/g) || []).length;
+            const indicatesComplete = /\b(all|every|entire|complete|full list|all \d+|total of \d+)\b/i.test(response);
+            const explicitCount = response.match(/\b(\d+)\s+(product|order|customer|item)/gi);
+            
+            // If "all" requested but only 1 item and no indication of completeness
+            if (itemCount <= 1 && !indicatesComplete && !explicitCount && response.split('\n').length < 3) {
+                allQueryValid = false;
+            }
+        }
+        
         const isValid = response.length > 20 && 
                        hasDataKeywords &&
                        isNotGreeting &&
+                       allQueryValid &&
                        !response.toLowerCase().includes('cannot') &&
                        !response.toLowerCase().includes("don't have access");
         
+        let reason = isValid 
+            ? `Response contains data (${hasNumbers ? 'with numbers' : 'without numbers'})` 
+            : 'Response seems invalid';
+        
+        if (wantsAll && !allQueryValid) {
+            reason = 'User requested "all" but response shows only 1 item or incomplete list';
+        }
+        
         return {
             valid: isValid,
-            reason: isValid 
-                ? `Response contains data (${hasNumbers ? 'with numbers' : 'without numbers'})` 
-                : 'Response seems invalid',
+            reason: reason,
             dataValidation: dataValidation,
             performanceMetrics: performanceMetrics,
-            dataQuality: isValid && hasNumbers ? 'good' : isValid ? 'fair' : 'poor'
+            dataQuality: isValid && hasNumbers && allQueryValid ? 'good' : isValid ? 'fair' : 'poor'
         };
     }
 }
@@ -423,7 +490,27 @@ Return ONLY a JSON object with:
 async function loginToWordPress(page) {
     console.log('[LOGIN] Logging into WordPress admin...');
     
-    await page.goto('http://localhost:8080/wp-login.php');
+    try {
+        await page.goto('http://localhost:8080/wp-login.php', { 
+            waitUntil: 'networkidle',
+            timeout: 10000 
+        });
+    } catch (error) {
+        if (error.message.includes('ERR_CONNECTION_REFUSED') || 
+            error.message.includes('net::ERR') ||
+            error.message.includes('Navigation failed')) {
+            console.error('\n❌ ERROR: Cannot connect to WordPress at http://localhost:8080');
+            console.error('\n📋 Docker WordPress is not running. Please start it first:');
+            console.error('   1. Navigate to docker directory: cd docker');
+            console.error('   2. Start containers: docker compose up -d');
+            console.error('   3. Wait for WordPress to be ready (check: http://localhost:8080)');
+            console.error('   4. Run tests again: npm run test:static');
+            console.error('\n💡 Quick check: docker compose ps (should show wp_app container running)\n');
+            throw new Error('WordPress not accessible. Please start Docker containers first.');
+        }
+        throw error;
+    }
+    
     await page.fill('#user_login', CONFIG.adminUser);
     await page.fill('#user_pass', CONFIG.adminPass);
     await page.click('#wp-submit');

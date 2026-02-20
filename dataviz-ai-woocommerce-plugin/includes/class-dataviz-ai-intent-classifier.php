@@ -145,7 +145,7 @@ class Dataviz_AI_Intent_Classifier {
 		$filters = array();
 		$lower_question = strtolower( $question );
 		
-		// Check if user wants "all" orders (for charts or comprehensive views)
+		// Check if user wants "all" items (for charts or comprehensive views)
 		$wants_all = preg_match( '/\b(all|every|entire|complete|full)\b/i', $question );
 		
 		// Extract limit
@@ -153,9 +153,10 @@ class Dataviz_AI_Intent_Classifier {
 		if ( $limit ) {
 			$filters['limit'] = min( 100, max( 1, $limit ) );
 		} elseif ( $wants_all ) {
-			// If user wants "all" and no specific limit, use -1 to get ALL orders
+			// If user wants "all" and no specific limit, use -1 to get ALL items
 			// This is especially important for charts to show accurate distribution
-			$filters['limit'] = -1; // -1 means unlimited (get all orders)
+			// Works for orders, products, customers, etc.
+			$filters['limit'] = -1; // -1 means unlimited (get all items)
 		}
 		
 		// Extract order status
@@ -228,151 +229,206 @@ class Dataviz_AI_Intent_Classifier {
 	}
 
 	/**
+	 * Extract intent hints from question (lightweight pattern matching for guidance).
+	 * This provides hints to guide LLM decisions, not final decisions.
+	 *
+	 * @param string $question User's question.
+	 * @return array Hints array with primary_entity, secondary_entities, query_type, confidence, complexity.
+	 */
+	public static function extract_intent_hints( $question ) {
+		$hints = array(
+			'primary_entity'     => null,
+			'secondary_entities' => array(),
+			'query_type'         => 'list',
+			'confidence'         => 'low',
+			'complexity'          => 'simple',
+			'filters'            => array(),
+		);
+
+		$lower_question = strtolower( $question );
+
+		// Priority 1: Check for specific high-confidence patterns FIRST (before generic patterns)
+		// These are unambiguous and should override generic entity matching
+
+		// Stock/inventory queries (high priority - overrides "products")
+		if ( preg_match( '/\b(low stock|running low|out of stock|stock level|stock levels)\b/i', $question ) ) {
+			$hints['primary_entity'] = 'stock';
+			$hints['confidence']      = 'high';
+			// If question mentions "products" but also "low stock", it's a stock query
+			if ( preg_match( '/\b(product|products)\b/i', $question ) ) {
+				$hints['secondary_entities'][] = 'products';
+			}
+		} elseif ( preg_match( '/\b(inventory.*category|category.*inventory|inventory distribution)\b/i', $question ) ) {
+			$hints['primary_entity']     = 'inventory';
+			$hints['secondary_entities'] = array( 'categories' );
+			$hints['confidence']          = 'high';
+			$hints['complexity']          = 'complex'; // Needs grouping by category
+		} elseif ( preg_match( '/\b(inventory|inventories)\b/i', $question ) ) {
+			$hints['primary_entity'] = 'inventory';
+			$hints['confidence']     = 'high';
+		}
+
+		// Order status queries (high priority)
+		if ( preg_match( '/\b(order )?status|status(es)?\b/i', $question ) && preg_match( '/\b(order|orders)\b/i', $question ) ) {
+			$hints['primary_entity'] = 'orders';
+			$hints['query_type']      = 'statistics';
+			$hints['confidence']      = 'high';
+		}
+
+		// If no high-confidence match yet, check generic patterns
+		if ( $hints['primary_entity'] === null ) {
+			$entity_type = self::extract_entity_type( $question );
+			if ( $entity_type ) {
+				$hints['primary_entity'] = $entity_type;
+				$hints['confidence']      = 'medium';
+			}
+		}
+
+		// Extract query type
+		$hints['query_type'] = self::extract_query_type( $question );
+
+		// Extract filters
+		$hints['filters'] = self::extract_filters( $question, $hints['primary_entity'] );
+
+		// Detect complexity
+		if ( count( $hints['secondary_entities'] ) > 0 || 
+			 preg_match( '/\b(distribution|grouped by|by category|by status|across)\b/i', $question ) ) {
+			$hints['complexity'] = 'complex';
+		}
+
+		// Detect multiple entities (true multi-entity queries)
+		$multiple_entities = self::detect_multiple_entities( $question );
+		if ( ! empty( $multiple_entities ) ) {
+			$hints['complexity']          = 'complex';
+			$hints['secondary_entities']  = array_merge( $hints['secondary_entities'], $multiple_entities );
+		}
+
+		return $hints;
+	}
+
+	/**
+	 * Build tool calls from hints (for simple, high-confidence cases).
+	 *
+	 * @param array $hints Intent hints.
+	 * @return array Array of tool call structures.
+	 */
+	private static function build_tool_calls_from_hints( array $hints ) {
+		$tool_calls = array();
+
+		if ( ! $hints['primary_entity'] ) {
+			return $tool_calls;
+		}
+
+		$entity_type = $hints['primary_entity'];
+		$query_type  = $hints['query_type'];
+		$filters      = $hints['filters'];
+
+		// Handle orders
+		if ( $entity_type === 'orders' ) {
+			if ( $query_type === 'statistics' ) {
+				$tool_calls[] = array(
+					'function' => array(
+						'name'      => 'get_order_statistics',
+						'arguments' => wp_json_encode( $filters ),
+					),
+					'id'        => 'intent-order-stats-' . uniqid(),
+				);
+			} else {
+				$tool_calls[] = array(
+					'function' => array(
+						'name'      => 'get_woocommerce_data',
+						'arguments' => wp_json_encode(
+							array(
+								'entity_type' => 'orders',
+								'query_type'  => $query_type,
+								'filters'     => $filters,
+							)
+						),
+					),
+					'id'        => 'intent-orders-' . uniqid(),
+				);
+			}
+		}
+		// Handle products
+		elseif ( $entity_type === 'products' ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name'      => 'get_woocommerce_data',
+					'arguments' => wp_json_encode(
+						array(
+							'entity_type' => 'products',
+							'query_type'  => $query_type,
+							'filters'     => $filters,
+						)
+					),
+				),
+				'id'        => 'intent-products-' . uniqid(),
+			);
+		}
+		// Handle stock/inventory
+		elseif ( $entity_type === 'stock' || $entity_type === 'inventory' ) {
+			$tool_calls[] = array(
+				'function' => array(
+					'name'      => 'get_woocommerce_data',
+					'arguments' => wp_json_encode(
+						array(
+							'entity_type' => $entity_type,
+							'query_type'  => $query_type,
+							'filters'     => $filters,
+						)
+					),
+				),
+				'id'        => 'intent-' . $entity_type . '-' . uniqid(),
+			);
+		}
+		// Handle other entities
+		else {
+			$tool_calls[] = array(
+				'function' => array(
+					'name'      => 'get_woocommerce_data',
+					'arguments' => wp_json_encode(
+						array(
+							'entity_type' => $entity_type,
+							'query_type'  => $query_type,
+							'filters'     => $filters,
+						)
+					),
+				),
+				'id'        => 'intent-' . $entity_type . '-' . uniqid(),
+			);
+		}
+
+		return $tool_calls;
+	}
+
+	/**
 	 * Classify intent and determine which tools to call based on question.
-	 * This replaces LLM-based tool selection with rule-based intent classification.
+	 * Uses hints to decide: simple cases use rules, complex cases use LLM.
 	 *
 	 * @param string $question User's question.
 	 * @return array Array of tool call structures with function name and arguments.
 	 */
 	public static function classify_intent_and_get_tools( $question ) {
-		$tool_calls = array();
-		
 		// Check if question requires data
 		if ( ! self::question_requires_data( $question ) ) {
 			return array(); // Not a data question, no tools needed
 		}
-		
-		// Extract entity type from question
-		$entity_type = self::extract_entity_type( $question );
-		$query_type = self::extract_query_type( $question );
-		$filters = self::extract_filters( $question, $entity_type );
-		
-		// Check for statistics/aggregated queries (revenue, total, count, average, etc.)
-		$is_statistics_query = preg_match( '/\b(total|revenue|count|average|sum|statistics|stats|how many|revenue by|total sales|avg|mean)\b/i', $question );
-		
-		// Check for status breakdown queries (should use statistics to show all statuses)
-		$is_status_query = preg_match( '/\b(order )?status|status(es)?\b/i', $question ) && preg_match( '/\b(order|orders)\b/i', $question );
-		
-		// Check if user is asking for a chart/visualization (pie chart, bar chart, etc.)
-		// For charts, we should use statistics to get accurate status breakdown
-		$is_chart_request = preg_match( '/\b(chart|graph|pie chart|bar chart|visualization|visualize|show.*chart|display.*chart)\b/i', $question );
-		
-		// Handle order-related queries
-		if ( $entity_type === 'orders' || preg_match( '/\b(order|orders|sale|sales|transaction|purchase|recent order)\b/i', $question ) ) {
-			if ( $is_statistics_query || $query_type === 'statistics' || $is_chart_request || $is_status_query ) {
-				// Use order statistics for aggregated queries and charts (more accurate for status breakdown)
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_order_statistics',
-						'arguments' => wp_json_encode( $filters ),
-					),
-					'id' => 'intent-order-stats-' . uniqid(),
-				);
-			} else {
-				// Use flexible query for list/sample queries
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_woocommerce_data',
-						'arguments' => wp_json_encode( array(
-							'entity_type' => 'orders',
-							'query_type' => $query_type,
-							'filters' => $filters,
-						) ),
-					),
-					'id' => 'intent-orders-' . uniqid(),
-				);
-			}
+
+		// Step 1: Extract hints (lightweight pattern matching)
+		$hints = self::extract_intent_hints( $question );
+
+		// Step 2: Decision logic - use rules for simple, high-confidence cases
+		// Use LLM for complex cases or when confidence is low
+		if ( $hints['confidence'] === 'high' && $hints['complexity'] === 'simple' && $hints['primary_entity'] ) {
+			// Simple case: use rule-based tool calls
+			return self::build_tool_calls_from_hints( $hints );
 		}
-		// Handle product-related queries
-		elseif ( $entity_type === 'products' || preg_match( '/\b(product|products|item|items)\b/i', $question ) ) {
-			if ( preg_match( '/\b(top|best|popular|selling|bestselling)\b/i', $question ) ) {
-				$limit = self::extract_number( $question, 10 );
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_top_products',
-						'arguments' => wp_json_encode( array( 'limit' => $limit ) ),
-					),
-					'id' => 'intent-top-products-' . uniqid(),
-				);
-			} else {
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_woocommerce_data',
-						'arguments' => wp_json_encode( array(
-							'entity_type' => 'products',
-							'query_type' => $query_type,
-							'filters' => $filters,
-						) ),
-					),
-					'id' => 'intent-products-' . uniqid(),
-				);
-			}
-		}
-		// Handle customer-related queries
-		elseif ( $entity_type === 'customers' || preg_match( '/\b(customer|customers|buyer|buyers|client|clients)\b/i', $question ) ) {
-			if ( $is_statistics_query || preg_match( '/\b(summary|overview|total)\b/i', $question ) ) {
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_customer_summary',
-						'arguments' => wp_json_encode( array() ),
-					),
-					'id' => 'intent-customer-summary-' . uniqid(),
-				);
-			} else {
-				$limit = self::extract_number( $question, 10 );
-				$tool_calls[] = array(
-					'function' => array(
-						'name' => 'get_customers',
-						'arguments' => wp_json_encode( array( 'limit' => $limit ) ),
-					),
-					'id' => 'intent-customers-' . uniqid(),
-				);
-			}
-		}
-		// Handle inventory/stock queries
-		elseif ( $entity_type === 'stock' || $entity_type === 'inventory' || preg_match( '/\b(inventory|stock|low stock|out of stock)\b/i', $question ) ) {
-			$tool_calls[] = array(
-				'function' => array(
-					'name' => 'get_woocommerce_data',
-					'arguments' => wp_json_encode( array(
-						'entity_type' => $entity_type,
-						'query_type' => $query_type,
-						'filters' => $filters,
-					) ),
-				),
-				'id' => 'intent-' . $entity_type . '-' . uniqid(),
-			);
-		}
-		// Handle other entity types (categories, tags, coupons, refunds, etc.)
-		elseif ( $entity_type ) {
-			$tool_calls[] = array(
-				'function' => array(
-					'name' => 'get_woocommerce_data',
-					'arguments' => wp_json_encode( array(
-						'entity_type' => $entity_type,
-						'query_type' => $query_type,
-						'filters' => $filters,
-					) ),
-				),
-				'id' => 'intent-' . $entity_type . '-' . uniqid(),
-			);
-		}
-		// Default fallback - get recent orders
-		elseif ( self::question_requires_data( $question ) ) {
-			$tool_calls[] = array(
-				'function' => array(
-					'name' => 'get_woocommerce_data',
-					'arguments' => wp_json_encode( array(
-						'entity_type' => 'orders',
-						'query_type' => 'list',
-						'filters' => array( 'limit' => 20 ),
-					) ),
-				),
-				'id' => 'intent-default-' . uniqid(),
-			);
-		}
-		
-		return $tool_calls;
+
+		// Complex case or low confidence: return hints for LLM to use
+		// The AJAX handler will use these hints to guide LLM tool selection
+		// For now, return empty array to signal "use LLM"
+		// The hints will be passed to LLM via tool descriptions
+		return array();
 	}
 
 	/**

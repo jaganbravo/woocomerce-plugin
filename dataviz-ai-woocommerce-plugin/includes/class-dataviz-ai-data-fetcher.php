@@ -58,6 +58,49 @@ class Dataviz_AI_Data_Fetcher {
 	}
 
 	/**
+	 * Get all products (not just top-selling).
+	 *
+	 * @param int $limit Number of products (-1 for all).
+	 *
+	 * @return array
+	 */
+	public function get_all_products( $limit = -1 ) {
+		if ( ! function_exists( 'wc_get_products' ) ) {
+			return array();
+		}
+
+		$args = array(
+			'status'   => array( 'publish' ),
+			'orderby'  => 'date',
+			'order'    => 'DESC',
+			'paginate' => false,
+		);
+
+		if ( $limit > 0 ) {
+			$args['limit'] = $limit;
+		} else {
+			$args['limit'] = -1; // Get all products
+		}
+
+		$products = wc_get_products( $args );
+
+		return array_map(
+			static function( $product ) {
+				/* @var WC_Product $product */
+				return array(
+					'id'          => $product->get_id(),
+					'name'        => $product->get_name(),
+					'total_sales' => (int) $product->get_total_sales(),
+					'price'       => $product->get_price(),
+					'sku'         => $product->get_sku(),
+					'stock_status' => $product->get_stock_status(),
+				);
+			},
+			$products
+		);
+	}
+
+	/**
 	 * Aggregate product sales totals.
 	 *
 	 * @param int $limit Number of products.
