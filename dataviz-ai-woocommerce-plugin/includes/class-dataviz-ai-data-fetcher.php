@@ -15,6 +15,252 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Dataviz_AI_Data_Fetcher {
 
 	/**
+	 * Build query args for wc_get_orders from filters.
+	 *
+	 * @param array $filters Filters (date_from, date_to, status, limit).
+	 * @return array Query args for wc_get_orders().
+	 */
+	private function build_order_query_args( array $filters ) {
+		$date_from = isset( $filters['date_from'] ) ? sanitize_text_field( $filters['date_from'] ) : null;
+		$date_to   = isset( $filters['date_to'] ) ? sanitize_text_field( $filters['date_to'] ) : null;
+		$status   = isset( $filters['status'] ) ? sanitize_text_field( $filters['status'] ) : null;
+
+		$query_args = array(
+			'limit'    => isset( $filters['limit'] ) && (int) $filters['limit'] > 0 ? (int) $filters['limit'] : -1,
+			'orderby'  => 'date',
+			'order'    => 'DESC',
+			'return'   => 'objects',
+		);
+
+		if ( $status ) {
+			$query_args['status'] = array( $status );
+		}
+
+		if ( $date_from && $date_to ) {
+			$from_timestamp = strtotime( $date_from . ' 00:00:00' );
+			$to_timestamp   = strtotime( $date_to . ' 23:59:59' );
+			if ( $from_timestamp && $to_timestamp ) {
+				$query_args['date_created'] = $from_timestamp . '...' . $to_timestamp;
+			}
+		} elseif ( $date_from ) {
+			$from_timestamp = strtotime( $date_from . ' 00:00:00' );
+			if ( $from_timestamp ) {
+				$query_args['date_created'] = '>=' . $from_timestamp;
+			}
+		} elseif ( $date_to ) {
+			$to_timestamp = strtotime( $date_to . ' 23:59:59' );
+			if ( $to_timestamp ) {
+				$query_args['date_created'] = '<=' . $to_timestamp;
+			}
+		}
+
+		return $query_args;
+	}
+
+	/**
+	 * Get order objects for a date range (and optional filters).
+	 *
+	 * @param array $filters Filters (date_from, date_to, status, limit).
+	 * @return array Array of WC_Order objects.
+	 */
+	private function get_orders_for_range( array $filters ) {
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return array();
+		}
+		$query_args = $this->build_order_query_args( $filters );
+		$orders    = wc_get_orders( $query_args );
+		return is_array( $orders ) ? $orders : array();
+	}
+
+	/**
+	 * Aggregate orders by a given dimension.
+	 *
+	 * @param array  $orders   Array of WC_Order objects.
+	 * @param string $group_by One of 'status', 'customer', 'period', 'category'.
+	 * @param array  $options Optional. For 'period': array( 'period' => 'day'|'week'|'month'|'hour' ). For 'customer': limit, min_orders.
+	 * @return array Shape depends on group_by. status => status_breakdown; customer => raw customer_totals; period => period rows; category => category_breakdown.
+	 */
+	private function aggregate_orders( array $orders, $group_by, array $options = array() ) {
+		if ( empty( $orders ) ) {
+			return array();
+		}
+
+		switch ( $group_by ) {
+			case 'status':
+				$status_counts = array();
+				foreach ( $orders as $order ) {
+					$order_total  = (float) $order->get_total();
+					$order_status = $order->get_status();
+					if ( ! isset( $status_counts[ $order_status ] ) ) {
+						$status_counts[ $order_status ] = array( 'count' => 0, 'revenue' => 0 );
+					}
+					$status_counts[ $order_status ]['count']++;
+					$status_counts[ $order_status ]['revenue'] += $order_total;
+				}
+				$status_breakdown = array();
+				foreach ( $status_counts as $status_name => $data ) {
+					$status_breakdown[] = array(
+						'status'  => $status_name,
+						'count'   => $data['count'],
+						'revenue' => $data['revenue'],
+					);
+				}
+				return $status_breakdown;
+
+			case 'customer':
+				$limit      = isset( $options['limit'] ) ? (int) $options['limit'] : 10;
+				$min_orders = isset( $options['min_orders'] ) ? (int) $options['min_orders'] : 0;
+				$customer_totals = array();
+				foreach ( $orders as $order ) {
+					$order_total  = (float) $order->get_total();
+					$customer_id  = $order->get_customer_id();
+					if ( ! $customer_id ) {
+						continue;
+					}
+					if ( ! isset( $customer_totals[ $customer_id ] ) ) {
+						$customer_totals[ $customer_id ] = array(
+							'id'          => $customer_id,
+							'total_spent' => 0,
+							'order_count' => 0,
+						);
+					}
+					$customer_totals[ $customer_id ]['total_spent'] += $order_total;
+					$customer_totals[ $customer_id ]['order_count']++;
+				}
+				if ( $min_orders > 0 ) {
+					$customer_totals = array_filter( $customer_totals, function ( $data ) use ( $min_orders ) {
+						return $data['order_count'] >= $min_orders;
+					} );
+				}
+				usort( $customer_totals, function ( $a, $b ) {
+					if ( $a['total_spent'] === $b['total_spent'] ) {
+						return 0;
+					}
+					return ( $a['total_spent'] < $b['total_spent'] ) ? 1 : -1;
+				} );
+				if ( $limit > 0 ) {
+					$customer_totals = array_slice( $customer_totals, 0, $limit );
+				}
+				return array_values( $customer_totals );
+
+			case 'period':
+				$period_type = isset( $options['period'] ) ? $options['period'] : 'day';
+				$valid_periods = array( 'hour', 'day', 'week', 'month' );
+				if ( ! in_array( $period_type, $valid_periods, true ) ) {
+					$period_type = 'day';
+				}
+				$aggregated = array();
+				foreach ( $orders as $order ) {
+					$order_date = $order->get_date_created();
+					if ( ! $order_date ) {
+						continue;
+					}
+					switch ( $period_type ) {
+						case 'hour':
+							$period_key = $order_date->date( 'Y-m-d H:00:00' );
+							break;
+						case 'day':
+							$period_key = $order_date->date( 'Y-m-d' );
+							break;
+						case 'week':
+							$period_key = $order_date->format( 'Y' ) . '-' . $order_date->format( 'W' );
+							break;
+						case 'month':
+							$period_key = $order_date->date( 'Y-m' );
+							break;
+						default:
+							$period_key = $order_date->date( 'Y-m-d' );
+					}
+					if ( ! isset( $aggregated[ $period_key ] ) ) {
+						$aggregated[ $period_key ] = array(
+							'period'       => $period_key,
+							'order_count'  => 0,
+							'revenue'       => 0.0,
+							'order_values'  => array(),
+						);
+					}
+					$order_total = (float) $order->get_total();
+					$aggregated[ $period_key ]['order_count']++;
+					$aggregated[ $period_key ]['revenue'] += $order_total;
+					$aggregated[ $period_key ]['order_values'][] = $order_total;
+				}
+				$result = array();
+				foreach ( $aggregated as $data ) {
+					$avg = count( $data['order_values'] ) > 0 ? array_sum( $data['order_values'] ) / count( $data['order_values'] ) : 0.0;
+					$result[] = array(
+						'period'          => $data['period'],
+						'order_count'     => $data['order_count'],
+						'revenue'         => $data['revenue'],
+						'avg_order_value' => $avg,
+					);
+				}
+				usort( $result, function ( $a, $b ) {
+					return strcmp( $b['period'], $a['period'] );
+				} );
+				return $result;
+
+			case 'category':
+				// Attribute each line item's total to the product's primary category only (first term or root) to avoid double-counting.
+				$category_totals = array();
+				$category_order_ids = array();
+				foreach ( $orders as $order ) {
+					$order_id = $order->get_id();
+					foreach ( $order->get_items() as $item ) {
+						$product = $item->get_product();
+						if ( ! $product ) {
+							continue;
+						}
+						$product_id = $product->get_id();
+						$terms = get_the_terms( $product_id, 'product_cat' );
+						if ( ! $terms || is_wp_error( $terms ) ) {
+							continue;
+						}
+						$primary = null;
+						foreach ( $terms as $term ) {
+							if ( 0 === (int) $term->parent ) {
+								$primary = $term;
+								break;
+							}
+						}
+						if ( ! $primary && ! empty( $terms ) ) {
+							$primary = $terms[0];
+						}
+						if ( ! $primary ) {
+							continue;
+						}
+						$line_total = (float) $item->get_total();
+						$cat_id = (int) $primary->term_id;
+						if ( ! isset( $category_totals[ $cat_id ] ) ) {
+							$category_totals[ $cat_id ] = array(
+								'category_id'   => $cat_id,
+								'category_name' => $primary->name,
+								'revenue'        => 0.0,
+								'order_count'   => 0,
+							);
+							$category_order_ids[ $cat_id ] = array();
+						}
+						$category_totals[ $cat_id ]['revenue'] += $line_total;
+						if ( ! in_array( $order_id, $category_order_ids[ $cat_id ], true ) ) {
+							$category_order_ids[ $cat_id ][] = $order_id;
+							$category_totals[ $cat_id ]['order_count']++;
+						}
+					}
+				}
+				$category_breakdown = array_values( $category_totals );
+				usort( $category_breakdown, function ( $a, $b ) {
+					if ( $a['revenue'] === $b['revenue'] ) {
+						return 0;
+					}
+					return ( $a['revenue'] < $b['revenue'] ) ? 1 : -1;
+				} );
+				return $category_breakdown;
+
+			default:
+				return array();
+		}
+	}
+
+	/**
 	 * Fetch a list of recent orders.
 	 *
 	 * @param array $args Optional query arguments.
@@ -228,161 +474,220 @@ class Dataviz_AI_Data_Fetcher {
 	/**
 	 * Get aggregated order statistics without fetching individual orders.
 	 * Efficient for large datasets (millions of orders).
+	 * When filters['group_by'] === 'category', returns category_breakdown instead of status_breakdown.
 	 *
-	 * @param array $args Optional query arguments (date_from, date_to, status).
+	 * @param array $args Optional query arguments (date_from, date_to, status, group_by).
 	 * @return array Aggregated statistics.
 	 */
 	public function get_order_statistics( array $args = array() ) {
+		$date_from = isset( $args['date_from'] ) ? sanitize_text_field( $args['date_from'] ) : null;
+		$date_to   = isset( $args['date_to'] ) ? sanitize_text_field( $args['date_to'] ) : null;
+		$group_by  = isset( $args['group_by'] ) ? sanitize_text_field( $args['group_by'] ) : null;
+
+		$empty_response = array(
+			'summary'         => array(
+				'total_orders'     => 0,
+				'total_revenue'    => 0,
+				'avg_order_value'  => 0,
+				'min_order_value'  => 0,
+				'max_order_value'  => 0,
+				'unique_customers' => 0,
+			),
+			'status_breakdown' => array(),
+			'daily_trend'      => array(),
+			'date_range'       => array( 'from' => $date_from, 'to' => $date_to ),
+		);
+		if ( 'category' === $group_by ) {
+			$empty_response['category_breakdown'] = array();
+		}
+
 		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return $empty_response;
+		}
+
+		$filters = $args;
+		$filters['limit'] = -1;
+		$orders = $this->get_orders_for_range( $filters );
+
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf( '[Dataviz AI] get_order_statistics called with args: %s', wp_json_encode( $args ) ) );
+			error_log( sprintf( '[Dataviz AI] Found %d orders', count( $orders ) ) );
+		}
+
+		if ( empty( $orders ) ) {
+			return $empty_response;
+		}
+
+		if ( 'category' === $group_by ) {
+			$category_breakdown = $this->aggregate_orders( $orders, 'category' );
+			$total_orders = count( $orders );
+			$total_revenue = 0;
+			$order_values = array();
+			$customer_ids = array();
+			foreach ( $orders as $order ) {
+				$total_revenue += (float) $order->get_total();
+				$order_values[] = (float) $order->get_total();
+				$cid = $order->get_customer_id();
+				if ( $cid ) {
+					$customer_ids[ $cid ] = true;
+				}
+			}
+			$avg_order_value = $total_orders > 0 ? ( $total_revenue / $total_orders ) : 0;
+			$min_order_value = ! empty( $order_values ) ? min( $order_values ) : 0;
+			$max_order_value = ! empty( $order_values ) ? max( $order_values ) : 0;
 			return array(
-				'summary'         => array(
-					'total_orders'      => 0,
-					'total_revenue'     => 0,
-					'avg_order_value'   => 0,
-					'min_order_value'   => 0,
-					'max_order_value'   => 0,
-					'unique_customers'  => 0,
+				'summary'           => array(
+					'total_orders'     => $total_orders,
+					'total_revenue'    => $total_revenue,
+					'avg_order_value'  => $avg_order_value,
+					'min_order_value'  => $min_order_value,
+					'max_order_value'  => $max_order_value,
+					'unique_customers' => count( $customer_ids ),
 				),
-				'status_breakdown' => array(),
-				'daily_trend'      => array(),
-				'date_range'       => array(
-					'from' => null,
-					'to'   => null,
-				),
+				'category_breakdown' => $category_breakdown,
+				'date_range'        => array( 'from' => $date_from, 'to' => $date_to ),
 			);
 		}
 
-		$date_from = isset( $args['date_from'] ) ? sanitize_text_field( $args['date_from'] ) : null;
-		$date_to   = isset( $args['date_to'] ) ? sanitize_text_field( $args['date_to'] ) : null;
-		$status    = isset( $args['status'] ) ? sanitize_text_field( $args['status'] ) : null;
-
-		// Debug logging
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( sprintf( '[Dataviz AI] get_order_statistics called with args: %s', wp_json_encode( $args ) ) );
-			error_log( sprintf( '[Dataviz AI] Using wc_get_orders() instead of direct SQL' ) );
-		}
-
-		// Build query args for wc_get_orders - WooCommerce handles status automatically
-		$query_args = array(
-			'limit'  => -1, // Get all matching orders
-		);
-
-		// Add status filter - WooCommerce handles the 'wc-' prefix automatically
-		if ( $status ) {
-			$query_args['status'] = array( $status );
-		}
-
-		// Add date filters
-		if ( $date_from || $date_to ) {
-			$date_query = array();
-			if ( $date_from ) {
-				$date_query['after'] = $date_from . ' 00:00:00';
-			}
-		if ( $date_to ) {
-				$date_query['before'] = $date_to . ' 23:59:59';
-			}
-			$query_args['date_created'] = $date_query;
-		}
-
-		// Get orders using WooCommerce API - this handles all the complexity automatically
-		$orders = wc_get_orders( $query_args );
-
-		// Debug logging
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( sprintf( '[Dataviz AI] Found %d orders using wc_get_orders()', count( $orders ) ) );
-		}
-
-		// Calculate statistics from order objects
+		$status_breakdown = $this->aggregate_orders( $orders, 'status' );
 		$total_orders = count( $orders );
 		$total_revenue = 0;
 		$order_values = array();
 		$customer_ids = array();
-		$status_counts = array();
 		$daily_revenue = array();
-
 		foreach ( $orders as $order ) {
 			$order_total = (float) $order->get_total();
 			$total_revenue += $order_total;
 			$order_values[] = $order_total;
-
-			$customer_id = $order->get_customer_id();
-			if ( $customer_id ) {
-				$customer_ids[ $customer_id ] = true;
+			$cid = $order->get_customer_id();
+			if ( $cid ) {
+				$customer_ids[ $cid ] = true;
 			}
-
-			$order_status = $order->get_status();
-			if ( ! isset( $status_counts[ $order_status ] ) ) {
-				$status_counts[ $order_status ] = array(
-					'count'   => 0,
-					'revenue' => 0,
-				);
-			}
-			$status_counts[ $order_status ]['count']++;
-			$status_counts[ $order_status ]['revenue'] += $order_total;
-
-			// Daily trend
 			$order_date = $order->get_date_created();
 			if ( $order_date ) {
 				$date_key = $order_date->date( 'Y-m-d' );
 				if ( ! isset( $daily_revenue[ $date_key ] ) ) {
-					$daily_revenue[ $date_key ] = array(
-						'order_count' => 0,
-						'revenue'     => 0,
-					);
+					$daily_revenue[ $date_key ] = array( 'order_count' => 0, 'revenue' => 0 );
 				}
 				$daily_revenue[ $date_key ]['order_count']++;
 				$daily_revenue[ $date_key ]['revenue'] += $order_total;
 			}
 		}
-
-		// Calculate averages
-		$avg_order_value = $total_orders > 0 ? ( $total_revenue / $total_orders ) : 0;
-		$min_order_value = ! empty( $order_values ) ? min( $order_values ) : 0;
-		$max_order_value = ! empty( $order_values ) ? max( $order_values ) : 0;
-		$unique_customers = count( $customer_ids );
-
-		// Format status breakdown
-		$status_breakdown = array();
-		foreach ( $status_counts as $status_name => $data ) {
-			$status_breakdown[] = array(
-				'status'  => $status_name,
-				'count'   => $data['count'],
-				'revenue' => $data['revenue'],
-			);
-		}
-
-		// Format daily trend (last 30 days or date range)
 		$trend_days = 30;
 		if ( $date_from && $date_to ) {
 			$days_diff = ( strtotime( $date_to ) - strtotime( $date_from ) ) / DAY_IN_SECONDS;
 			$trend_days = min( 90, max( 7, (int) $days_diff ) );
 		}
-
-		// Sort daily trend by date and limit
 		ksort( $daily_revenue );
 		$daily_trend = array_slice( array_map( function( $date, $data ) {
-			return array(
-				'date'        => $date,
-				'order_count' => $data['order_count'],
-				'revenue'     => $data['revenue'],
-			);
+			return array( 'date' => $date, 'order_count' => $data['order_count'], 'revenue' => $data['revenue'] );
 		}, array_keys( $daily_revenue ), $daily_revenue ), -$trend_days );
 
 		return array(
 			'summary'         => array(
-				'total_orders'      => $total_orders,
-				'total_revenue'     => $total_revenue,
-				'avg_order_value'   => $avg_order_value,
-				'min_order_value'   => $min_order_value,
-				'max_order_value'   => $max_order_value,
-				'unique_customers'  => $unique_customers,
+				'total_orders'     => $total_orders,
+				'total_revenue'    => $total_revenue,
+				'avg_order_value'  => $total_orders > 0 ? ( $total_revenue / $total_orders ) : 0,
+				'min_order_value'  => ! empty( $order_values ) ? min( $order_values ) : 0,
+				'max_order_value'  => ! empty( $order_values ) ? max( $order_values ) : 0,
+				'unique_customers' => count( $customer_ids ),
 			),
 			'status_breakdown' => $status_breakdown,
 			'daily_trend'      => $daily_trend,
-			'date_range'       => array(
-				'from' => $date_from,
-				'to'   => $date_to,
+			'date_range'       => array( 'from' => $date_from, 'to' => $date_to ),
+		);
+	}
+
+	/**
+	 * Get customer statistics aggregated from orders over a date range.
+	 * Used for queries like "top customers this year based on total spend".
+	 *
+	 * @param array $args Optional query arguments (date_from, date_to, status, limit, min_orders).
+	 * @return array Aggregated customer statistics.
+	 */
+	public function get_customer_statistics( array $args = array() ) {
+		$date_from  = isset( $args['date_from'] ) ? sanitize_text_field( $args['date_from'] ) : null;
+		$date_to    = isset( $args['date_to'] ) ? sanitize_text_field( $args['date_to'] ) : null;
+		$limit      = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
+		$min_orders = isset( $args['min_orders'] ) ? (int) $args['min_orders'] : 0;
+
+		$empty_response = array(
+			'customers'  => array(),
+			'summary'    => array( 'total_customers' => 0, 'total_revenue' => 0, 'total_orders' => 0 ),
+			'date_range' => array( 'from' => $date_from, 'to' => $date_to ),
+		);
+
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return $empty_response;
+		}
+
+		$filters = $args;
+		$filters['limit'] = -1;
+		$orders = $this->get_orders_for_range( $filters );
+
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( sprintf( '[Dataviz AI] get_customer_statistics called with args: %s', wp_json_encode( $args ) ) );
+			error_log( sprintf( '[Dataviz AI] Found %d orders for customer statistics', count( $orders ) ) );
+		}
+
+		if ( empty( $orders ) ) {
+			return array_merge( $empty_response, array( 'message' => 'No orders found in the specified period.' ) );
+		}
+
+		$total_revenue = 0;
+		foreach ( $orders as $order ) {
+			$total_revenue += (float) $order->get_total();
+		}
+
+		$customer_totals = $this->aggregate_orders( $orders, 'customer', array(
+			'limit'      => $limit,
+			'min_orders' => $min_orders,
+		) );
+
+		if ( empty( $customer_totals ) ) {
+			return array(
+				'customers'  => array(),
+				'summary'    => array(
+					'total_customers' => 0,
+					'total_revenue'   => $total_revenue,
+					'total_orders'    => count( $orders ),
+				),
+				'date_range' => array( 'from' => $date_from, 'to' => $date_to ),
+				'message'    => $total_revenue > 0
+					? 'Orders found in the specified period, but no registered customers with orders in this period.'
+					: 'No orders found in the specified period.',
+			);
+		}
+
+		$enriched_customers = array();
+		foreach ( $customer_totals as $data ) {
+			$user = get_user_by( 'id', $data['id'] );
+			if ( ! $user ) {
+				continue;
+			}
+			$enriched_customers[] = array(
+				'id'          => $data['id'],
+				'email'       => $user->user_email,
+				'username'    => $user->user_login,
+				'first_name'  => get_user_meta( $data['id'], 'first_name', true ),
+				'last_name'   => get_user_meta( $data['id'], 'last_name', true ),
+				'city'        => get_user_meta( $data['id'], 'billing_city', true ),
+				'state'       => get_user_meta( $data['id'], 'billing_state', true ),
+				'country'     => get_user_meta( $data['id'], 'billing_country', true ),
+				'company'     => get_user_meta( $data['id'], 'billing_company', true ),
+				'total_spent' => $data['total_spent'],
+				'order_count' => $data['order_count'],
+			);
+		}
+
+		return array(
+			'customers'  => $enriched_customers,
+			'summary'   => array(
+				'total_customers' => count( $enriched_customers ),
+				'total_revenue'   => $total_revenue,
+				'total_orders'    => count( $orders ),
 			),
+			'date_range' => array( 'from' => $date_from, 'to' => $date_to ),
 		);
 	}
 
@@ -461,119 +766,24 @@ class Dataviz_AI_Data_Fetcher {
 	 * Perfect for trend analysis without fetching individual records.
 	 *
 	 * @param string $period 'hour', 'day', 'week', 'month'.
-	 * @param array  $args    Optional query arguments.
+	 * @param array  $args   Optional query arguments (date_from, date_to, status).
 	 * @return array Aggregated data by time period.
 	 */
 	public function get_orders_by_period( $period = 'day', array $args = array() ) {
 		if ( ! function_exists( 'wc_get_orders' ) ) {
 			return array();
 		}
-
-		$date_from = isset( $args['date_from'] ) ? sanitize_text_field( $args['date_from'] ) : null;
-		$date_to   = isset( $args['date_to'] ) ? sanitize_text_field( $args['date_to'] ) : null;
-		$status    = isset( $args['status'] ) ? sanitize_text_field( $args['status'] ) : null;
-
-		// Validate period
 		$valid_periods = array( 'hour', 'day', 'week', 'month' );
 		if ( ! in_array( $period, $valid_periods, true ) ) {
 			$period = 'day';
 		}
-
-		// Build query args for wc_get_orders
-		$wc_args = array(
-			'limit'    => -1, // Get all matching orders for aggregation
-			'orderby'  => 'date',
-			'order'    => 'DESC',
-			'return'   => 'objects',
-		);
-
-		if ( $status ) {
-			$wc_args['status'] = $status; // wc_get_orders handles 'wc-' prefix internally
-		}
-
-		if ( $date_from && $date_to ) {
-			$wc_args['date_created'] = $date_from . '...' . $date_to;
-		} elseif ( $date_from ) {
-			$wc_args['date_created'] = '>=' . $date_from;
-		} elseif ( $date_to ) {
-			$wc_args['date_created'] = '<=' . $date_to;
-		}
-
-		// Get all matching orders using WooCommerce API
-		$orders = wc_get_orders( $wc_args );
-
+		$filters = $args;
+		$filters['limit'] = -1;
+		$orders = $this->get_orders_for_range( $filters );
 		if ( empty( $orders ) ) {
 			return array();
 		}
-
-		// Aggregate orders by period in PHP
-		$aggregated = array();
-
-		foreach ( $orders as $order ) {
-			$order_date = $order->get_date_created();
-			if ( ! $order_date ) {
-				continue;
-			}
-
-			// Format period key based on period type
-			switch ( $period ) {
-				case 'hour':
-					$period_key = $order_date->date( 'Y-m-d H:00:00' );
-					break;
-				case 'day':
-					$period_key = $order_date->date( 'Y-m-d' );
-					break;
-				case 'week':
-					// Format: YYYY-WW (week number)
-					$week_number = $order_date->format( 'W' );
-					$year = $order_date->format( 'Y' );
-					$period_key = $year . '-' . $week_number;
-					break;
-				case 'month':
-					$period_key = $order_date->date( 'Y-m' );
-					break;
-				default:
-					$period_key = $order_date->date( 'Y-m-d' );
-			}
-
-			// Initialize period if not exists
-			if ( ! isset( $aggregated[ $period_key ] ) ) {
-				$aggregated[ $period_key ] = array(
-					'period'         => $period_key,
-					'order_count'    => 0,
-					'revenue'        => 0.0,
-					'order_values'   => array(), // For calculating average
-				);
-			}
-
-			// Aggregate data
-			$order_total = (float) $order->get_total();
-			$aggregated[ $period_key ]['order_count']++;
-			$aggregated[ $period_key ]['revenue'] += $order_total;
-			$aggregated[ $period_key ]['order_values'][] = $order_total;
-		}
-
-		// Calculate average order value and format result
-		$result = array();
-		foreach ( $aggregated as $period_key => $data ) {
-			$avg_order_value = count( $data['order_values'] ) > 0
-				? array_sum( $data['order_values'] ) / count( $data['order_values'] )
-				: 0.0;
-
-			$result[] = array(
-				'period'         => $data['period'],
-				'order_count'    => $data['order_count'],
-				'revenue'        => $data['revenue'],
-				'avg_order_value' => $avg_order_value,
-			);
-		}
-
-		// Sort by period descending (most recent first)
-		usort( $result, function( $a, $b ) {
-			return strcmp( $b['period'], $a['period'] );
-		} );
-
-		return $result;
+		return $this->aggregate_orders( $orders, 'period', array( 'period' => $period ) );
 	}
 
 	/**

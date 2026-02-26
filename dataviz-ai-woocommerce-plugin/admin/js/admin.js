@@ -299,8 +299,8 @@
 		let orders = null;
 		let orderStatistics = null;
 		if ( dataType === 'orders' ) {
-			// Prefer status_breakdown from statistics query (most accurate for charts)
-			if ( streamToolData && streamToolData.order_statistics && streamToolData.order_statistics.status_breakdown ) {
+			// Prefer order_statistics (status_breakdown or category_breakdown) from statistics query
+			if ( streamToolData && streamToolData.order_statistics && ( streamToolData.order_statistics.status_breakdown || streamToolData.order_statistics.category_breakdown ) ) {
 				orderStatistics = streamToolData.order_statistics;
 			} else if ( streamToolData && streamToolData.orders && streamToolData.orders.length > 0 ) {
 				// Use individual orders from list query
@@ -313,35 +313,42 @@
 
 		if ( dataType === 'orders' ) {
 			if ( chartType === 'pie' ) {
-				// Order status pie chart
-				let statusCounts = {};
 				let labels = [];
 				let data = [];
-				
-				// Use status_breakdown if available (most accurate)
-				if ( orderStatistics && orderStatistics.status_breakdown ) {
-					orderStatistics.status_breakdown.forEach( function( statusData ) {
-						const status = statusData.status || 'unknown';
-						// Remove 'wc-' prefix if present
-						const cleanStatus = status.replace( /^wc-/, '' );
-						statusCounts[ cleanStatus ] = statusData.count || 0;
-					} );
-					labels = Object.keys( statusCounts );
-					data = Object.values( statusCounts );
-				} else if ( orders && orders.length > 0 ) {
-					// Fallback: count from individual orders
-					orders.forEach( function( order ) {
-						const status = order.status || 'unknown';
-						// Remove 'wc-' prefix if present
-						const cleanStatus = status.replace( /^wc-/, '' );
-						statusCounts[ cleanStatus ] = ( statusCounts[ cleanStatus ] || 0 ) + 1;
-					} );
-					labels = Object.keys( statusCounts );
-					data = Object.values( statusCounts );
-				}
+				const lowerQuestion = question.toLowerCase();
 
-				if ( labels.length > 0 && data.length > 0 ) {
-					renderPieChart( $chartContainer, data, labels, 'Order Status Distribution' );
+				// Sales by product category: use category_breakdown when question mentions category
+				if ( lowerQuestion.indexOf( 'category' ) !== -1 && orderStatistics && orderStatistics.category_breakdown && orderStatistics.category_breakdown.length > 0 ) {
+					orderStatistics.category_breakdown.forEach( function( catData ) {
+						labels.push( catData.category_name || 'Uncategorized' );
+						data.push( typeof catData.revenue !== 'undefined' ? parseFloat( catData.revenue ) : ( catData.order_count || 0 ) );
+					} );
+					if ( labels.length > 0 && data.length > 0 ) {
+						renderPieChart( $chartContainer, data, labels, 'Sales by Product Category' );
+					}
+				} else {
+					// Order status pie chart
+					let statusCounts = {};
+					if ( orderStatistics && orderStatistics.status_breakdown ) {
+						orderStatistics.status_breakdown.forEach( function( statusData ) {
+							const status = statusData.status || 'unknown';
+							const cleanStatus = status.replace( /^wc-/, '' );
+							statusCounts[ cleanStatus ] = statusData.count || 0;
+						} );
+						labels = Object.keys( statusCounts );
+						data = Object.values( statusCounts );
+					} else if ( orders && orders.length > 0 ) {
+						orders.forEach( function( order ) {
+							const status = order.status || 'unknown';
+							const cleanStatus = status.replace( /^wc-/, '' );
+							statusCounts[ cleanStatus ] = ( statusCounts[ cleanStatus ] || 0 ) + 1;
+						} );
+						labels = Object.keys( statusCounts );
+						data = Object.values( statusCounts );
+					}
+					if ( labels.length > 0 && data.length > 0 ) {
+						renderPieChart( $chartContainer, data, labels, 'Order Status Distribution' );
+					}
 				}
 			} else if ( chartType === 'bar' ) {
 				// Order totals bar chart (top 10)

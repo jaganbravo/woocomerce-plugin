@@ -265,6 +265,7 @@ class Dataviz_AI_Prompt_Template {
 				'Never say you don\'t have access - use the tools provided to get real data from the store.',
 				'If the user asks for a chart, graph, pie chart, bar chart, or visualization, you should still fetch the data using the tools.',
 				'The frontend will automatically render charts based on the data and question - you do NOT need to generate charts yourself.',
+				'For "sales by product category" or "revenue by category" (e.g. pie chart of sales by product category): use get_order_statistics with group_by "category", or get_woocommerce_data with entity_type "orders", query_type "statistics", and filters { group_by: "category" }. Do NOT use entity_type "categories" for this - that returns category names only, not sales data.',
 				'Just provide the data in a clear format.',
 				'Do NOT say "I cannot generate charts" or "charts are not yet supported" - charts are handled automatically by the system.',
 				'Analyze the user\'s question and use the appropriate tools to fetch the required data.',

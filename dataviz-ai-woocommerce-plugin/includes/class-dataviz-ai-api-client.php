@@ -221,14 +221,52 @@ class Dataviz_AI_API_Client {
 		$body        = json_decode( wp_remote_retrieve_body( $response ), true );
 		$status_code = wp_remote_retrieve_response_code( $response );
 
+		// Check for JSON decode errors
+		if ( json_last_error() !== JSON_ERROR_NONE ) {
+			$error_msg = 'Failed to parse OpenAI API response: ' . json_last_error_msg();
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] %s. Raw body: %s', $error_msg, wp_remote_retrieve_body( $response ) ) );
+			}
+			return new WP_Error(
+				'dataviz_ai_json_error',
+				$error_msg,
+				array(
+					'status' => $status_code,
+					'json_error' => json_last_error_msg(),
+				)
+			);
+		}
+
 		if ( $status_code >= 400 || ! is_array( $body ) ) {
+			$error_msg = 'The OpenAI API returned an error.';
+			if ( is_array( $body ) && isset( $body['error'] ) ) {
+				$error_data = $body['error'];
+				if ( is_array( $error_data ) && isset( $error_data['message'] ) ) {
+					$error_msg .= ' ' . $error_data['message'];
+				} elseif ( is_string( $error_data ) ) {
+					$error_msg .= ' ' . $error_data;
+				}
+			}
 			return new WP_Error(
 				'dataviz_ai_openai_error',
-				__( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' ),
+				$error_msg,
 				array(
 					'status' => $status_code,
 					'body'   => $body,
 				)
+			);
+		}
+
+		// Validate response has expected structure
+		if ( ! isset( $body['choices'] ) || ! is_array( $body['choices'] ) ) {
+			$error_msg = 'Invalid response structure from OpenAI API: missing choices array';
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] %s. Response: %s', $error_msg, wp_json_encode( $body ) ) );
+			}
+			return new WP_Error(
+				'dataviz_ai_invalid_response',
+				$error_msg,
+				array( 'response' => $body )
 			);
 		}
 

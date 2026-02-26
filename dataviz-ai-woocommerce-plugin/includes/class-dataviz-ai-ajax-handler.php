@@ -313,76 +313,38 @@ class Dataviz_AI_AJAX_Handler {
 			}
 		}
 
-		// Check if user is asking for multiple entities (not supported yet)
-		$multiple_entities = Dataviz_AI_Intent_Classifier::detect_multiple_entities( $question );
-		if ( ! empty( $multiple_entities ) && count( $multiple_entities ) > 1 ) {
-			// User asked for multiple entities - suggest feature request
+		// Multiple entities are now supported - they will be handled by build_tool_calls_from_hints()
+		// which creates multiple tool calls, one for each entity
+
+		// Use intent classification to extract hints and determine if we need LLM
+		$tool_calls = Dataviz_AI_Intent_Classifier::classify_intent_and_get_tools( $question );
+		$hints = Dataviz_AI_Intent_Classifier::extract_intent_hints( $question );
+		
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] Multiple entities detected: %s for question: %s', implode( ', ', $multiple_entities ), $question ) );
+			if ( ! empty( $tool_calls ) ) {
+				$tool_names = array_map( function( $tc ) {
+					return $tc['function']['name'] ?? 'unknown';
+				}, $tool_calls );
+				error_log( sprintf( '[Dataviz AI] Rule-based classification detected %d tool(s): %s for question: %s', count( $tool_calls ), implode( ', ', $tool_names ), $question ) );
+			} else {
+				error_log( sprintf( '[Dataviz AI] No tool calls detected for question: %s. Hints: %s', $question, wp_json_encode( $hints ) ) );
 			}
-			
-			// Create a fake tool result with error to trigger feature request flow
-			$entity_list = implode( ', ', $multiple_entities );
-			$tool_call_id = 'multi-entity-detected-' . uniqid();
-			$fake_tool_result = array(
-				'error'              => true,
-				'error_type'         => 'unsupported_feature',
-				'message'            => sprintf(
-					/* translators: %s: list of entity types */
-					__( 'Currently, I can only fetch one type of data at a time. You asked about: %s. Please ask about one entity type at a time, or submit a feature request for multi-entity queries.', 'dataviz-ai-woocommerce' ),
-					$entity_list
-				),
-				'requested_entity'   => 'multi-entity-queries',
-				'can_submit_request' => true,
-				'submission_prompt'  => sprintf(
-					/* translators: %s: list of entity types */
-					__( 'Would you like to request support for queries about multiple entity types (like "%s") at once? Just say "yes" or "request this feature" and I\'ll submit a feature request to the administrators.', 'dataviz-ai-woocommerce' ),
-					$entity_list
-				),
-				'suggestion'         => __( 'You can ask about one entity type at a time, such as "show me orders" or "show me products".', 'dataviz-ai-woocommerce' ),
-			);
-			
-			// Build messages array with the error response
+		}
+
+		// If intent classification returned empty, it's likely a non-data question
+		// Let it fall through to handle as a general chat question
+		if ( empty( $tool_calls ) ) {
+			// No tools detected - handle non-data questions or fallback cases
+			if ( Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
+				// This shouldn't happen, but if it does, log it and return an error
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] ERROR: No tool calls detected for data question: %s', $question ) );
+				}
+				$this->send_stream_error( __( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' ) );
+				return;
+			} else {
+				// Non-data question (e.g., greeting, general chat) - use LLM to respond directly
 			$messages = $this->build_smart_analysis_messages( $question );
-			
-			// Add the error as a fake tool result and let LLM handle it
-			$messages[] = array(
-				'role'         => 'assistant',
-				'content'      => null,
-				'tool_calls'   => array(
-					array(
-						'id'       => $tool_call_id,
-						'type'     => 'function',
-						'function' => array(
-							'name'      => 'get_woocommerce_data',
-							'arguments' => wp_json_encode( array( 'entity_type' => 'multi-entity' ) ),
-						),
-					),
-				),
-			);
-			
-			$messages[] = array(
-				'role'         => 'tool',
-				'tool_call_id' => $tool_call_id,
-				'content'      => wp_json_encode( $fake_tool_result ),
-			);
-			
-			// Store entity type in transient for feature request
-			$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
-			set_transient( $transient_key, 'multi-entity-queries', HOUR_IN_SECONDS );
-			
-			// Add final prompt and let LLM handle the error response
-			$final_prompt = 'You are a WooCommerce data analyst. The user asked: "' . $question . '". ';
-			$final_prompt .= 'I attempted to fetch the data but encountered an error. ';
-			$final_prompt .= "Please inform the user about the limitation and ask if they'd like to submit a feature request using the submission_prompt from the tool error response.";
-			$final_prompt .= "\n\nCRITICAL: Do NOT greet the user. Answer directly and professionally.";
-			
-			$messages[] = array(
-				'role'    => 'user',
-				'content' => $final_prompt,
-			);
-			
-			// Stream the response
 			$this->streaming_content = '';
 			$stream_result = $this->api_client->send_openai_chat_stream(
 				$messages,
@@ -407,27 +369,7 @@ class Dataviz_AI_AJAX_Handler {
 			
 			$this->send_stream_end();
 			return;
-		}
-
-		// Use intent classification to extract hints and determine if we need LLM
-		$tool_calls = Dataviz_AI_Intent_Classifier::classify_intent_and_get_tools( $question );
-		$hints = Dataviz_AI_Intent_Classifier::extract_intent_hints( $question );
-		
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			if ( ! empty( $tool_calls ) ) {
-				$tool_names = array_map( function( $tc ) {
-					return $tc['function']['name'] ?? 'unknown';
-				}, $tool_calls );
-				error_log( sprintf( '[Dataviz AI] Rule-based classification detected tools: %s for question: %s', implode( ', ', $tool_names ), $question ) );
-			} else {
-				error_log( sprintf( '[Dataviz AI] Complex query detected - using LLM with hints. Hints: %s', wp_json_encode( $hints ) ) );
 			}
-		}
-
-		// If intent classification returned empty (complex case), use LLM with hints
-		if ( empty( $tool_calls ) ) {
-			// Use LLM-based tool selection with hints for guidance
-			return $this->handle_smart_analysis_with_hints( $question, $hints );
 		}
 
 		// If intent classification detected tools (simple case), execute them and then stream the final response.
@@ -471,11 +413,35 @@ class Dataviz_AI_AJAX_Handler {
 				// Check if validation returned an error
 				if ( isset( $arguments['error'] ) && $arguments['error'] === true ) {
 					$tool_result = array(
-						'error'   => true,
-						'message' => $arguments['message'] ?? 'Validation failed',
+						'error'      => true,
+						'error_type' => 'validation_error',
+						'message'    => $arguments['message'] ?? 'Validation failed',
 					);
 				} else {
-					$tool_result = $this->execute_tool( $function_name, $arguments );
+					// Execute tool with try-catch to catch any exceptions
+					try {
+						$tool_result = $this->execute_tool( $function_name, $arguments );
+					} catch ( Exception $e ) {
+						// Log the exception for debugging
+						if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+							error_log( sprintf( '[Dataviz AI] Exception in rule-based tool execution %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
+						}
+						$tool_result = array(
+							'error'      => true,
+							'error_type' => 'exception',
+							'message'    => 'An error occurred while executing the tool: ' . $e->getMessage(),
+						);
+					} catch ( Error $e ) {
+						// Catch PHP 7+ errors (TypeError, etc.)
+						if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+							error_log( sprintf( '[Dataviz AI] Fatal error in rule-based tool execution %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
+						}
+						$tool_result = array(
+							'error'      => true,
+							'error_type' => 'fatal_error',
+							'message'    => 'A fatal error occurred while executing the tool: ' . $e->getMessage(),
+						);
+					}
 				}
 				
 				// Convert WP_Error to user-friendly format for LLM.
@@ -515,30 +481,65 @@ class Dataviz_AI_AJAX_Handler {
 								// If tool_result is directly an array of orders
 								$tool_results_for_frontend['orders'] = $tool_result;
 							}
-						}
-					} elseif ( $function_name === 'get_order_statistics' ) {
-						// For statistics queries, send status_breakdown directly for accurate chart rendering
-						if ( isset( $tool_result['status_breakdown'] ) && is_array( $tool_result['status_breakdown'] ) ) {
-							// Send status_breakdown directly (more accurate than converting to individual orders)
-							$tool_results_for_frontend['order_statistics'] = array(
-								'status_breakdown' => $tool_result['status_breakdown'],
-								'summary'          => isset( $tool_result['summary'] ) ? $tool_result['summary'] : array(),
+						} elseif ( $entity_type === 'orders' && isset( $arguments['query_type'] ) && $arguments['query_type'] === 'statistics' ) {
+							// Send order statistics (status_breakdown and/or category_breakdown) for chart rendering
+							$order_stats = array(
+								'summary' => isset( $tool_result['summary'] ) ? $tool_result['summary'] : array(),
 							);
-							
-							// Also convert to order format for backward compatibility with existing chart code
-							$orders_for_chart = array();
-							foreach ( $tool_result['status_breakdown'] as $status_data ) {
-								// Create a representative order entry for each status
-								for ( $i = 0; $i < $status_data['count']; $i++ ) {
-									$orders_for_chart[] = array(
-										'id'     => 'stat-' . $status_data['status'] . '-' . $i,
-										'status' => $status_data['status'],
-										'total'  => isset( $status_data['revenue'] ) ? (float) $status_data['revenue'] / $status_data['count'] : 0,
-									);
+							if ( ! empty( $tool_result['status_breakdown'] ) && is_array( $tool_result['status_breakdown'] ) ) {
+								$order_stats['status_breakdown'] = $tool_result['status_breakdown'];
+							}
+							if ( ! empty( $tool_result['category_breakdown'] ) && is_array( $tool_result['category_breakdown'] ) ) {
+								$order_stats['category_breakdown'] = $tool_result['category_breakdown'];
+							}
+							if ( isset( $order_stats['status_breakdown'] ) || isset( $order_stats['category_breakdown'] ) ) {
+								$tool_results_for_frontend['order_statistics'] = $order_stats;
+								// Backward compatibility: orders array for status_breakdown when present
+								if ( isset( $order_stats['status_breakdown'] ) ) {
+									$orders_for_chart = array();
+									foreach ( $order_stats['status_breakdown'] as $status_data ) {
+										for ( $i = 0; $i < ( isset( $status_data['count'] ) ? $status_data['count'] : 0 ); $i++ ) {
+											$orders_for_chart[] = array(
+												'id'     => 'stat-' . ( isset( $status_data['status'] ) ? $status_data['status'] : 'unknown' ) . '-' . $i,
+												'status' => isset( $status_data['status'] ) ? $status_data['status'] : 'unknown',
+												'total'  => isset( $status_data['revenue'], $status_data['count'] ) && $status_data['count'] > 0 ? (float) $status_data['revenue'] / $status_data['count'] : 0,
+											);
+										}
+									}
+									if ( ! empty( $orders_for_chart ) ) {
+										$tool_results_for_frontend['orders'] = $orders_for_chart;
+									}
 								}
 							}
-							if ( ! empty( $orders_for_chart ) ) {
-								$tool_results_for_frontend['orders'] = $orders_for_chart;
+						}
+					} elseif ( $function_name === 'get_order_statistics' ) {
+						// For statistics queries, send status_breakdown and/or category_breakdown for chart rendering
+						$order_stats = array(
+							'summary' => isset( $tool_result['summary'] ) ? $tool_result['summary'] : array(),
+						);
+						if ( ! empty( $tool_result['status_breakdown'] ) && is_array( $tool_result['status_breakdown'] ) ) {
+							$order_stats['status_breakdown'] = $tool_result['status_breakdown'];
+						}
+						if ( ! empty( $tool_result['category_breakdown'] ) && is_array( $tool_result['category_breakdown'] ) ) {
+							$order_stats['category_breakdown'] = $tool_result['category_breakdown'];
+						}
+						if ( isset( $order_stats['status_breakdown'] ) || isset( $order_stats['category_breakdown'] ) ) {
+							$tool_results_for_frontend['order_statistics'] = $order_stats;
+							// Backward compatibility: orders array for status_breakdown when present
+							if ( isset( $order_stats['status_breakdown'] ) ) {
+								$orders_for_chart = array();
+								foreach ( $order_stats['status_breakdown'] as $status_data ) {
+									for ( $i = 0; $i < ( isset( $status_data['count'] ) ? $status_data['count'] : 0 ); $i++ ) {
+										$orders_for_chart[] = array(
+											'id'     => 'stat-' . ( isset( $status_data['status'] ) ? $status_data['status'] : 'unknown' ) . '-' . $i,
+											'status' => isset( $status_data['status'] ) ? $status_data['status'] : 'unknown',
+											'total'  => isset( $status_data['revenue'], $status_data['count'] ) && $status_data['count'] > 0 ? (float) $status_data['revenue'] / $status_data['count'] : 0,
+										);
+									}
+								}
+								if ( ! empty( $orders_for_chart ) ) {
+									$tool_results_for_frontend['orders'] = $orders_for_chart;
+								}
 							}
 						}
 					}
@@ -573,19 +574,81 @@ class Dataviz_AI_AJAX_Handler {
 			foreach ( $tool_results_messages as $tool_msg ) {
 				$tool_data = json_decode( $tool_msg['content'], true );
 				if ( is_array( $tool_data ) && ! isset( $tool_data['error'] ) ) {
-					if ( isset( $tool_data['summary']['total_orders'] ) ) {
-						$extracted_numbers['total_orders'] = (int) $tool_data['summary']['total_orders'];
+					// Store the full data for date range access
+					if ( isset( $tool_data['summary'] ) ) {
 						$direct_response_data = $tool_data;
 					}
-					if ( isset( $tool_data['summary']['total_revenue'] ) ) {
+					
+					// Extract numbers (use array_key_exists to handle 0 values correctly)
+					if ( array_key_exists( 'total_orders', $tool_data['summary'] ?? array() ) ) {
+						$extracted_numbers['total_orders'] = (int) $tool_data['summary']['total_orders'];
+					}
+					if ( array_key_exists( 'total_revenue', $tool_data['summary'] ?? array() ) ) {
 						$extracted_numbers['total_revenue'] = (float) $tool_data['summary']['total_revenue'];
+					}
+					if ( array_key_exists( 'unique_customers', $tool_data['summary'] ?? array() ) ) {
+						$extracted_numbers['unique_customers'] = (int) $tool_data['summary']['unique_customers'];
 					}
 				}
 			}
 
 			// For simple "how many" questions, format response directly from data (bypass LLM hallucination)
 			$is_how_many_question = preg_match( '/\bhow many\b/i', $question );
-			if ( $is_how_many_question && ! empty( $direct_response_data ) && isset( $extracted_numbers['total_orders'] ) ) {
+			
+			// Check if question is about customers
+			$is_customer_question = preg_match( '/\b(customer|customers)\b/i', $question );
+			
+			if ( $is_how_many_question && ! empty( $direct_response_data ) ) {
+				// Handle customer questions - check if unique_customers exists (even if 0)
+				if ( $is_customer_question && array_key_exists( 'unique_customers', $extracted_numbers ) ) {
+					$count = (int) $extracted_numbers['unique_customers'];
+					
+					// Format direct response (bypass LLM to avoid hallucination)
+					if ( $count === 0 ) {
+						// Get date range for better context
+						$date_range = '';
+						if ( isset( $direct_response_data['date_range'] ) ) {
+							$date_from = $direct_response_data['date_range']['from'] ?? '';
+							$date_to = $direct_response_data['date_range']['to'] ?? '';
+							if ( $date_from && $date_to ) {
+								// Validate dates are reasonable (not from the past too far)
+								$current_year = (int) current_time( 'Y' );
+								$from_year = (int) substr( $date_from, 0, 4 );
+								$to_year = (int) substr( $date_to, 0, 4 );
+								
+								// Only show dates if they're reasonable (within current year or last year)
+								if ( $from_year >= ( $current_year - 1 ) && $to_year >= ( $current_year - 1 ) ) {
+									// Format dates nicely using WordPress timezone
+									$from_timestamp = strtotime( $date_from );
+									$to_timestamp = strtotime( $date_to );
+									if ( $from_timestamp && $to_timestamp ) {
+										$from_formatted = date_i18n( 'F j', $from_timestamp );
+										$to_formatted = date_i18n( 'F j, Y', $to_timestamp );
+										$date_range = sprintf( ' (from %s to %s)', $from_formatted, $to_formatted );
+									}
+								}
+							}
+						}
+						$direct_response = sprintf( __( 'There are currently no customers who have placed orders in the specified period%s.', 'dataviz-ai-woocommerce' ), $date_range );
+					} elseif ( $count === 1 ) {
+						$direct_response = sprintf( __( 'There is %d customer who placed orders in the specified period.', 'dataviz-ai-woocommerce' ), $count );
+					} else {
+						$direct_response = sprintf( __( 'There are %d customers who placed orders in the specified period.', 'dataviz-ai-woocommerce' ), $count );
+					}
+					
+					// Stream the direct response
+					$this->streaming_content = $direct_response;
+					$this->send_stream_chunk( $direct_response );
+					
+					// Save to chat history
+					$this->chat_history->save_message( 'ai', $direct_response, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
+					
+					$this->send_stream_end();
+					return;
+				}
+				
+				// Handle order questions
+				if ( isset( $extracted_numbers['total_orders'] ) ) {
 				// Determine the entity type from the question
 				$status_text = '';
 				if ( preg_match( '/\b(completed|pending|processing|cancelled|refunded|failed|on.?hold)\b/i', $question, $status_matches ) ) {
@@ -617,6 +680,7 @@ class Dataviz_AI_AJAX_Handler {
 				
 				$this->send_stream_end();
 				return;
+				}
 			}
 
 			// Now get the final streaming response (for non-simple questions).
@@ -1225,7 +1289,7 @@ class Dataviz_AI_AJAX_Handler {
 			$final_prompt = 'Based on the data you just fetched, please answer the original question: ' . $question . "\n\n";
 			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
 			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format. ";
-			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.";
+			$final_prompt .= "If the data shows empty arrays or no results, check if the response includes a 'message' field or 'date_range' field. If a 'message' field exists, use it to inform the user. If a 'date_range' is provided, mention the specific date range that was searched. For example, if searching 'this year' returns no results but the date_range shows 2026, you can suggest trying 'last year' or a different time period.";
 
 			$messages[] = array(
 				'role'    => 'user',
@@ -1328,7 +1392,7 @@ class Dataviz_AI_AJAX_Handler {
 							),
 							'filters'     => array(
 								'type'        => 'object',
-								'description' => 'Filters to apply. Can include: date_from, date_to, status, stock_threshold, limit, category_id, etc.',
+								'description' => 'Filters to apply. Can include: date_from, date_to, status, stock_threshold, limit, category_id, period, sample_size, group_by. For orders + statistics: group_by can be "status" (default), "customer", or "category" (e.g. sales by product category). CRITICAL: If filters are provided in the hints below, use them EXACTLY as provided - do not recalculate or modify date filters.',
 								'properties'  => array(
 									'date_from'      => array(
 										'type'   => 'string',
@@ -1356,9 +1420,14 @@ class Dataviz_AI_AJAX_Handler {
 									),
 									'sample_size'    => array(
 										'type' => 'integer',
-					),
-				),
-			),
+									),
+									'group_by'       => array(
+										'type'        => 'string',
+										'description' => 'For orders + statistics: "status" (default), "customer", or "category". Use "category" when user asks for sales/revenue by product category.',
+										'enum'        => array( 'status', 'customer', 'category' ),
+									),
+								),
+							),
 						),
 						'required'   => array( 'entity_type', 'query_type' ),
 					),
@@ -1369,7 +1438,7 @@ class Dataviz_AI_AJAX_Handler {
 				'type' => 'function',
 				'function' => array(
 					'name'        => 'get_order_statistics',
-					'description' => 'Get aggregated order statistics (totals, averages, counts, status breakdown). USE THIS TOOL when user asks for totals like "total revenue", "how many orders", "average order value", "revenue by status", OR when asking about "order status" or "show me order status" to get a complete breakdown of all order statuses. This is optimized for large datasets (millions of orders).',
+					'description' => 'Get aggregated order statistics (totals, averages, counts, status breakdown, or sales by product category). USE THIS TOOL when user asks for: "total revenue", "how many orders", "average order value", "revenue by status", "order status" breakdown, OR "sales by product category" / "revenue by category" / "pie chart of sales by product category" (in that case pass group_by: "category"). Do NOT use entity_type "categories" for sales by category - use this tool with group_by: "category" instead. CRITICAL: If date filters are provided in the hints below, use them EXACTLY - do not recalculate dates.',
 					'parameters'  => array(
 						'type'       => 'object',
 						'properties' => array(
@@ -1387,6 +1456,11 @@ class Dataviz_AI_AJAX_Handler {
 								'type'        => 'string',
 								'description' => 'Filter by order status. Optional.',
 								'enum'        => array( 'completed', 'processing', 'pending', 'cancelled', 'refunded', 'failed', 'on-hold' ),
+							),
+							'group_by'  => array(
+								'type'        => 'string',
+								'description' => 'Optional. Use "category" when user asks for sales or revenue by product category (e.g. pie chart of sales by category). Default is status breakdown.',
+								'enum'        => array( 'status', 'category' ),
 							),
 						),
 					),
@@ -1551,6 +1625,27 @@ class Dataviz_AI_AJAX_Handler {
 			$sanitized['sample_size'] = max( 50, min( 500, (int) $filters['sample_size'] ) );
 		}
 
+		// Customer-specific filters for statistics queries.
+		if ( isset( $filters['sort_by'] ) ) {
+			$allowed_sort = array( 'total_spent', 'order_count' );
+			$sort_by      = sanitize_text_field( $filters['sort_by'] );
+			if ( in_array( $sort_by, $allowed_sort, true ) ) {
+				$sanitized['sort_by'] = $sort_by;
+			}
+		}
+
+		if ( isset( $filters['group_by'] ) ) {
+			$allowed_group_by = array( 'customer', 'category' );
+			$group_by         = sanitize_text_field( $filters['group_by'] );
+			if ( in_array( $group_by, $allowed_group_by, true ) ) {
+				$sanitized['group_by'] = $group_by;
+			}
+		}
+
+		if ( isset( $filters['min_orders'] ) ) {
+			$sanitized['min_orders'] = max( 0, (int) $filters['min_orders'] );
+		}
+
 		return $sanitized;
 	}
 
@@ -1576,10 +1671,18 @@ class Dataviz_AI_AJAX_Handler {
 			$hints_prompt .= "- Query type: " . $hints['query_type'] . "\n";
 			$hints_prompt .= "- Confidence: " . $hints['confidence'] . "\n";
 			$hints_prompt .= "- Complexity: " . $hints['complexity'] . "\n";
+			
+			// Include filters (especially date filters) in hints so LLM uses correct dates
+			if ( ! empty( $hints['filters'] ) && is_array( $hints['filters'] ) ) {
+				$hints_prompt .= "- Filters: " . wp_json_encode( $hints['filters'] ) . "\n";
+				$hints_prompt .= "\nCRITICAL: Use the exact filter values provided above, especially date_from and date_to. Do NOT recalculate dates - use the provided values exactly.\n";
+			}
+			
 			$hints_prompt .= "\nCRITICAL RULES based on hints:\n";
 			$hints_prompt .= "- If hints say 'stock' and question mentions 'products', use entity_type: 'stock' (NOT 'products')\n";
 			$hints_prompt .= "- If hints say 'inventory' and question mentions 'categories', use entity_type: 'inventory' (NOT 'categories')\n";
 			$hints_prompt .= "- Always prioritize the primary_entity from hints over generic entity matching\n";
+			$hints_prompt .= "- If filters are provided in hints, use them EXACTLY as provided - do not recalculate or modify them\n";
 		}
 
 		// Update tool descriptions to include hints
@@ -1629,14 +1732,56 @@ class Dataviz_AI_AJAX_Handler {
 			return;
 		}
 
+		// Validate response structure
+		if ( ! isset( $response['choices'] ) || ! is_array( $response['choices'] ) || empty( $response['choices'] ) ) {
+			$error_msg = 'Invalid response from OpenAI API: missing or empty choices array';
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] %s. Response: %s', $error_msg, wp_json_encode( $response ) ) );
+			}
+			$this->send_stream_error( 'Invalid response from AI service. Please try again.' );
+			return;
+		}
+
+		if ( ! isset( $response['choices'][0]['message'] ) ) {
+			$error_msg = 'Invalid response from OpenAI API: missing message in choices';
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf( '[Dataviz AI] %s. Response: %s', $error_msg, wp_json_encode( $response ) ) );
+			}
+			$this->send_stream_error( 'Invalid response from AI service. Please try again.' );
+			return;
+		}
+
 		$message = $response['choices'][0]['message'];
 
-		// Execute tool calls with validation
+		// Execute tool calls with validation and error handling
 		$tool_results = array();
 		if ( isset( $message['tool_calls'] ) && is_array( $message['tool_calls'] ) ) {
 			foreach ( $message['tool_calls'] as $tool_call ) {
 				$function_name = $tool_call['function']['name'] ?? '';
-				$arguments     = json_decode( $tool_call['function']['arguments'] ?? '{}', true );
+				$tool_call_id  = $tool_call['id'] ?? 'unknown-' . uniqid();
+				
+				// Parse JSON arguments with error handling
+				$arguments_json = $tool_call['function']['arguments'] ?? '{}';
+				$arguments      = json_decode( $arguments_json, true );
+				
+				// Validate JSON parsing
+				if ( json_last_error() !== JSON_ERROR_NONE ) {
+					$error_message = 'Invalid JSON in tool arguments: ' . json_last_error_msg();
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+						error_log( sprintf( '[Dataviz AI] JSON parse error for tool %s: %s. Raw JSON: %s', $function_name, $error_message, $arguments_json ) );
+					}
+					$tool_results[] = array(
+						'tool_call_id' => $tool_call_id,
+						'role'         => 'tool',
+						'name'         => $function_name,
+						'content'      => wp_json_encode( array(
+							'error'   => true,
+							'error_type' => 'json_parse_error',
+							'message' => $error_message,
+						) ),
+					);
+					continue;
+				}
 
 				if ( ! is_array( $arguments ) ) {
 					$arguments = array();
@@ -1648,31 +1793,55 @@ class Dataviz_AI_AJAX_Handler {
 				// Check if validation returned an error
 				if ( isset( $arguments['error'] ) && $arguments['error'] === true ) {
 					$tool_results[] = array(
-						'tool_call_id' => $tool_call['id'] ?? '',
+						'tool_call_id' => $tool_call_id,
 						'role'         => 'tool',
 						'name'         => $function_name,
 						'content'      => wp_json_encode( array(
 							'error'   => true,
+							'error_type' => 'validation_error',
 							'message' => $arguments['message'] ?? 'Validation failed',
 						) ),
 					);
 					continue;
 				}
 
-				$result = $this->execute_tool( $function_name, $arguments );
+				// Execute tool with try-catch to catch any exceptions
+				try {
+					$result = $this->execute_tool( $function_name, $arguments );
 
-				// Convert WP_Error to user-friendly format
-				if ( is_wp_error( $result ) ) {
+					// Convert WP_Error to user-friendly format
+					if ( is_wp_error( $result ) ) {
+						$result = array(
+							'error'      => true,
+							'error_type' => 'execution_error',
+							'message'    => $result->get_error_message(),
+							'error_code' => $result->get_error_code(),
+						);
+					}
+				} catch ( Exception $e ) {
+					// Log the exception for debugging
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+						error_log( sprintf( '[Dataviz AI] Exception in tool execution %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
+					}
 					$result = array(
 						'error'      => true,
-						'error_type' => 'execution_error',
-						'message'    => $result->get_error_message(),
-						'error_code' => $result->get_error_code(),
+						'error_type' => 'exception',
+						'message'    => 'An error occurred while executing the tool: ' . $e->getMessage(),
+					);
+				} catch ( Error $e ) {
+					// Catch PHP 7+ errors (TypeError, etc.)
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+						error_log( sprintf( '[Dataviz AI] Fatal error in tool execution %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
+					}
+					$result = array(
+						'error'      => true,
+						'error_type' => 'fatal_error',
+						'message'    => 'A fatal error occurred while executing the tool: ' . $e->getMessage(),
 					);
 				}
 
 				$tool_results[] = array(
-					'tool_call_id' => $tool_call['id'] ?? '',
+					'tool_call_id' => $tool_call_id,
 					'role'         => 'tool',
 					'name'         => $function_name,
 					'content'      => wp_json_encode( $result ),
@@ -1682,50 +1851,164 @@ class Dataviz_AI_AJAX_Handler {
 
 		// Send tool results back to LLM for final answer
 		if ( ! empty( $tool_results ) ) {
+			// Extract key numbers from tool results for direct response handling
+			$extracted_numbers = array();
+			$direct_response_data = null;
+			foreach ( $tool_results as $tool_result ) {
+				$tool_data = json_decode( $tool_result['content'], true );
+				if ( is_array( $tool_data ) && ! isset( $tool_data['error'] ) ) {
+					// Store the full data for date range access
+					if ( isset( $tool_data['summary'] ) ) {
+						$direct_response_data = $tool_data;
+					}
+					
+					// Extract numbers (use array_key_exists to handle 0 values correctly)
+					if ( array_key_exists( 'total_orders', $tool_data['summary'] ?? array() ) ) {
+						$extracted_numbers['total_orders'] = (int) $tool_data['summary']['total_orders'];
+					}
+					if ( array_key_exists( 'total_revenue', $tool_data['summary'] ?? array() ) ) {
+						$extracted_numbers['total_revenue'] = (float) $tool_data['summary']['total_revenue'];
+					}
+					if ( array_key_exists( 'unique_customers', $tool_data['summary'] ?? array() ) ) {
+						$extracted_numbers['unique_customers'] = (int) $tool_data['summary']['unique_customers'];
+					}
+				}
+			}
+
+			// For simple "how many" questions, format response directly from data (bypass LLM hallucination)
+			$is_how_many_question = preg_match( '/\bhow many\b/i', $question );
+			$is_customer_question = preg_match( '/\b(customer|customers)\b/i', $question );
+			
+			if ( $is_how_many_question && ! empty( $direct_response_data ) ) {
+				// Handle customer questions - check if unique_customers exists (even if 0)
+				if ( $is_customer_question && array_key_exists( 'unique_customers', $extracted_numbers ) ) {
+					$count = (int) $extracted_numbers['unique_customers'];
+					
+					// Format direct response (bypass LLM to avoid hallucination)
+					if ( $count === 0 ) {
+						// Get date range for better context
+						$date_range = '';
+						if ( isset( $direct_response_data['date_range'] ) ) {
+							$date_from = $direct_response_data['date_range']['from'] ?? '';
+							$date_to = $direct_response_data['date_range']['to'] ?? '';
+							if ( $date_from && $date_to ) {
+								// Validate dates are reasonable (not from the past too far)
+								$current_year = (int) current_time( 'Y' );
+								$from_year = (int) substr( $date_from, 0, 4 );
+								$to_year = (int) substr( $date_to, 0, 4 );
+								
+								// Only show dates if they're reasonable (within current year or last year)
+								if ( $from_year >= ( $current_year - 1 ) && $to_year >= ( $current_year - 1 ) ) {
+									// Format dates nicely using WordPress timezone
+									$from_timestamp = strtotime( $date_from );
+									$to_timestamp = strtotime( $date_to );
+									if ( $from_timestamp && $to_timestamp ) {
+										$from_formatted = date_i18n( 'F j', $from_timestamp );
+										$to_formatted = date_i18n( 'F j, Y', $to_timestamp );
+										$date_range = sprintf( ' (from %s to %s)', $from_formatted, $to_formatted );
+									}
+								}
+							}
+						}
+						$direct_response = sprintf( __( 'There are currently no customers who have placed orders in the specified period%s.', 'dataviz-ai-woocommerce' ), $date_range );
+					} elseif ( $count === 1 ) {
+						$direct_response = sprintf( __( 'There is %d customer who placed orders in the specified period.', 'dataviz-ai-woocommerce' ), $count );
+					} else {
+						$direct_response = sprintf( __( 'There are %d customers who placed orders in the specified period.', 'dataviz-ai-woocommerce' ), $count );
+					}
+					
+					// Stream the direct response
+					$this->streaming_content = $direct_response;
+					$this->send_stream_chunk( $direct_response );
+					
+					// Save to chat history
+					$this->chat_history->save_message( 'ai', $direct_response, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
+					
+					$this->send_stream_end();
+					return;
+				}
+			}
+
 			$messages[] = $message;
 			$messages   = array_merge( $messages, $tool_results );
 
 			$final_prompt = 'Based on the data you just fetched, please answer the original question: ' . $question . "\n\n";
 			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
 			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format. ";
-			$final_prompt .= "If the data shows empty arrays or no results, inform the user that there are currently no records matching their query in the WooCommerce store database.";
+			$final_prompt .= "If the data shows empty arrays or no results, check if the response includes a 'message' field or 'date_range' field. If a 'message' field exists, use it to inform the user. If a 'date_range' is provided, mention the specific date range that was searched. For example, if searching 'this year' returns no results but the date_range shows 2026, you can suggest trying 'last year' or a different time period.";
 
 			$messages[] = array(
 				'role'    => 'user',
 				'content' => $final_prompt,
 			);
 
-			// Stream the final response
+			// Stream the final response with error handling
 			$this->streaming_content = '';
-			$stream_result = $this->api_client->send_openai_chat_stream(
-				$messages,
-				function( $chunk ) {
-					$this->streaming_content .= $chunk;
-					$this->send_stream_chunk( $chunk );
-				},
-				array(
-					'model' => 'gpt-4o-mini',
-				)
-			);
+			try {
+				$stream_result = $this->api_client->send_openai_chat_stream(
+					$messages,
+					function( $chunk ) {
+						$this->streaming_content .= $chunk;
+						$this->send_stream_chunk( $chunk );
+					},
+					array(
+						'model' => 'gpt-4o-mini',
+					)
+				);
 
-			if ( is_wp_error( $stream_result ) ) {
-				$this->send_stream_error( $stream_result->get_error_message() );
-				return;
+				if ( is_wp_error( $stream_result ) ) {
+					$error_message = $stream_result->get_error_message();
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+						error_log( sprintf( '[Dataviz AI] Streaming error: %s. Error data: %s', $error_message, wp_json_encode( $stream_result->get_error_data() ) ) );
+					}
+					$this->send_stream_error( $error_message );
+					return;
+				}
+
+				// Save AI response to chat history
+				if ( ! empty( $this->streaming_content ) ) {
+					$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+				}
+
+				$this->send_stream_end();
+			} catch ( Exception $e ) {
+				// Log exception during streaming
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] Exception during streaming: %s in %s:%d', $e->getMessage(), $e->getFile(), $e->getLine() ) );
+				}
+				$this->send_stream_error( 'An error occurred while generating the response. Please try again.' );
+			} catch ( Error $e ) {
+				// Catch PHP 7+ fatal errors
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] Fatal error during streaming: %s in %s:%d', $e->getMessage(), $e->getFile(), $e->getLine() ) );
+				}
+				$this->send_stream_error( 'A fatal error occurred. Please try again.' );
 			}
-
-			// Save AI response to chat history
-			if ( ! empty( $this->streaming_content ) ) {
-				$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
-			}
-
-			$this->send_stream_end();
 		} else {
 			// No tools called - stream direct response
-			if ( isset( $message['content'] ) ) {
-				$this->streaming_content = $message['content'];
-				$this->send_stream_chunk( $message['content'] );
-				$this->chat_history->save_message( 'ai', $message['content'], $this->session_id, array( 'provider' => 'openai' ) );
-				$this->send_stream_end();
+			try {
+				if ( isset( $message['content'] ) && ! empty( $message['content'] ) ) {
+					$this->streaming_content = $message['content'];
+					$this->send_stream_chunk( $message['content'] );
+					$this->chat_history->save_message( 'ai', $message['content'], $this->session_id, array( 'provider' => 'openai' ) );
+					$this->send_stream_end();
+				} else {
+					// No content and no tools - this shouldn't happen, but handle gracefully
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+						error_log( sprintf( '[Dataviz AI] Warning: LLM returned no content and no tool calls for question: %s. Message structure: %s', $question, wp_json_encode( $message ) ) );
+					}
+					$this->send_stream_error( 'No response generated. Please try rephrasing your question.' );
+				}
+			} catch ( Exception $e ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] Exception streaming direct response: %s in %s:%d', $e->getMessage(), $e->getFile(), $e->getLine() ) );
+				}
+				$this->send_stream_error( 'An error occurred while processing the response.' );
+			} catch ( Error $e ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] Fatal error streaming direct response: %s in %s:%d', $e->getMessage(), $e->getFile(), $e->getLine() ) );
+				}
+				$this->send_stream_error( 'A fatal error occurred. Please try again.' );
 			}
 		}
 	}
@@ -1815,6 +2098,9 @@ class Dataviz_AI_AJAX_Handler {
 		$entity_type = isset( $arguments['entity_type'] ) ? sanitize_text_field( $arguments['entity_type'] ) : 'orders';
 		$query_type  = isset( $arguments['query_type'] ) ? sanitize_text_field( $arguments['query_type'] ) : 'list';
 		$filters      = isset( $arguments['filters'] ) && is_array( $arguments['filters'] ) ? $arguments['filters'] : array();
+		
+		// Sanitize filters before passing to handlers
+		$filters = $this->sanitize_filters( $filters );
 		
 		// Store original entity_type for later use
 		$original_entity_type = $entity_type;
@@ -2001,7 +2287,7 @@ class Dataviz_AI_AJAX_Handler {
 						return $this->data_fetcher->get_all_products( $limit );
 					} else {
 						// For small limits, use top products (default behavior)
-						return $this->data_fetcher->get_top_products( $limit );
+					return $this->data_fetcher->get_top_products( $limit );
 					}
 				}
 
@@ -2022,6 +2308,30 @@ class Dataviz_AI_AJAX_Handler {
 	protected function handle_customers_query( $query_type, array $filters ) {
 		switch ( $query_type ) {
 			case 'statistics':
+				// If the question is about top customers / spend over a period,
+				// use order-based aggregation instead of simple lifetime summary.
+				$has_date_filters  = isset( $filters['date_from'] ) || isset( $filters['date_to'] );
+				$wants_top_spend   = isset( $filters['sort_by'] ) && $filters['sort_by'] === 'total_spent';
+				$group_by_customer = isset( $filters['group_by'] ) && $filters['group_by'] === 'customer';
+
+				// Debug logging
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( sprintf( '[Dataviz AI] handle_customers_query - query_type: %s, filters: %s', $query_type, wp_json_encode( $filters ) ) );
+					error_log( sprintf( '[Dataviz AI] has_date_filters: %s, wants_top_spend: %s, group_by_customer: %s', $has_date_filters ? 'yes' : 'no', $wants_top_spend ? 'yes' : 'no', $group_by_customer ? 'yes' : 'no' ) );
+				}
+
+				if ( $has_date_filters || $wants_top_spend || $group_by_customer ) {
+					$result = $this->data_fetcher->get_customer_statistics( $filters );
+					
+					// Debug logging
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+						error_log( sprintf( '[Dataviz AI] get_customer_statistics returned: %s', wp_json_encode( $result ) ) );
+					}
+					
+					return $result;
+				}
+
+				// Fallback: generic lifetime customer summary.
 				return $this->data_fetcher->get_customer_summary();
 
 			case 'list':
