@@ -39,7 +39,7 @@ The main plugin file should:
  * Text Domain: your-plugin-textdomain
  * Domain Path: /languages
  * Requires at least: 5.8
- * Requires PHP: 7.4
+ * Requires PHP: 8.3
  * WC requires at least: 5.0
  * WC tested up to: 8.0
  */

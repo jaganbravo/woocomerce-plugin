@@ -9,7 +9,7 @@ This document outlines the minimum and recommended server hosting requirements t
 ### Core Software
 - **WordPress**: 6.0 or higher
 - **WooCommerce**: 6.0 or higher
-- **PHP**: 7.4 or higher (Recommended: PHP 8.1+)
+- **PHP**: 8.3 or higher (Recommended: PHP 8.3+)
 - **MySQL/MariaDB**: 5.7+ or MariaDB 10.3+
 - **Web Server**: Apache 2.4+ or Nginx 1.18+ (with PHP-FPM)
 
@@ -174,7 +174,7 @@ The plugin requires outbound HTTPS connections to:
 
 Before deploying, verify your hosting provider offers:
 
-- [ ] PHP 7.4+ (preferably 8.1+)
+- [ ] PHP 8.3+ (required)
 - [ ] cURL extension enabled
 - [ ] JSON extension enabled
 - [ ] MySQL/MariaDB 5.7+
@@ -301,13 +301,13 @@ When moving to a new host:
 ## Summary
 
 **Minimum Requirements:**
-- WordPress 6.0+, WooCommerce 6.0+, PHP 7.4+
+- WordPress 6.0+, WooCommerce 6.0+, PHP 8.3+
 - cURL extension, 128MB PHP memory
 - Outbound HTTPS access
 - MySQL/MariaDB database
 
 **Recommended for Production:**
-- PHP 8.1+, 256MB+ PHP memory
+- PHP 8.3+, 256MB+ PHP memory
 - 2+ CPU cores, 1GB+ RAM
 - Managed WordPress hosting
 - Regular backups and monitoring

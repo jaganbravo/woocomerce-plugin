@@ -22,7 +22,7 @@ A template/starter plugin for creating WooCommerce extensions.
 ## Requirements
 
 - WordPress 5.8 or higher
-- PHP 7.4 or higher
+- PHP 8.3 or higher
 - WooCommerce 5.0 or higher
 
 ## Development

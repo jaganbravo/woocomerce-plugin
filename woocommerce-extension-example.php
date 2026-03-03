@@ -9,7 +9,7 @@
  * Text Domain: woocommerce-extension-example
  * Domain Path: /languages
  * Requires at least: 5.8
- * Requires PHP: 7.4
+ * Requires PHP: 8.3
  * WC requires at least: 5.0
  * WC tested up to: 8.0
  * License: GPL v2 or later
