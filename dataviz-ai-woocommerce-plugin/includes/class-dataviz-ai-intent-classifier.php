@@ -26,6 +26,8 @@ class Dataviz_AI_Intent_Classifier {
 			'purchase', 'buy', 'item', 'inventory', 'stock', 'buyer',
 			'client', 'purchased', 'sold', 'total', 'recent', 'list',
 			'show me', 'display', 'what are', 'how many', 'tell me about',
+			// Funnel / conversion questions (often require external analytics).
+			'conversion', 'conversion rate', 'cvr', 'traffic', 'visitors', 'sessions', 'pageviews',
 		);
 		
 		$lower_question = strtolower( $question );
@@ -261,6 +263,43 @@ class Dataviz_AI_Intent_Classifier {
 			}
 		}
 		
+		// Explicit "Month Year" expressions, e.g. "December 2023", "the month of December 1987".
+		if ( ! $has_calendar_month && preg_match( '/\b(?:(?:in|during|for)\s+|(?:for\s+the\s+month\s+of\s+)|(?:the\s+month\s+of\s+))?(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b/i', $question, $explicit_matches ) ) {
+			$month_name = strtolower( $explicit_matches[1] );
+			$year       = (int) $explicit_matches[2];
+
+			$month_map = array(
+				'january'   => 1,
+				'february'  => 2,
+				'march'     => 3,
+				'april'     => 4,
+				'may'       => 5,
+				'june'      => 6,
+				'july'      => 7,
+				'august'    => 8,
+				'september' => 9,
+				'october'   => 10,
+				'november'  => 11,
+				'december'  => 12,
+			);
+
+			if ( isset( $month_map[ $month_name ] ) ) {
+				$month                    = $month_map[ $month_name ];
+				$filters['date_from']     = sprintf( '%04d-%02d-01', $year, $month );
+				$last_day_timestamp       = strtotime( $filters['date_from'] . ' +1 month -1 day' );
+				$filters['date_to']       = date( 'Y-m-d', $last_day_timestamp );
+				$has_calendar_month       = true;
+			}
+		}
+
+		// Stock-specific filters (low stock vs out of stock).
+		if ( $entity_type === 'stock' || preg_match( '/\b(stock|inventory)\b/i', $lower_question ) ) {
+			// Explicit out-of-stock queries.
+			if ( preg_match( '/\bout of stock\b/i', $lower_question ) ) {
+				$filters['stock_status'] = 'outofstock';
+			}
+		}
+		
 		// Also check for "in the last X days/weeks/months" patterns
 		// Only if no calendar month pattern was matched (to avoid overriding)
 		if ( ! $has_calendar_month && preg_match( '/\bin the last (\d+)\s*(day|days|week|weeks|month|months)\b/i', $lower_question, $period_matches ) ) {
@@ -402,6 +441,12 @@ class Dataviz_AI_Intent_Classifier {
 			$hints['primary_entity'] = 'orders';
 			$hints['query_type']      = 'statistics';
 			$hints['confidence']      = 'high';
+		}
+		// Generic revenue/sales totals (e.g. "total revenue this month") default to orders statistics.
+		elseif ( $hints['primary_entity'] === null && preg_match( '/\b(revenue|sales?|turnover)\b/i', $question ) ) {
+			$hints['primary_entity'] = 'orders';
+			$hints['query_type']     = 'statistics';
+			$hints['confidence']     = 'medium';
 		}
 
 		// If no high-confidence match yet, check generic patterns

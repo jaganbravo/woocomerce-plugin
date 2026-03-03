@@ -980,6 +980,44 @@ class Dataviz_AI_Data_Fetcher {
 	}
 
 	/**
+	 * Get products that are fully out of stock.
+	 *
+	 * @return array
+	 */
+	public function get_out_of_stock_products() {
+		if ( ! function_exists( 'wc_get_products' ) ) {
+			return array();
+		}
+
+		$products = wc_get_products(
+			array(
+				'limit'        => -1,
+				'stock_status' => 'outofstock',
+				'status'       => array( 'publish' ),
+			)
+		);
+
+		$out_of_stock = array();
+
+		foreach ( $products as $product ) {
+			/* @var WC_Product $product */
+			$manage_stock   = $product->get_manage_stock();
+			$stock_quantity = $product->get_stock_quantity();
+			$out_of_stock[] = array(
+				'id'             => $product->get_id(),
+				'name'           => $product->get_name(),
+				'sku'            => $product->get_sku(),
+				'price'          => $product->get_price(),
+				'stock_status'   => $product->get_stock_status(),
+				'manage_stock'   => $manage_stock,
+				'stock_quantity' => $manage_stock ? ( $stock_quantity !== null ? $stock_quantity : 0 ) : null,
+			);
+		}
+
+		return $out_of_stock;
+	}
+
+	/**
 	 * Get all products with inventory/stock levels.
 	 *
 	 * @param array $filters Optional filters (limit, etc.).

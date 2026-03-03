@@ -71,6 +71,254 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
+	 * Normalize relative date ranges from the original question (PHP source of truth).
+	 * This prevents stale/hallucinated date ranges from the intent parser.
+	 *
+	 * @param string $question User question.
+	 * @param array  $validated_intent Validated intent.
+	 * @return array
+	 */
+	protected function normalize_relative_date_ranges_from_question( $question, array $validated_intent ) {
+		// Handle "last N days" / "in the last N days".
+		if ( preg_match( '/\b(?:in\s+the\s+)?last\s+(\d+)\s+days\b/i', (string) $question, $m ) ) {
+			$days = (int) $m[1];
+			$days = max( 1, min( 3650, $days ) );
+
+			$current_year = (int) current_time( 'Y' );
+			$from_year = null;
+			if ( isset( $validated_intent['filters']['date_from'] ) && is_string( $validated_intent['filters']['date_from'] ) ) {
+				$from_year = (int) substr( $validated_intent['filters']['date_from'], 0, 4 );
+			}
+
+			// If the intent has no dates, or dates look stale (older than last year), override.
+			$needs_override = false;
+			if ( empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] ) ) {
+				$needs_override = true;
+			} elseif ( $from_year !== null && $from_year < ( $current_year - 1 ) ) {
+				$needs_override = true;
+			}
+
+			if ( $needs_override ) {
+				$now = current_time( 'timestamp' );
+				$validated_intent['filters']['date_from'] = date( 'Y-m-d', $now - ( $days * DAY_IN_SECONDS ) );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			}
+		}
+
+		// Handle "last quarter" deterministically.
+		if ( preg_match( '/\blast\s+quarter\b/i', (string) $question ) ) {
+			$has_dates = ! empty( $validated_intent['filters']['date_from'] ) && ! empty( $validated_intent['filters']['date_to'] );
+			$current_year = (int) current_time( 'Y' );
+			$from_year = null;
+			if ( isset( $validated_intent['filters']['date_from'] ) && is_string( $validated_intent['filters']['date_from'] ) ) {
+				$from_year = (int) substr( $validated_intent['filters']['date_from'], 0, 4 );
+			}
+
+			// Override if missing or stale.
+			if ( ! $has_dates || ( $from_year !== null && $from_year < ( $current_year - 1 ) ) ) {
+				$range = Dataviz_AI_Intent_Validator::validate(
+					array(
+						'intent_version' => '1',
+						'requires_data'  => true,
+						'entity'         => 'orders',
+						'operation'      => 'statistics',
+						'metrics'        => array(),
+						'dimensions'     => array(),
+						'filters'        => array(
+							'date_range' => array(
+								'preset' => 'last_quarter',
+								'from'   => null,
+								'to'     => null,
+							),
+						),
+						'confidence'     => 'low',
+						'draft_answer'   => null,
+					)
+				);
+
+				// If for any reason this fails, compute locally.
+				if ( is_array( $range ) && ! empty( $range['filters']['date_from'] ) && ! empty( $range['filters']['date_to'] ) ) {
+					$validated_intent['filters']['date_from'] = $range['filters']['date_from'];
+					$validated_intent['filters']['date_to']   = $range['filters']['date_to'];
+				} else {
+					$now = current_time( 'timestamp' );
+					$current_month = (int) current_time( 'm' );
+					$current_quarter = (int) floor( ( $current_month - 1 ) / 3 ) + 1;
+					$last_quarter = $current_quarter - 1;
+					$year = (int) current_time( 'Y' );
+					if ( $last_quarter < 1 ) {
+						$last_quarter = 4;
+						$year = $year - 1;
+					}
+					$start_month = ( ( $last_quarter - 1 ) * 3 ) + 1;
+					$from = sprintf( '%04d-%02d-01', $year, $start_month );
+					$last_day_timestamp = strtotime( $from . ' +3 months -1 day' );
+					$validated_intent['filters']['date_from'] = $from;
+					$validated_intent['filters']['date_to']   = date( 'Y-m-d', $last_day_timestamp );
+				}
+			}
+		}
+
+		return $validated_intent;
+	}
+
+	/**
+	 * Detect comparison queries that require multiple date ranges (unsupported today).
+	 *
+	 * @param string $question Question.
+	 * @return bool
+	 */
+	protected function is_comparison_question( $question ) {
+		$q = (string) $question;
+		return (bool) preg_match( '/\b(compare|compared\s+to|vs\.?|versus|same\s+month\s+last\s+year|same\s+period\s+last\s+year|year\s+over\s+year|yo\s*y)\b/i', $q );
+	}
+
+	/**
+	 * Detect conversion-rate questions that require traffic analytics (unsupported today).
+	 *
+	 * @param string $question Question.
+	 * @return bool
+	 */
+	protected function is_conversion_rate_question( $question ) {
+		$q = (string) $question;
+		return (bool) preg_match( '/\b(conversion\s*rate|conversion|cvr)\b/i', $q )
+			&& (bool) preg_match( '/\b(traffic|visitors?|sessions?|pageviews?)\b/i', $q );
+	}
+
+	/**
+	 * Normalize high-level intent from question when the intent parser misclassifies.
+	 * PHP remains source of truth for critical routing decisions.
+	 *
+	 * @param string $question Question.
+	 * @param array  $validated_intent Validated intent.
+	 * @return array
+	 */
+	protected function normalize_intent_from_question( $question, array $validated_intent ) {
+		$q = (string) $question;
+
+		// Tag count questions should route to tags list so we can use the tag term count.
+		// Example: "How many products have the tag 'New Arrival'?"
+		if (
+			preg_match( '/\b(how\s+many|count|number\s+of)\b/i', $q )
+			&& preg_match( '/\bproducts?\b/i', $q )
+			&& preg_match( '/\btags?\b/i', $q )
+		) {
+			$validated_intent['entity']    = 'tags';
+			$validated_intent['operation'] = 'list';
+			return $validated_intent;
+		}
+
+		// Product categories listing should route to categories list deterministically.
+		// Example: "What categories do my products belong to?"
+		if ( preg_match( '/\bcategor(y|ies)\b/i', $q ) && preg_match( '/\bproducts?\b/i', $q ) ) {
+			$validated_intent['entity']    = 'categories';
+			$validated_intent['operation'] = 'list';
+			return $validated_intent;
+		}
+
+		// Top customers / total spend queries should route to customers statistics.
+		if ( preg_match( '/\btop\b/i', $q ) && preg_match( '/\bcustomers?\b/i', $q ) ) {
+			$validated_intent['entity']    = 'customers';
+			$validated_intent['operation'] = 'statistics';
+			$validated_intent['filters']['sort_by']  = 'total_spent';
+			$validated_intent['filters']['group_by'] = 'customer';
+			if ( empty( $validated_intent['filters']['limit'] ) ) {
+				$validated_intent['filters']['limit'] = 10;
+			}
+
+			// Handle "last year" deterministically.
+			if ( preg_match( '/\blast\s+year\b/i', $q ) ) {
+				$now = current_time( 'timestamp' );
+				$last_year = (int) current_time( 'Y' ) - 1;
+				$validated_intent['filters']['date_from'] = $last_year . '-01-01';
+				$validated_intent['filters']['date_to']   = $last_year . '-12-31';
+			}
+		}
+
+		return $validated_intent;
+	}
+
+	/**
+	 * Create a tool call that will trigger the existing unsupported-entity feature request flow.
+	 *
+	 * @param string $requested_entity Requested entity keyword.
+	 * @return array
+	 */
+	protected function build_feature_request_tool_call( $requested_entity ) {
+		return array(
+			'function' => array(
+				'name'      => 'get_woocommerce_data',
+				'arguments' => wp_json_encode(
+					array(
+						'entity_type' => (string) $requested_entity,
+						'query_type'  => 'statistics',
+						'filters'     => array(),
+					)
+				),
+			),
+			'id'       => 'intent-unsupported-' . uniqid(),
+		);
+	}
+
+	/**
+	 * Store pending feature request context for the current session.
+	 *
+	 * @param string $entity_type Entity type keyword.
+	 * @param string $description Optional description/context (e.g., original question).
+	 * @return void
+	 */
+	protected function set_pending_feature_request_context( $entity_type, $description = '' ) {
+		$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
+		set_transient( $transient_key, (string) $entity_type, HOUR_IN_SECONDS );
+
+		$desc_key = 'dataviz_ai_pending_request_desc_' . md5( $this->session_id );
+		if ( is_string( $description ) && $description !== '' ) {
+			set_transient( $desc_key, $description, HOUR_IN_SECONDS );
+		} else {
+			delete_transient( $desc_key );
+		}
+	}
+
+	/**
+	 * Extract pending feature request description from transient storage.
+	 *
+	 * @return string
+	 */
+	protected function extract_feature_request_description_from_history() {
+		$desc_key    = 'dataviz_ai_pending_request_desc_' . md5( $this->session_id );
+		$description = get_transient( $desc_key );
+		if ( is_string( $description ) && $description !== '' ) {
+			delete_transient( $desc_key );
+			return $description;
+		}
+		return '';
+	}
+
+	/**
+	 * Build a deterministic feature-request prompt when intent parsing/validation fails.
+	 *
+	 * @param string $question Original question.
+	 * @param string $reason   Optional failure reason.
+	 * @return array Response payload (answer/provider).
+	 */
+	protected function build_intent_not_found_feature_request_response( $question, $reason = '' ) {
+		$entity_type = 'intent_not_found';
+		$description = "User question:\n" . (string) $question;
+		if ( is_string( $reason ) && $reason !== '' ) {
+			$description .= "\n\nReason:\n" . $reason;
+		}
+		$this->set_pending_feature_request_context( $entity_type, $description );
+
+		$message = __( 'I wasn’t able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-woocommerce' );
+		$prompt  = __( 'Would you like to request this feature? Just say "yes" and I’ll submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-woocommerce' );
+
+		return array(
+			'answer'   => trim( $message . "\n\n" . $prompt ),
+			'provider' => 'system',
+		);
+	}
+
+	/**
 	 * Handle analysis request triggered from admin dashboard.
 	 *
 	 * @return void
@@ -234,11 +482,16 @@ class Dataviz_AI_AJAX_Handler {
 			$entity_type = $this->extract_entity_type_from_history();
 			if ( $entity_type ) {
 				// Automatically call submit_feature_request tool.
+				$description = $this->extract_feature_request_description_from_history();
+				$args = array( 'entity_type' => $entity_type );
+				if ( is_string( $description ) && $description !== '' ) {
+					$args['description'] = $description;
+				}
 				$tool_calls = array(
 					array(
 						'function' => array(
 							'name' => 'submit_feature_request',
-							'arguments' => wp_json_encode( array( 'entity_type' => $entity_type ) ),
+							'arguments' => wp_json_encode( $args ),
 						),
 						'id' => 'auto-submit-' . uniqid(),
 					),
@@ -313,37 +566,11 @@ class Dataviz_AI_AJAX_Handler {
 			}
 		}
 
-		// Multiple entities are now supported - they will be handled by build_tool_calls_from_hints()
-		// which creates multiple tool calls, one for each entity
+		$validated_intent = null;
+		$is_data_question = Dataviz_AI_Intent_Classifier::question_requires_data( $question );
 
-		// Use intent classification to extract hints and determine if we need LLM
-		$tool_calls = Dataviz_AI_Intent_Classifier::classify_intent_and_get_tools( $question );
-		$hints = Dataviz_AI_Intent_Classifier::extract_intent_hints( $question );
-		
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			if ( ! empty( $tool_calls ) ) {
-				$tool_names = array_map( function( $tc ) {
-					return $tc['function']['name'] ?? 'unknown';
-				}, $tool_calls );
-				error_log( sprintf( '[Dataviz AI] Rule-based classification detected %d tool(s): %s for question: %s', count( $tool_calls ), implode( ', ', $tool_names ), $question ) );
-			} else {
-				error_log( sprintf( '[Dataviz AI] No tool calls detected for question: %s. Hints: %s', $question, wp_json_encode( $hints ) ) );
-			}
-		}
-
-		// If intent classification returned empty, it's likely a non-data question
-		// Let it fall through to handle as a general chat question
-		if ( empty( $tool_calls ) ) {
-			// No tools detected - handle non-data questions or fallback cases
-			if ( Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
-				// This shouldn't happen, but if it does, log it and return an error
-				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-					error_log( sprintf( '[Dataviz AI] ERROR: No tool calls detected for data question: %s', $question ) );
-				}
-				$this->send_stream_error( __( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' ) );
-				return;
-			} else {
-				// Non-data question (e.g., greeting, general chat) - use LLM to respond directly
+		// Non-data question: stream general chat response.
+		if ( ! $is_data_question ) {
 			$messages = $this->build_smart_analysis_messages( $question );
 			$this->streaming_content = '';
 			$stream_result = $this->api_client->send_openai_chat_stream(
@@ -356,20 +583,75 @@ class Dataviz_AI_AJAX_Handler {
 					'model' => 'gpt-4o-mini',
 				)
 			);
-			
+
 			if ( is_wp_error( $stream_result ) ) {
 				$this->send_stream_error( $stream_result->get_error_message() );
 				return;
 			}
-			
-			// Save AI response to chat history.
+
 			if ( ! empty( $this->streaming_content ) ) {
 				$this->chat_history->save_message( 'ai', $this->streaming_content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
 			}
-			
+
 			$this->send_stream_end();
 			return;
+		}
+
+		// Data question: for some unsupported requests, route directly to feature request (no intent parsing).
+		if ( $this->is_comparison_question( $question ) ) {
+			$validated_intent = array(
+				'requires_data' => true,
+				'entity'        => 'comparisons',
+				'operation'     => 'feature_request',
+			);
+			$tool_calls = array( $this->build_feature_request_tool_call( 'comparisons' ) );
+		} elseif ( $this->is_conversion_rate_question( $question ) ) {
+			$validated_intent = array(
+				'requires_data' => true,
+				'entity'        => 'conversion_rate',
+				'operation'     => 'feature_request',
+			);
+			$tool_calls = array( $this->build_feature_request_tool_call( 'conversion_rate' ) );
+		} else {
+			// Normal data question: parse intent via LLM, validate, and build tool calls.
+			$intent_parse = $this->api_client->parse_intent( $question );
+			if ( is_wp_error( $intent_parse ) ) {
+				// Only offer a feature request when the intent itself is invalid/unknown (not for temporary infra errors).
+				if ( $intent_parse->get_error_code() === 'dataviz_ai_invalid_intent' ) {
+					$resp = $this->build_intent_not_found_feature_request_response( $question, $intent_parse->get_error_message() );
+					$this->streaming_content = $resp['answer'];
+					$this->send_stream_chunk( $resp['answer'] );
+					$this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => $resp['provider'], 'streaming' => true, 'direct_response' => true ) );
+					$this->send_stream_end();
+				} else {
+					$this->send_stream_error( __( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' ) );
+				}
+				return;
 			}
+
+			$validated_intent = Dataviz_AI_Intent_Validator::validate( is_array( $intent_parse['intent'] ?? null ) ? $intent_parse['intent'] : array() );
+			if ( is_wp_error( $validated_intent ) || empty( $validated_intent['requires_data'] ) ) {
+				$reason = is_wp_error( $validated_intent ) ? $validated_intent->get_error_message() : 'requires_data=false for data question';
+				$resp = $this->build_intent_not_found_feature_request_response( $question, $reason );
+				$this->streaming_content = $resp['answer'];
+				$this->send_stream_chunk( $resp['answer'] );
+				$this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => $resp['provider'], 'streaming' => true, 'direct_response' => true ) );
+				$this->send_stream_end();
+				return;
+			}
+
+			$validated_intent = $this->normalize_relative_date_ranges_from_question( $question, $validated_intent );
+			$validated_intent = $this->normalize_intent_from_question( $question, $validated_intent );
+
+			$tool_calls = Dataviz_AI_Execution_Engine::build_tool_calls( $validated_intent );
+		}
+		if ( empty( $tool_calls ) ) {
+			$resp = $this->build_intent_not_found_feature_request_response( $question, 'Execution engine produced no tool calls.' );
+			$this->streaming_content = $resp['answer'];
+			$this->send_stream_chunk( $resp['answer'] );
+			$this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => $resp['provider'], 'streaming' => true, 'direct_response' => true ) );
+			$this->send_stream_end();
+			return;
 		}
 
 		// If intent classification detected tools (simple case), execute them and then stream the final response.
@@ -380,6 +662,7 @@ class Dataviz_AI_AJAX_Handler {
 			// Build assistant message with tool_calls (required by OpenAI API even when using intent classification)
 			$assistant_tool_calls = array();
 			$tool_results_messages = array();
+			$results_for_prompt = array();
 
 			foreach ( $tool_calls as $tool_call ) {
 				// Handle both OpenAI format and auto-detected format.
@@ -545,6 +828,12 @@ class Dataviz_AI_AJAX_Handler {
 					}
 				}
 				
+				$results_for_prompt[] = array(
+					'tool'      => $function_name,
+					'arguments' => $arguments,
+					'result'    => $tool_result,
+				);
+
 				// Build tool result message
 				$tool_results_messages[] = array(
 					'role'         => 'tool',
@@ -562,15 +851,39 @@ class Dataviz_AI_AJAX_Handler {
 
 			// Add tool result messages
 			$messages = array_merge( $messages, $tool_results_messages );
+
+			// Provide validated intent context for the final LLM response (no tools).
+			if ( is_array( $validated_intent ) ) {
+				$messages[] = array(
+					'role'    => 'assistant',
+					'content' => "Validated intent (JSON):\n" . wp_json_encode( $validated_intent ),
+				);
+				if ( ! empty( $validated_intent['draft_answer'] ) && is_string( $validated_intent['draft_answer'] ) ) {
+					$messages[] = array(
+						'role'    => 'assistant',
+						'content' => "Intent parser draft answer (may be incorrect; use ONLY if consistent with tool data):\n" . $validated_intent['draft_answer'],
+					);
+				}
+			}
 			
 			// Send tool results to frontend as metadata (before text response).
 			if ( ! empty( $tool_results_for_frontend ) ) {
 				$this->send_stream_chunk( '', array( 'tool_data' => $tool_results_for_frontend ) );
 			}
 
+			// Deterministic answer composition (avoid LLM hallucinations for simple cases).
+			$direct_response = Dataviz_AI_Answer_Composer::maybe_compose( $question, is_array( $validated_intent ) ? $validated_intent : array(), $results_for_prompt );
+			if ( is_string( $direct_response ) && $direct_response !== '' ) {
+				$this->streaming_content = $direct_response;
+				$this->send_stream_chunk( $direct_response );
+				$this->chat_history->save_message( 'ai', $direct_response, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
+				$this->send_stream_end();
+				return;
+			}
+
 			// Extract key numbers from tool results
-			$extracted_numbers = array();
-			$direct_response_data = null;
+			$extracted_numbers      = array();
+			$direct_response_data   = null;
 			foreach ( $tool_results_messages as $tool_msg ) {
 				$tool_data = json_decode( $tool_msg['content'], true );
 				if ( is_array( $tool_data ) && ! isset( $tool_data['error'] ) ) {
@@ -590,6 +903,82 @@ class Dataviz_AI_AJAX_Handler {
 						$extracted_numbers['unique_customers'] = (int) $tool_data['summary']['unique_customers'];
 					}
 				}
+			}
+
+			// For simple revenue questions (e.g. "total revenue this month"), format response
+			// directly from statistics data to avoid hallucinations and missing numbers.
+			$is_revenue_question = preg_match( '/\b(revenue|sales?|turnover)\b/i', $question );
+			if ( $is_revenue_question && ! empty( $direct_response_data ) && array_key_exists( 'total_revenue', $extracted_numbers ) ) {
+				$total_revenue = (float) $extracted_numbers['total_revenue'];
+				$total_orders  = array_key_exists( 'total_orders', $extracted_numbers ) ? (int) $extracted_numbers['total_orders'] : null;
+
+				// Build a human-readable period text from date_range if available.
+				$period_text = '';
+				if ( isset( $direct_response_data['date_range'] ) && is_array( $direct_response_data['date_range'] ) ) {
+					$date_from = $direct_response_data['date_range']['from'] ?? '';
+					$date_to   = $direct_response_data['date_range']['to'] ?? '';
+					if ( $date_from && $date_to ) {
+						$from_timestamp = strtotime( $date_from );
+						$to_timestamp   = strtotime( $date_to );
+						if ( $from_timestamp && $to_timestamp ) {
+							$from_formatted = date_i18n( 'F j', $from_timestamp );
+							$to_formatted   = date_i18n( 'F j, Y', $to_timestamp );
+							$period_text    = sprintf( ' %s', sprintf( __( 'from %s to %s', 'dataviz-ai-woocommerce' ), $from_formatted, $to_formatted ) );
+						}
+					}
+				}
+
+				// Format revenue amount. Prefer WooCommerce formatting when available.
+				if ( function_exists( 'wc_price' ) ) {
+					$amount_str = wp_strip_all_tags( html_entity_decode( wc_price( $total_revenue ) ) );
+				} else {
+					$amount_str = sprintf(
+						/* translators: %s: formatted revenue amount */
+						__( '$%s', 'dataviz-ai-woocommerce' ),
+						number_format_i18n( $total_revenue, 2 )
+					);
+				}
+
+				if ( $total_revenue === 0.0 ) {
+					$direct_response = sprintf(
+						__( 'The total revenue generated%s is %s.', 'dataviz-ai-woocommerce' ),
+						$period_text ? ' ' . $period_text : '',
+						$amount_str
+					);
+					if ( null !== $total_orders ) {
+						if ( $total_orders === 0 ) {
+							$direct_response .= ' ' . __( 'There are no orders in this period.', 'dataviz-ai-woocommerce' );
+						} elseif ( 1 === $total_orders ) {
+							$direct_response .= ' ' . __( 'There is 1 order in this period.', 'dataviz-ai-woocommerce' );
+						} else {
+							$direct_response .= ' ' . sprintf(
+								__( 'There are %d orders in this period.', 'dataviz-ai-woocommerce' ),
+								$total_orders
+							);
+						}
+					}
+				} else {
+					$direct_response = sprintf(
+						__( 'The total revenue generated%s is %s.', 'dataviz-ai-woocommerce' ),
+						$period_text ? ' ' . $period_text : '',
+						$amount_str
+					);
+				}
+
+				$this->streaming_content = $direct_response;
+				$this->send_stream_chunk( $direct_response );
+				$this->chat_history->save_message(
+					'ai',
+					$direct_response,
+					$this->session_id,
+					array(
+						'provider'        => 'openai',
+						'streaming'       => true,
+						'direct_response' => true,
+					)
+				);
+				$this->send_stream_end();
+				return;
 			}
 
 			// For simple "how many" questions, format response directly from data (bypass LLM hallucination)
@@ -994,15 +1383,6 @@ class Dataviz_AI_AJAX_Handler {
 		// Use LangChain-style prompt template for system message.
 		$system_template = Dataviz_AI_Prompt_Template::system_analyst();
 		
-		// Add additional instructions for this specific use case.
-		$system_template->add_instructions(
-			array(
-				'When the user asks about ANY store data (orders, products, customers, sales, revenue, commission, sales commission, reviews, shipping, taxes, inventory, stock, or ANY other data type), you MUST use the available tools to fetch that data.',
-				'Even if you think the data type might not be supported, still call the get_woocommerce_data tool with the exact entity_type the user mentioned (e.g., if they say "commission" or "sales commission", use entity_type: "commission").',
-				'Only provide answers after you have retrieved the relevant data using the tools.',
-			)
-		);
-		
 		// Combine with error handling template.
 		$system_content = Dataviz_AI_Prompt_Template::combine(
 			array(
@@ -1160,182 +1540,299 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
-	 * Handle smart analysis using OpenAI function calling to decide which operations to run.
+	 * Handle smart analysis using rule-based tools and LLM summarization.
+	 *
+	 * Tools are selected and executed entirely in PHP (via the intent classifier
+	 * and execute_tool). The LLM never decides which tools to call – it only
+	 * receives the question and the already-fetched data and then explains it.
 	 *
 	 * @param string $question User's question.
 	 *
 	 * @return array|WP_Error
 	 */
 	protected function handle_smart_analysis( $question ) {
-		// Log user question.
+		// Log user question for diagnostics.
 		$this->log_llm_decision( 'User Question', array( 'question' => $question ) );
 
-		// Step 1: Ask LLM what operations it needs.
-		$tools = $this->get_available_tools();
-		
-		// Log available tools.
-		$tool_names = array_map(
-			function( $tool ) {
-				return $tool['function']['name'] ?? 'unknown';
-			},
-			$tools
-		);
-		$this->log_llm_decision( 'Available Tools', array( 'tools' => $tool_names ) );
-		
-		// Fix empty properties arrays to be objects for OpenAI API.
-		// Convert empty arrays to empty objects before encoding.
-		$tools = $this->convert_empty_arrays_to_objects( $tools );
-		
-		// Use LangChain-style prompt template for system message.
+		// If user is confirming a feature request submission in non-stream mode, submit it deterministically.
+		if ( $this->is_feature_request_confirmation( $question ) ) {
+			$entity_type = $this->extract_entity_type_from_history();
+			if ( $entity_type ) {
+				$description = $this->extract_feature_request_description_from_history();
+				$args = array( 'entity_type' => $entity_type );
+				if ( is_string( $description ) && $description !== '' ) {
+					$args['description'] = $description;
+				}
+				$result = $this->handle_feature_request_submission( $args );
+				if ( is_array( $result ) && isset( $result['message'] ) && is_string( $result['message'] ) ) {
+					return array(
+						'answer'   => $result['message'],
+						'provider' => 'system',
+					);
+				}
+				return array(
+					'answer'   => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-woocommerce' ),
+					'provider' => 'system',
+				);
+			}
+		}
+
+		$is_data_question = Dataviz_AI_Intent_Classifier::question_requires_data( $question );
+
+		// Non-data questions: pure chat, no tools.
+		if ( ! $is_data_question ) {
+			$system_template = Dataviz_AI_Prompt_Template::system_analyst();
+
+			$messages = array(
+				$system_template->build_message( 'system' ),
+				array(
+					'role'    => 'user',
+					'content' => $question,
+				),
+			);
+
+			$response = $this->api_client->send_openai_chat( $messages );
+
+			if ( is_wp_error( $response ) ) {
+				$this->log_llm_decision( 'LLM Error (non-data)', array( 'error' => $response->get_error_message() ) );
+				return $response;
+			}
+
+			$message = $response['choices'][0]['message'] ?? array();
+			$answer  = isset( $message['content'] ) ? $message['content'] : '';
+
+			$this->log_llm_decision(
+				'Final Answer (Non-data, No Tools)',
+				array( 'answer_preview' => wp_trim_words( $answer, 50 ) )
+			);
+
+			return array(
+				'answer'   => $answer,
+				'provider' => 'openai',
+			);
+		}
+
+		// Data questions: for some unsupported requests, route directly to feature request (no intent parsing).
+		if ( $this->is_comparison_question( $question ) ) {
+			$validated_intent = array(
+				'requires_data' => true,
+				'entity'        => 'comparisons',
+				'operation'     => 'feature_request',
+			);
+			$tool_calls = array( $this->build_feature_request_tool_call( 'comparisons' ) );
+		} elseif ( $this->is_conversion_rate_question( $question ) ) {
+			$validated_intent = array(
+				'requires_data' => true,
+				'entity'        => 'conversion_rate',
+				'operation'     => 'feature_request',
+			);
+			$tool_calls = array( $this->build_feature_request_tool_call( 'conversion_rate' ) );
+		} else {
+			// Normal data questions: parse intent via LLM (strict JSON), validate in PHP, execute tools in PHP.
+			$intent_parse = $this->api_client->parse_intent( $question );
+			if ( is_wp_error( $intent_parse ) ) {
+				$this->log_llm_decision( 'Intent Parse Error', array( 'error' => $intent_parse->get_error_message() ) );
+				if ( $intent_parse->get_error_code() === 'dataviz_ai_invalid_intent' ) {
+					return $this->build_intent_not_found_feature_request_response( $question, $intent_parse->get_error_message() );
+				}
+				return new WP_Error(
+					'dataviz_ai_unable_to_process',
+					__( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' )
+				);
+			}
+
+			$validated_intent = Dataviz_AI_Intent_Validator::validate( is_array( $intent_parse['intent'] ?? null ) ? $intent_parse['intent'] : array() );
+			if ( is_wp_error( $validated_intent ) || empty( $validated_intent['requires_data'] ) ) {
+				$this->log_llm_decision(
+					'Intent Validation Failed',
+					array(
+						'error' => is_wp_error( $validated_intent ) ? $validated_intent->get_error_message() : 'requires_data=false for data question',
+						'raw'   => isset( $intent_parse['raw'] ) ? wp_trim_words( (string) $intent_parse['raw'], 80 ) : '',
+					)
+				);
+				$reason = is_wp_error( $validated_intent ) ? $validated_intent->get_error_message() : 'requires_data=false for data question';
+				return $this->build_intent_not_found_feature_request_response( $question, $reason );
+			}
+
+			$validated_intent = $this->normalize_relative_date_ranges_from_question( $question, $validated_intent );
+			$validated_intent = $this->normalize_intent_from_question( $question, $validated_intent );
+
+			$tool_calls = Dataviz_AI_Execution_Engine::build_tool_calls( $validated_intent );
+		}
+		if ( empty( $tool_calls ) ) {
+			$this->log_llm_decision( 'Execution Engine: No tool calls', array( 'intent' => $validated_intent ) );
+			return $this->build_intent_not_found_feature_request_response( $question, 'Execution engine produced no tool calls.' );
+		}
+
+		$results_for_prompt = array();
+		$operations_used    = array();
+
+		foreach ( $tool_calls as $tool_call ) {
+			if ( ! isset( $tool_call['function']['name'] ) ) {
+				continue;
+			}
+
+			$function_name  = $tool_call['function']['name'];
+			$arguments_json = isset( $tool_call['function']['arguments'] ) ? $tool_call['function']['arguments'] : '{}';
+			$arguments      = is_string( $arguments_json ) ? json_decode( $arguments_json, true ) : $arguments_json;
+
+			if ( ! is_array( $arguments ) ) {
+				$arguments = array();
+			}
+
+			// Validate arguments before execution.
+			$validated_arguments = $this->validate_tool_arguments(
+				$function_name,
+				is_array( $arguments ) ? $arguments : array()
+			);
+
+			if ( isset( $validated_arguments['error'] ) && true === $validated_arguments['error'] ) {
+				$tool_result = array(
+					'error'      => true,
+					'error_type' => 'validation_error',
+					'message'    => $validated_arguments['message'] ?? 'Validation failed',
+				);
+			} else {
+				// Execute tool with try-catch to catch any exceptions.
+				try {
+					$tool_result = $this->execute_tool( $function_name, $validated_arguments );
+				} catch ( Exception $e ) {
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+						error_log(
+							sprintf(
+								'[Dataviz AI] Exception in non-stream tool execution %s: %s in %s:%d',
+								$function_name,
+								$e->getMessage(),
+								$e->getFile(),
+								$e->getLine()
+							)
+						);
+					}
+					$tool_result = array(
+						'error'      => true,
+						'error_type' => 'exception',
+						'message'    => 'An error occurred while executing the tool: ' . $e->getMessage(),
+					);
+				} catch ( Error $e ) {
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+						error_log(
+							sprintf(
+								'[Dataviz AI] Fatal error in non-stream tool execution %s: %s in %s:%d',
+								$function_name,
+								$e->getMessage(),
+								$e->getFile(),
+								$e->getLine()
+							)
+						);
+					}
+					$tool_result = array(
+						'error'      => true,
+						'error_type' => 'fatal_error',
+						'message'    => 'A fatal error occurred while executing the tool: ' . $e->getMessage(),
+					);
+				}
+			}
+
+			// Normalize WP_Error to array.
+			if ( is_wp_error( $tool_result ) ) {
+				$tool_result = array(
+					'error'              => true,
+					'error_type'         => 'execution_error',
+					'message'            => $tool_result->get_error_message(),
+					'error_code'         => $tool_result->get_error_code(),
+				);
+			}
+
+			$results_for_prompt[] = array(
+				'tool'      => $function_name,
+				'arguments' => $validated_arguments,
+				'result'    => $tool_result,
+			);
+
+			$operations_used[] = $function_name;
+		}
+
+		// Deterministic answer composition (avoid LLM hallucinations for simple cases).
+		$direct_answer = Dataviz_AI_Answer_Composer::maybe_compose( $question, $validated_intent, $results_for_prompt );
+		if ( is_string( $direct_answer ) && $direct_answer !== '' ) {
+			$this->log_llm_decision( 'Direct response (composer)', array( 'answer_preview' => $direct_answer ) );
+			return array(
+				'answer'          => $direct_answer,
+				'provider'        => 'openai',
+				'operations_used' => $operations_used,
+			);
+		}
+
+		// Build messages for LLM summarization (no tools exposed).
 		$system_template = Dataviz_AI_Prompt_Template::system_analyst();
-		
+		$system_message  = $system_template->build_message( 'system' );
+
 		$messages = array(
-			$system_template->build_message( 'system' ),
+			$system_message,
 			array(
 				'role'    => 'user',
 				'content' => $question,
 			),
 		);
 
-		$response = $this->api_client->send_openai_chat(
-			$messages,
+		// Provide the validated intent and fetched data as JSON context.
+		$messages[] = array(
+			'role'    => 'assistant',
+			'content' => "Here is the validated intent (JSON):\n" . wp_json_encode( $validated_intent ),
+		);
+
+		if ( ! empty( $validated_intent['draft_answer'] ) && is_string( $validated_intent['draft_answer'] ) ) {
+			$messages[] = array(
+				'role'    => 'assistant',
+				'content' => "Intent parser draft answer (may be incorrect; use ONLY if consistent with data):\n" . $validated_intent['draft_answer'],
+			);
+		}
+
+		// Provide the fetched data as JSON context.
+		$messages[] = array(
+			'role'    => 'assistant',
+			'content' => "Here is the data fetched from the WooCommerce tools (JSON):\n" . wp_json_encode( $results_for_prompt ),
+		);
+
+		$final_prompt  = 'Based on the data above, please answer the original question: ' . $question . "\n\n";
+		$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the data above), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
+		$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you have in a clear format. ";
+		$final_prompt .= "If the data shows empty arrays or no results, and a 'message' or 'date_range' is present in the data, use that to explain what range was searched and why there are no results (for example, suggest trying a different time period).";
+
+		$messages[] = array(
+			'role'    => 'user',
+			'content' => $final_prompt,
+		);
+
+		$final_response = $this->api_client->send_openai_chat( $messages );
+
+		if ( is_wp_error( $final_response ) ) {
+			$this->log_llm_decision( 'LLM Error (data summarization)', array( 'error' => $final_response->get_error_message() ) );
+			return $final_response;
+		}
+
+		$message = $final_response['choices'][0]['message'] ?? array();
+		$answer  = isset( $message['content'] ) ? $message['content'] : '';
+
+		$this->log_llm_decision(
+			'Final Answer (Data, Classifier Tools)',
 			array(
-				'tools'     => $tools,
-				'tool_choice' => 'auto',
+				'operations_used' => $operations_used,
+				'answer_preview'  => wp_trim_words( $answer, 50 ),
 			)
 		);
 
-		if ( is_wp_error( $response ) ) {
-			$this->log_llm_decision( 'LLM Error', array( 'error' => $response->get_error_message() ) );
-			return $response;
-		}
-
-		$message = $response['choices'][0]['message'];
-
-		// Log LLM's initial response.
-		if ( isset( $message['tool_calls'] ) && is_array( $message['tool_calls'] ) ) {
-			$llm_decision = array();
-			foreach ( $message['tool_calls'] as $tool_call ) {
-				$llm_decision[] = array(
-					'tool'      => $tool_call['function']['name'] ?? 'unknown',
-					'arguments' => json_decode( $tool_call['function']['arguments'] ?? '{}', true ),
-					'reasoning' => 'LLM analyzed the question and selected this tool to fetch relevant data',
-				);
-			}
-			$this->log_llm_decision( 'LLM Tool Selection', $llm_decision );
-		} elseif ( isset( $message['content'] ) ) {
-			$this->log_llm_decision( 'LLM Direct Answer', array( 'no_tools_used' => true, 'reasoning' => 'LLM determined no tool calls were needed' ) );
-		}
-
-		// Step 2: Execute any requested tool calls.
-		$tool_results = array();
-		if ( isset( $message['tool_calls'] ) && is_array( $message['tool_calls'] ) ) {
-			foreach ( $message['tool_calls'] as $tool_call ) {
-				$function_name = $tool_call['function']['name'] ?? '';
-				$arguments     = json_decode( $tool_call['function']['arguments'] ?? '{}', true );
-
-				if ( ! is_array( $arguments ) ) {
-					$arguments = array();
-				}
-
-				$this->log_llm_decision( 'Executing Tool', array( 'tool' => $function_name, 'arguments' => $arguments ) );
-
-				$result = $this->execute_tool( $function_name, $arguments );
-
-				// Convert WP_Error to user-friendly format for LLM.
-				if ( is_wp_error( $result ) ) {
-					$result = array(
-						'error'              => true,
-						'error_type'         => 'execution_error',
-						'message'            => $result->get_error_message(),
-						'error_code'         => $result->get_error_code(),
-					);
-				}
-
-				// Log tool execution result summary.
-				$result_summary = array(
-					'tool'            => $function_name,
-					'result_type'     => ( is_array( $result ) && isset( $result['error'] ) && $result['error'] ) ? 'error' : ( is_wp_error( $result ) ? 'error' : 'success' ),
-					'result_count'    => is_array( $result ) ? count( $result ) : 0,
-				);
-				
-				if ( is_array( $result ) && isset( $result['error'] ) && $result['error'] ) {
-					$result_summary['error_message'] = $result['message'] ?? 'Unknown error';
-					$result_summary['error_type'] = $result['error_type'] ?? 'unknown';
-				} elseif ( is_array( $result ) ) {
-					$result_summary['result_keys'] = array_keys( $result );
-					// If result has orders/products/customers, log count.
-					if ( isset( $result['orders'] ) || ( is_array( $result ) && isset( $result[0] ) && isset( $result[0]['id'] ) ) ) {
-						$result_summary['items_returned'] = is_array( $result ) ? count( $result ) : 0;
-					}
-				}
-				
-				$this->log_llm_decision( 'Tool Execution Result', $result_summary );
-
-				$tool_results[] = array(
-					'tool_call_id' => $tool_call['id'] ?? '',
-					'role'         => 'tool',
-					'name'         => $function_name,
-					'content'      => wp_json_encode( $result ),
-				);
-			}
-		}
-
-		// Step 3: If tools were called, send results back to LLM for final answer.
-		if ( ! empty( $tool_results ) ) {
-			$messages[] = $message;
-			$messages   = array_merge( $messages, $tool_results );
-
-			$final_prompt = 'Based on the data you just fetched, please answer the original question: ' . $question . "\n\n";
-			$final_prompt .= "IMPORTANT: If any tool returned an error (check for 'error': true in the tool responses), politely inform the user that the requested feature is not yet available. Use the error message and suggestions from the tool response to guide your answer. ";
-			$final_prompt .= "CRITICAL: If the user asked for a chart, graph, pie chart, bar chart, or visualization, DO NOT say that charts are not supported. Charts are automatically rendered by the frontend - you just need to provide the data. Simply present the data you fetched in a clear format. ";
-			$final_prompt .= "If the data shows empty arrays or no results, check if the response includes a 'message' field or 'date_range' field. If a 'message' field exists, use it to inform the user. If a 'date_range' is provided, mention the specific date range that was searched. For example, if searching 'this year' returns no results but the date_range shows 2026, you can suggest trying 'last year' or a different time period.";
-
-			$messages[] = array(
-				'role'    => 'user',
-				'content' => $final_prompt,
-			);
-
-			$final_response = $this->api_client->send_openai_chat( $messages );
-
-			if ( is_wp_error( $final_response ) ) {
-				return $final_response;
-			}
-
-			if ( isset( $final_response['choices'][0]['message']['content'] ) ) {
-				$operations_used = array_map(
-					function( $result ) {
-						return $result['name'];
-					},
-					$tool_results
-				);
-				
-				$this->log_llm_decision( 'Final Answer', array(
-					'operations_used' => $operations_used,
-					'answer_preview'  => wp_trim_words( $final_response['choices'][0]['message']['content'], 50 ),
-				) );
-				
-				return array(
-					'answer'   => $final_response['choices'][0]['message']['content'],
-					'provider' => 'openai',
-					'operations_used' => $operations_used,
-				);
-			}
-		} elseif ( isset( $message['content'] ) ) {
-			// No tools called, return direct answer.
-			$this->log_llm_decision( 'Final Answer (No Tools)', array(
-				'answer_preview' => wp_trim_words( $message['content'], 50 ),
-			) );
-			
-			return array(
-				'answer'   => $message['content'],
-				'provider' => 'openai',
+		if ( $answer === '' ) {
+			return new WP_Error(
+				'dataviz_ai_invalid_response',
+				__( 'Unexpected response format from AI.', 'dataviz-ai-woocommerce' )
 			);
 		}
 
-		return new WP_Error(
-			'dataviz_ai_invalid_response',
-			__( 'Unexpected response format from AI.', 'dataviz-ai-woocommerce' )
+		return array(
+			'answer'          => $answer,
+			'provider'        => 'openai',
+			'operations_used' => $operations_used,
 		);
 	}
 
@@ -1608,6 +2105,15 @@ class Dataviz_AI_AJAX_Handler {
 
 		if ( isset( $filters['stock_threshold'] ) ) {
 			$sanitized['stock_threshold'] = max( 0, (int) $filters['stock_threshold'] );
+		}
+
+		// Stock-specific filter: stock_status (instock/outofstock/onbackorder).
+		// Needed for out-of-stock queries in hybrid intent flow.
+		if ( isset( $filters['stock_status'] ) ) {
+			$stock_status = strtolower( sanitize_text_field( $filters['stock_status'] ) );
+			if ( in_array( $stock_status, array( 'instock', 'outofstock', 'onbackorder' ), true ) ) {
+				$sanitized['stock_status'] = $stock_status;
+			}
 		}
 
 		if ( isset( $filters['category_id'] ) ) {
@@ -2389,33 +2895,26 @@ class Dataviz_AI_AJAX_Handler {
 	 * @return array|WP_Error
 	 */
 	protected function handle_stock_query( array $filters, $entity_type = 'stock' ) {
-		// If user asked for "inventory" or "current inventory", show all inventory
-		// If user asked for "stock" or "low stock", show only low stock
-		$show_all = false;
-		
+		// If user asked for "inventory" or "current inventory", show all inventory.
+		// If user asked for "out of stock", show only out-of-stock products.
+		// Otherwise, default to low-stock products.
+
 		$entity_lower = strtolower( $entity_type );
-		
-		// Check if user's question suggests "all inventory" vs "low stock"
+
+		// Explicit out-of-stock filter from intent classifier.
+		if ( isset( $filters['stock_status'] ) && $filters['stock_status'] === 'outofstock' ) {
+			return $this->data_fetcher->get_out_of_stock_products();
+		}
+
+		// Check if user's question suggests "all inventory".
 		if ( strpos( $entity_lower, 'inventory' ) !== false ) {
-			// User asked for inventory - show all products with stock levels
-			$show_all = true;
-		} elseif ( strpos( $entity_lower, 'low' ) !== false || strpos( $entity_lower, 'stock' ) !== false ) {
-			// User asked for "low stock" - show only low stock
-			$show_all = false;
-		} else {
-			// Default: if query_type is "list", show all; otherwise show low stock
-			$query_type = isset( $filters['query_type'] ) ? $filters['query_type'] : 'list';
-			$show_all = ( $query_type === 'list' && strpos( $entity_lower, 'inventory' ) !== false );
-		}
-		
-		if ( $show_all ) {
-			// Return all products with inventory/stock levels
+			// Return all products with inventory/stock levels.
 			return $this->data_fetcher->get_all_inventory_products( $filters );
-		} else {
-			// Return only low stock products (default behavior)
-			$threshold = isset( $filters['stock_threshold'] ) ? (int) $filters['stock_threshold'] : 10;
-			return $this->data_fetcher->get_low_stock_products( $threshold );
 		}
+
+		// Default: return only low stock products.
+		$threshold = isset( $filters['stock_threshold'] ) ? (int) $filters['stock_threshold'] : 10;
+		return $this->data_fetcher->get_low_stock_products( $threshold );
 	}
 
 	/**
@@ -2878,6 +3377,67 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		wp_send_json_success( array( 'products' => $inventory_data['products'] ?? array() ) );
+	}
+
+	/**
+	 * Debug/test helper: parse + validate intent for a question.
+	 *
+	 * @return void
+	 */
+	public function handle_debug_intent_request() {
+		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
+		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : '';
+		if ( $question === '' ) {
+			wp_send_json_error( array( 'message' => __( 'Question is required.', 'dataviz-ai-woocommerce' ) ), 400 );
+		}
+
+		$is_data_question = Dataviz_AI_Intent_Classifier::question_requires_data( $question );
+		if ( ! $is_data_question ) {
+			wp_send_json_success(
+				array(
+					'validated_intent' => array(
+						'intent_version' => '1',
+						'requires_data'  => false,
+						'entity'         => 'orders',
+						'operation'      => 'list',
+						'metrics'        => array(),
+						'dimensions'     => array(),
+						'filters'        => array(),
+						'confidence'     => 'low',
+						'draft_answer'   => null,
+					),
+				)
+			);
+		}
+
+		$intent_parse = $this->api_client->parse_intent( $question );
+		if ( is_wp_error( $intent_parse ) ) {
+			wp_send_json_error( array( 'message' => $intent_parse->get_error_message() ), 400 );
+		}
+
+		$validated_intent = Dataviz_AI_Intent_Validator::validate( is_array( $intent_parse['intent'] ?? null ) ? $intent_parse['intent'] : array() );
+		if ( is_wp_error( $validated_intent ) ) {
+			wp_send_json_error(
+				array(
+					'message' => $validated_intent->get_error_message(),
+					'raw'     => $intent_parse['raw'] ?? null,
+				),
+				400
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'validated_intent' => $validated_intent,
+				'raw'              => $intent_parse['raw'] ?? null,
+				'model'            => $intent_parse['model'] ?? null,
+			)
+		);
 	}
 }
 

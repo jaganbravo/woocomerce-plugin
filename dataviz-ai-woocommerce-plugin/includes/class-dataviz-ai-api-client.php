@@ -274,6 +274,62 @@ class Dataviz_AI_API_Client {
 	}
 
 	/**
+	 * Parse a user question into a strict intent JSON object.
+	 *
+	 * @param string $question User question.
+	 * @return array|WP_Error Array with keys: intent (array), raw (string), provider, model.
+	 */
+	public function parse_intent( $question ) {
+		$question = (string) $question;
+		$template = Dataviz_AI_Prompt_Template::intent_parser();
+
+		$messages = array(
+			array(
+				'role'    => 'system',
+				'content' => 'You output ONLY JSON.',
+			),
+			$template->build_message(
+				'user',
+				array(
+					'question' => $question,
+				)
+			),
+		);
+
+		$options = array(
+			'model'           => 'gpt-4o-mini',
+			'temperature'     => 0,
+			'response_format' => array( 'type' => 'json_object' ),
+		);
+
+		$response = $this->send_openai_chat( $messages, $options );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$content = $response['choices'][0]['message']['content'] ?? '';
+		if ( ! is_string( $content ) || trim( $content ) === '' ) {
+			return new WP_Error( 'dataviz_ai_invalid_intent', 'Intent parser returned empty content' );
+		}
+
+		$decoded = json_decode( $content, true );
+		if ( ! is_array( $decoded ) ) {
+			return new WP_Error(
+				'dataviz_ai_invalid_intent',
+				'Intent parser returned non-JSON content',
+				array( 'raw' => $content )
+			);
+		}
+
+		return array(
+			'intent'   => $decoded,
+			'raw'      => $content,
+			'provider' => 'openai',
+			'model'    => $options['model'],
+		);
+	}
+
+	/**
 	 * Send a streaming chat completion request to OpenAI.
 	 *
 	 * @param array    $messages Chat messages in OpenAI format.

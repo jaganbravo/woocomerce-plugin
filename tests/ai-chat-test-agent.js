@@ -16,6 +16,16 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+const expectedIntentsPath = path.join(__dirname, 'expected-intents.json');
+let EXPECTED_INTENTS = {};
+try {
+    if (fs.existsSync(expectedIntentsPath)) {
+        EXPECTED_INTENTS = JSON.parse(fs.readFileSync(expectedIntentsPath, 'utf8')) || {};
+    }
+} catch (e) {
+    console.log(`[WARN] Failed to load expected intents: ${e.message}`);
+}
+
 const openai = new OpenAI({ 
     apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY 
 });
@@ -297,11 +307,26 @@ function validateResponseData(question, response) {
 
     // Check for customer data in customer queries
     if (/\b(customer|customers|client|clients)\b/i.test(question)) {
-        const hasCustomerData = /\b(email|name|customer|client)\b/i.test(response) || /\d+/.test(response);
-        if (!hasCustomerData) {
-            issues.push('Missing customer information for customer query');
+        const hasEmail = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(response);
+        const hasCustomerKeywords = /\b(customer|customers|client|clients|email|name)\b/i.test(response);
+        const hasList = (response.match(/\n\s*\d+[\.\)]\s+/g) || []).length >= 2 || (response.match(/[•\-\*]\s+/g) || []).length >= 2;
+        const hasMoneyOrTotals = /[$£€¥]|\d+\.\d{2}|\d+,\d{3}|\b(total spent|spend|spent)\b/i.test(response);
+
+        const isTopCustomersQuery = /\btop\b/i.test(question) && /\bcustomers?\b/i.test(question);
+        if (isTopCustomersQuery) {
+            // For top customers, numbers alone are NOT enough; require identifiable customer entries.
+            if (!(hasEmail || (hasCustomerKeywords && hasList)) || !hasMoneyOrTotals) {
+                issues.push('Missing top-customer list (names/emails) and spend totals for top customers query');
+            } else {
+                validations.push('Contains top customer list with spend data');
+            }
         } else {
-            validations.push('Contains customer data');
+            const hasCustomerData = hasEmail || hasCustomerKeywords || hasList;
+            if (!hasCustomerData) {
+                issues.push('Missing customer information for customer query');
+            } else {
+                validations.push('Contains customer data');
+            }
         }
     }
 
@@ -362,6 +387,48 @@ function validateResponseData(question, response) {
         validations,
         hasSpecificData: validations.length > 0 || issues.length === 0
     };
+}
+
+function deepPartialMatch(actual, expected) {
+    if (expected === null || expected === undefined) return true;
+    if (typeof expected !== 'object' || expected === null) {
+        return actual === expected;
+    }
+    if (Array.isArray(expected)) {
+        if (!Array.isArray(actual)) return false;
+        // Expected array acts as “must include these items”
+        return expected.every(item => actual.includes(item));
+    }
+    if (typeof actual !== 'object' || actual === null) return false;
+    return Object.keys(expected).every(key => deepPartialMatch(actual[key], expected[key]));
+}
+
+async function fetchValidatedIntent(page, question) {
+    // Extract localized globals from plugin admin page
+    const { ajaxUrl, nonce } = await page.evaluate(() => {
+        return {
+            ajaxUrl: (window.DatavizAIAdmin && window.DatavizAIAdmin.ajaxUrl) || '',
+            nonce: (window.DatavizAIAdmin && window.DatavizAIAdmin.nonce) || ''
+        };
+    });
+
+    if (!ajaxUrl || !nonce) {
+        return { ok: false, error: 'Missing ajaxUrl/nonce from page' };
+    }
+
+    const resp = await page.request.post(ajaxUrl, {
+        form: {
+            action: 'dataviz_ai_debug_intent',
+            nonce,
+            question
+        },
+        timeout: CONFIG.timeout
+    });
+
+    const json = await resp.json().catch(() => null);
+    if (!json) return { ok: false, error: 'Non-JSON response from intent endpoint' };
+    if (!json.success) return { ok: false, error: json.data && json.data.message ? json.data.message : 'Intent endpoint error', data: json.data };
+    return { ok: true, intent: json.data.validated_intent };
 }
 
 /**
@@ -426,10 +493,13 @@ Return ONLY a JSON object with:
 
         const evaluation = JSON.parse(result.choices[0].message.content);
         
-        // Enhance evaluation with data validation results
-        if (dataValidation.issues.length > 0 && evaluation.valid) {
-            evaluation.reason += ` (Note: ${dataValidation.issues.join(', ')})`;
-            evaluation.dataQuality = evaluation.dataQuality || 'fair';
+        // Treat validation issues as hard failures (prevents irrelevant responses from passing).
+        if (dataValidation.issues.length > 0) {
+            if (evaluation.valid) {
+                evaluation.reason += ` (FAIL: ${dataValidation.issues.join(', ')})`;
+            }
+            evaluation.valid = false;
+            evaluation.dataQuality = 'poor';
         }
         
         return {
@@ -491,9 +561,13 @@ async function loginToWordPress(page) {
     console.log('[LOGIN] Logging into WordPress admin...');
     
     try {
-        await page.goto('http://localhost:8080/wp-login.php', { 
-            waitUntil: 'networkidle',
-            timeout: 10000 
+        const loginUrl = process.env.WP_LOGIN_URL || new URL('/wp-login.php', CONFIG.pluginUrl).toString();
+        
+        // WordPress pages often keep background requests open, so `networkidle` can hang.
+        // Use `domcontentloaded` and a larger timeout for reliability.
+        await page.goto(loginUrl, { 
+            waitUntil: 'domcontentloaded',
+            timeout: CONFIG.timeout || 30000
         });
     } catch (error) {
         if (error.message.includes('ERR_CONNECTION_REFUSED') || 
@@ -541,6 +615,20 @@ async function testChatQuestion(page, question, questionNumber) {
         
         // Wait for chat interface to load
         await page.waitForSelector('#dataviz-ai-question, .dataviz-ai-chat-input, textarea', { timeout: 15000 });
+
+        // Intent-layer golden check (partial match) when an expectation exists
+        if (EXPECTED_INTENTS && EXPECTED_INTENTS[question]) {
+            const expected = EXPECTED_INTENTS[question];
+            const intentResp = await fetchValidatedIntent(page, question);
+            if (!intentResp.ok) {
+                throw new Error(`Intent check failed: ${intentResp.error}`);
+            }
+            const ok = deepPartialMatch(intentResp.intent, expected);
+            if (!ok) {
+                throw new Error(`Intent mismatch. Expected partial=${JSON.stringify(expected)} Actual=${JSON.stringify(intentResp.intent)}`);
+            }
+            console.log('   [OK] Intent matched expected (partial)');
+        }
         
         // Find input field (try multiple selectors - correct ones first)
         const inputSelectors = [

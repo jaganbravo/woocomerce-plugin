@@ -14,6 +14,9 @@ require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-data-fetcher.
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-history.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-feature-requests.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-classifier.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-validator.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-execution-engine.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-answer-composer.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-prompt-template.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-admin.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-onboarding.php';
@@ -138,6 +141,9 @@ class Dataviz_AI_Loader {
 		add_action( 'wp_ajax_dataviz_ai_submit_feature_request', array( $this->ajax, 'handle_submit_feature_request' ) );
 
 		add_action( 'wp_ajax_dataviz_ai_get_inventory_chart', array( $this->ajax, 'handle_get_inventory_chart' ) );
+
+		// Debug / test helper: intent parsing output (admin only).
+		add_action( 'wp_ajax_dataviz_ai_debug_intent', array( $this->ajax, 'handle_debug_intent_request' ) );
 
 		add_action( 'wp_ajax_dataviz_ai_save_onboarding_step', array( $this->onboarding, 'ajax_save_onboarding_step' ) );
 	}
