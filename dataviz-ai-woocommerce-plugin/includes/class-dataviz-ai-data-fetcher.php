@@ -896,6 +896,115 @@ class Dataviz_AI_Data_Fetcher {
 	}
 
 	/**
+	 * Get coupon usage (by coupon code) for orders in a date range.
+	 *
+	 * @param array $filters Filters (date_from, date_to).
+	 * @return array
+	 */
+	public function get_coupon_usage( array $filters = array() ) {
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return array(
+				'date_range' => array( 'from' => $filters['date_from'] ?? null, 'to' => $filters['date_to'] ?? null ),
+				'summary'    => array( 'unique_coupons' => 0, 'total_uses' => 0, 'total_orders' => 0 ),
+				'coupons'    => array(),
+			);
+		}
+
+		$date_from = isset( $filters['date_from'] ) ? sanitize_text_field( $filters['date_from'] ) : null;
+		$date_to   = isset( $filters['date_to'] ) ? sanitize_text_field( $filters['date_to'] ) : null;
+
+		$args = array(
+			'limit'   => -1,
+			'orderby' => 'date',
+			'order'   => 'DESC',
+			'return'  => 'objects',
+			// Default to paid-ish order statuses for "used coupons" reporting.
+			'status'  => array( 'processing', 'completed' ),
+		);
+
+		if ( $date_from && $date_to ) {
+			$from_ts = strtotime( $date_from . ' 00:00:00' );
+			$to_ts   = strtotime( $date_to . ' 23:59:59' );
+			if ( $from_ts && $to_ts ) {
+				$args['date_created'] = $from_ts . '...' . $to_ts;
+			}
+		} elseif ( $date_from ) {
+			$from_ts = strtotime( $date_from . ' 00:00:00' );
+			if ( $from_ts ) {
+				$args['date_created'] = '>=' . $from_ts;
+			}
+		} elseif ( $date_to ) {
+			$to_ts = strtotime( $date_to . ' 23:59:59' );
+			if ( $to_ts ) {
+				$args['date_created'] = '<=' . $to_ts;
+			}
+		}
+
+		$orders = wc_get_orders( $args );
+		if ( ! is_array( $orders ) || empty( $orders ) ) {
+			return array(
+				'date_range' => array( 'from' => $date_from, 'to' => $date_to ),
+				'summary'    => array( 'unique_coupons' => 0, 'total_uses' => 0, 'total_orders' => 0 ),
+				'coupons'    => array(),
+			);
+		}
+
+		$counts = array();
+		$total_uses = 0;
+
+		foreach ( $orders as $order ) {
+			if ( ! is_a( $order, 'WC_Order' ) ) {
+				continue;
+			}
+			$codes = array();
+			if ( method_exists( $order, 'get_coupon_codes' ) ) {
+				$codes = $order->get_coupon_codes();
+			} elseif ( method_exists( $order, 'get_used_coupons' ) ) {
+				$codes = $order->get_used_coupons();
+			}
+			if ( ! is_array( $codes ) || empty( $codes ) ) {
+				continue;
+			}
+			foreach ( $codes as $code ) {
+				$code = strtolower( trim( (string) $code ) );
+				if ( $code === '' ) {
+					continue;
+				}
+				if ( ! isset( $counts[ $code ] ) ) {
+					$counts[ $code ] = 0;
+				}
+				$counts[ $code ]++;
+				$total_uses++;
+			}
+		}
+
+		$coupons = array();
+		foreach ( $counts as $code => $use_count ) {
+			$coupons[] = array(
+				'code' => $code,
+				'uses' => (int) $use_count,
+			);
+		}
+
+		usort(
+			$coupons,
+			static function ( $a, $b ) {
+				return (int) ( $b['uses'] ?? 0 ) <=> (int) ( $a['uses'] ?? 0 );
+			}
+		);
+
+		return array(
+			'date_range' => array( 'from' => $date_from, 'to' => $date_to ),
+			'summary'    => array(
+				'unique_coupons' => count( $counts ),
+				'total_uses'     => (int) $total_uses,
+				'total_orders'   => count( $orders ),
+			),
+			'coupons'    => $coupons,
+		);
+	}
+
+	/**
 	 * Get refunds.
 	 *
 	 * @param array $args Optional query arguments.

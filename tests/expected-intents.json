@@ -56,6 +56,16 @@
     "requires_data": true,
     "entity": "tags",
     "operation": "list"
+  },
+  "What discounts are currently active in my store?": {
+    "requires_data": true,
+    "entity": "coupons",
+    "operation": "list"
+  },
+  "Show me all coupons that have been used in the last month.": {
+    "requires_data": true,
+    "entity": "coupons",
+    "operation": "statistics"
   }
 }
 

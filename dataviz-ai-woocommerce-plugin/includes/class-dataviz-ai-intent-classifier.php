@@ -28,6 +28,8 @@ class Dataviz_AI_Intent_Classifier {
 			'show me', 'display', 'what are', 'how many', 'tell me about',
 			// Funnel / conversion questions (often require external analytics).
 			'conversion', 'conversion rate', 'cvr', 'traffic', 'visitors', 'sessions', 'pageviews',
+			// Discounts / coupons.
+			'discount', 'discounts', 'coupon', 'coupons', 'promo', 'promotion', 'promotions', 'promo code', 'promo codes',
 		);
 		
 		$lower_question = strtolower( $question );

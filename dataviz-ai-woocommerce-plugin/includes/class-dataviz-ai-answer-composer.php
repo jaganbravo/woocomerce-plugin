@@ -188,6 +188,45 @@ class Dataviz_AI_Answer_Composer {
 				}
 			}
 
+			// Coupon usage in a period (coupons statistics).
+			$is_coupon_usage = ( isset( $validated_intent['entity'], $validated_intent['operation'] ) && $validated_intent['entity'] === 'coupons' && $validated_intent['operation'] === 'statistics' );
+			if ( $is_coupon_usage && is_array( $res ) && ! isset( $res['error'] ) && isset( $res['coupons'] ) && is_array( $res['coupons'] ) ) {
+				$date_from = '';
+				$date_to   = '';
+				if ( isset( $res['date_range']['from'], $res['date_range']['to'] ) ) {
+					$date_from = (string) $res['date_range']['from'];
+					$date_to   = (string) $res['date_range']['to'];
+				}
+				$period = '';
+				if ( $date_from && $date_to ) {
+					$period = sprintf( __( 'from %1$s to %2$s', 'dataviz-ai-woocommerce' ), $date_from, $date_to );
+				}
+
+				if ( empty( $res['coupons'] ) ) {
+					return $period
+						? sprintf( __( 'No coupons were used %s.', 'dataviz-ai-woocommerce' ), $period )
+						: __( 'No coupons were used in the requested period.', 'dataviz-ai-woocommerce' );
+				}
+
+				$lines = array();
+				foreach ( $res['coupons'] as $idx => $c ) {
+					if ( ! is_array( $c ) ) {
+						continue;
+					}
+					$code = isset( $c['code'] ) ? (string) $c['code'] : '';
+					$uses = isset( $c['uses'] ) ? (int) $c['uses'] : 0;
+					if ( $code === '' ) {
+						continue;
+					}
+					$lines[] = sprintf( '%d. %s — %d uses', (int) ( $idx + 1 ), $code, $uses );
+				}
+
+				$header = $period
+					? sprintf( __( 'Coupons used %s:', 'dataviz-ai-woocommerce' ), $period )
+					: __( 'Coupons used in the requested period:', 'dataviz-ai-woocommerce' );
+				return $header . "\n" . implode( "\n", $lines );
+			}
+
 			// Order statistics revenue/total short-circuit (orders only).
 			$is_order_stats = ( isset( $validated_intent['entity'] ) && $validated_intent['entity'] === 'orders' );
 			if ( $is_order_stats && is_array( $res ) && ! isset( $res['error'] ) && isset( $res['summary'] ) && is_array( $res['summary'] ) && array_key_exists( 'total_revenue', $res['summary'] ) ) {

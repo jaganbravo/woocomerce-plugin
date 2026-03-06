@@ -196,6 +196,32 @@ class Dataviz_AI_AJAX_Handler {
 	protected function normalize_intent_from_question( $question, array $validated_intent ) {
 		$q = (string) $question;
 
+		// Coupon usage in a period: route to coupon statistics so PHP can aggregate from orders.
+		// Example: "Show me all coupons that have been used in the last month."
+		if (
+			preg_match( '/\bcoupons?\b/i', $q )
+			&& preg_match( '/\bused\b/i', $q )
+			&& preg_match( '/\blast\s+month\b/i', $q )
+		) {
+			$validated_intent['entity']    = 'coupons';
+			$validated_intent['operation'] = 'statistics';
+			// Resolve "last month" deterministically.
+			$current_year  = (int) current_time( 'Y' );
+			$current_month = (int) current_time( 'm' );
+			if ( $current_month === 1 ) {
+				$last_month = 12;
+				$last_year  = $current_year - 1;
+			} else {
+				$last_month = $current_month - 1;
+				$last_year  = $current_year;
+			}
+			$from = sprintf( '%04d-%02d-01', $last_year, $last_month );
+			$last_day_timestamp = strtotime( $from . ' +1 month -1 day' );
+			$validated_intent['filters']['date_from'] = $from;
+			$validated_intent['filters']['date_to']   = date( 'Y-m-d', $last_day_timestamp );
+			return $validated_intent;
+		}
+
 		// Tag count questions should route to tags list so we can use the tag term count.
 		// Example: "How many products have the tag 'New Arrival'?"
 		if (
@@ -2644,7 +2670,7 @@ class Dataviz_AI_AJAX_Handler {
 				return $this->handle_tags_query( $filters );
 
 			case 'coupons':
-				return $this->handle_coupons_query( $filters );
+				return $this->handle_coupons_query( $query_type, $filters );
 
 			case 'refunds':
 				return $this->handle_refunds_query( $filters );
@@ -2870,10 +2896,15 @@ class Dataviz_AI_AJAX_Handler {
 	/**
 	 * Handle coupons queries.
 	 *
+	 * @param string $query_type Query type.
 	 * @param array $filters Filters.
 	 * @return array|WP_Error
 	 */
-	protected function handle_coupons_query( array $filters ) {
+	protected function handle_coupons_query( $query_type, array $filters ) {
+		$query_type = (string) $query_type;
+		if ( $query_type === 'statistics' && ( isset( $filters['date_from'] ) || isset( $filters['date_to'] ) ) ) {
+			return $this->data_fetcher->get_coupon_usage( $filters );
+		}
 		return $this->data_fetcher->get_coupons( $filters );
 	}
 

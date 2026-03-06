@@ -316,6 +316,8 @@ class Dataviz_AI_Prompt_Template {
 			'- \"Sales by category\": entity=orders, operation=statistics, dimensions includes category.\n' .
 			'- \"Out of stock\": entity=stock, filters.stock_status=\"outofstock\".\n' .
 			'- \"Low stock\": entity=stock, filters.stock_threshold=10 unless the user provided a number.\n' .
+			'- Discounts/coupons questions (e.g., \"What discounts are currently active?\" / \"Show me coupons\"): entity=coupons, operation=list.\n' .
+			'- Coupon usage questions (e.g., \"coupons used in the last month\"): entity=coupons, operation=statistics. If the question says \"last month\", use date_range.preset=\"last_month\".\n' .
 			'- Tag count questions (e.g., \"How many products have the tag \\\"New Arrival\\\"?\"): entity=tags, operation=list.\n' .
 			'- Product category listing (e.g., \"What categories do my products belong to?\"): entity=categories, operation=list.\n' .
 			'- \"Top customers\" or \"total spend by customers\": entity=customers, operation=statistics, filters.sort_by=\"total_spent\", filters.group_by=\"customer\". If question says \"last year\", use date_range.preset=\"last_year\".\n' .
