@@ -310,6 +310,14 @@ class Dataviz_AI_Onboarding {
 				<h2><?php esc_html_e( 'Welcome to Dataviz AI for WooCommerce!', 'dataviz-ai-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
+				<?php
+				$screenshot_url = content_url( 'uploads/dataviz-ai-screenshot.png' );
+				if ( file_exists( WP_CONTENT_DIR . '/uploads/dataviz-ai-screenshot.png' ) ) :
+					?>
+					<p class="dataviz-ai-onboarding-screenshot">
+						<img src="<?php echo esc_url( $screenshot_url ); ?>" alt="<?php esc_attr_e( 'Dataviz AI plugin interface', 'dataviz-ai-woocommerce' ); ?>" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 1em;" />
+					</p>
+				<?php endif; ?>
 				<p class="dataviz-ai-onboarding-intro">
 					<?php esc_html_e( 'Transform your store data into actionable insights with AI-powered analytics.', 'dataviz-ai-woocommerce' ); ?>
 				</p>

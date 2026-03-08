@@ -1,65 +1,61 @@
-# WooCommerce Extension Plugin
+# Pirate Fighter - 2D Anime-Style Action Game
 
-A template/starter plugin for creating WooCommerce extensions.
+A colorful anime-style pirate action fighting game built with Godot Engine 4.2.
+
+## Project Structure
+
+```
+├── Scenes/           # All .tscn scene files
+│   ├── Main.tscn
+│   ├── CharacterSelection.tscn
+│   ├── Player.tscn
+│   ├── Enemy.tscn
+│   └── GameScene.tscn
+├── Scripts/          # All GDScript files
+│   ├── Main.gd
+│   ├── CharacterData.gd
+│   ├── CharacterSelection.gd
+│   ├── Player.gd
+│   ├── Enemy.gd
+│   ├── CameraFollow.gd
+│   └── GameManager.gd
+├── Assets/           # Game assets
+│   ├── Characters/   # 10 pirate character sprites
+│   ├── Accessories/  # Hats, Weapons, Coats
+│   └── Enemies/      # Enemy sprites
+└── UI/               # UI elements
+
+```
 
 ## Features
 
-- ✅ Proper WooCommerce dependency checking
-- ✅ Custom product fields
-- ✅ Custom checkout fields
-- ✅ Custom cart fees
-- ✅ Admin and frontend script/style enqueuing
-- ✅ Internationalization ready
-- ✅ Security best practices
-- ✅ Plugin activation/deactivation hooks
+- 10 playable pirate characters with unique stats
+- Character selection screen
+- Accessory system (hat, weapon, coat) that changes character appearance
+- Core gameplay: movement, jump, basic attack, special attack
+- Health system
+- 3 enemy types with AI
+- Smooth follow camera
+- Colorful anime-style visuals with cel shading
 
-## Installation
+## Controls
 
-1. Upload the plugin files to `/wp-content/plugins/woocommerce-extension-example/`
-2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Ensure WooCommerce is installed and activated
+- **A/Left Arrow**: Move left
+- **D/Right Arrow**: Move right
+- **Space/W**: Jump
+- **X/Left Mouse**: Basic attack
+- **Z/Right Mouse**: Special attack
 
-## Requirements
+## Setup
 
 - WordPress 5.8 or higher
 - PHP 8.3 or higher
 - WooCommerce 5.0 or higher
 
-## Development
+## Character Data
 
-### File Structure
-
-```
-woocommerce-extension-example/
-├── woocommerce-extension-example.php (main plugin file)
-├── includes/
-│   ├── class-wce-admin.php (admin functionality)
-│   └── class-wce-frontend.php (frontend functionality)
-├── assets/
-│   ├── css/
-│   │   ├── admin.css
-│   │   └── frontend.css
-│   └── js/
-│       ├── admin.js
-│       └── frontend.js
-├── languages/ (for translations)
-├── README.md
-└── PLUGIN_GUIDE.md
-```
-
-### Customization
-
-1. Rename the plugin folder and main file
-2. Update plugin header in main file
-3. Update constants and class names
-4. Customize functionality as needed
-5. Add your own hooks and filters
-
-## License
-
-GPL v2 or later
-
-## Support
-
-For support, please contact the plugin author.
-
+Each character has:
+- Unique health, speed, jump force
+- Unique attack and special attack damage
+- Unique cooldown timers
+- Unique sprite and accessories

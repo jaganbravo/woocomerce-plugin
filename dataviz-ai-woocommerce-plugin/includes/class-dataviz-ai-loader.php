@@ -118,6 +118,7 @@ class Dataviz_AI_Loader {
 	protected function define_admin_hooks() {
 		add_action( 'admin_menu', array( $this->admin, 'register_menu_page' ) );
 		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_assets' ) );
+		add_action( 'admin_notices', array( $this->admin, 'hide_woocommerce_incompatibility_notice' ), 999 );
 		$this->onboarding->init();
 	}
 
