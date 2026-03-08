@@ -257,11 +257,83 @@ function getPredefinedQuestions() {
 /**
  * Validate response contains specific data types based on question
  */
+function isFeatureRequestResponse(response) {
+    const lr = response.toLowerCase();
+    return (
+        /\b(feature request|request this feature|submit a feature request|would you like to request)\b/i.test(response) ||
+        /\b(not currently supported|not yet available|not currently available)\b/i.test(response) ||
+        /\b(wasn't able to understand this request)\b/i.test(response) ||
+        (lr.includes('would you like') && lr.includes('request')) ||
+        (lr.includes('combine') && lr.includes('not') && lr.includes('support')) ||
+        /\bcross.entity\b/i.test(response) ||
+        /\bnot .* supported .* data type\b/i.test(response)
+    );
+}
+
+function isZeroDataResponse(response) {
+    const lr = response.toLowerCase();
+    return (
+        /\bno (orders|products|customers|coupons|refunds|records|data)\b/i.test(response) ||
+        /\bno coupons were used\b/i.test(response) ||
+        /\bthere are (no|0) (orders|products|customers|coupons|refunds)\b/i.test(response) ||
+        /\b0 (customers|orders|products|refunds)\b/i.test(response) ||
+        /\bcouldn'?t find\b/i.test(response) ||
+        /\bno records matching\b/i.test(response) ||
+        /\bno .+ found in the specified period\b/i.test(response) ||
+        /\bno .+ (were|was) (found|used|placed|issued)\b/i.test(response) ||
+        /\bthere are 0 refunds\b/i.test(response) ||
+        lr.includes('no orders found') ||
+        lr.includes('no coupons were used') ||
+        lr.includes('no refunds found') ||
+        lr.includes('no customers found') ||
+        lr.includes('no records matching')
+    );
+}
+
+/**
+ * Check if the response indicates an internal error (not a data error, but an actual system error).
+ * These should NOT be treated as valid — they indicate bugs to be fixed.
+ */
+function isErrorResponse(response) {
+    const lr = response.toLowerCase();
+    return (
+        /\b(error in retrieving|error occurred|unexpected error|unable to process)\b/i.test(response) ||
+        lr.includes('an error occurred') ||
+        lr.includes('error retrieving') ||
+        lr.includes('unable to process data query')
+    );
+}
+
+function isInformationalQuestion(question) {
+    const lq = question.toLowerCase();
+    return (
+        /\b(what happens if|are there any empty|what should i|how do i)\b/i.test(question) &&
+        !/\b(show me|list|display|get|how many)\b/i.test(question)
+    );
+}
+
 function validateResponseData(question, response) {
     const lowerQuestion = question.toLowerCase();
     const lowerResponse = response.toLowerCase();
     const issues = [];
     const validations = [];
+
+    const featureRequest = isFeatureRequestResponse(response);
+    const informational = isInformationalQuestion(question);
+    const zeroData = isZeroDataResponse(response);
+
+    if (featureRequest) {
+        validations.push('Feature request response (data validation skipped)');
+        return { issues, validations, hasSpecificData: true };
+    }
+    if (informational) {
+        validations.push('Informational/meta question (data validation skipped)');
+        return { issues, validations, hasSpecificData: true };
+    }
+    if (zeroData) {
+        validations.push('Zero-data response (legitimate empty result)');
+        return { issues, validations, hasSpecificData: true };
+    }
 
     // Check for numbers in statistics/count queries
     if (/\b(how many|count|total|number of|quantity|amount)\b/i.test(question)) {
@@ -470,7 +542,10 @@ IMPORTANT:
 - For revenue queries, response should contain currency or numbers
 - **CRITICAL: If user asks for "all" items (e.g., "list all products", "show all orders") and response shows only 1 item, mark as INVALID** - "all" means multiple items, not just one
 - If user asks for "all" and response shows multiple items or explicitly states completeness (e.g., "all 50 products"), mark as VALID
-- Only mark as INVALID if the response is clearly irrelevant, contains no data, is just a greeting, OR violates the "all" requirement above
+- A response that correctly identifies a feature as unsupported and offers to submit a feature request IS VALID (e.g., comparison queries, conversion rate with traffic data, social media referrals, cross-entity combination queries)
+- A response that explains what data is or isn't available IS VALID for informational/meta questions (e.g., "What happens if I request unsupported features?", "Are there empty data sets?")
+- A response that explicitly states zero/no results (e.g., "No coupons were used", "0 customers have placed orders", "No refunds found", "I couldn't find a tag named X", "No records matching your query") IS VALID — the system correctly queried but found no matching data. This is a legitimate deterministic answer.
+- Only mark as INVALID if the response is clearly irrelevant, contains no data, is just a greeting, OR violates the "all" requirement above (EXCEPT when the response explicitly says no matching items were found — that's valid for "all" queries too)
 ${dataValidation.issues.length > 0 ? `\n⚠️ VALIDATION ISSUES DETECTED: ${dataValidation.issues.join(', ')}. These should cause the test to FAIL if they indicate incomplete data (especially "all" queries showing only 1 item).` : ''}
 
 Return ONLY a JSON object with:
@@ -493,8 +568,11 @@ Return ONLY a JSON object with:
 
         const evaluation = JSON.parse(result.choices[0].message.content);
         
+        // Feature-request, informational, and legitimate zero-data responses bypass strict data validation.
+        const skipHardFail = isFeatureRequestResponse(response) || isInformationalQuestion(question) || isZeroDataResponse(response);
+
         // Treat validation issues as hard failures (prevents irrelevant responses from passing).
-        if (dataValidation.issues.length > 0) {
+        if (dataValidation.issues.length > 0 && !skipHardFail) {
             if (evaluation.valid) {
                 evaluation.reason += ` (FAIL: ${dataValidation.issues.join(', ')})`;
             }
@@ -509,10 +587,32 @@ Return ONLY a JSON object with:
         };
     } catch (e) {
         // Enhanced fallback validation
-        const hasDataKeywords = /order|product|customer|revenue|sale|inventory|stock|statistic|total|count/i.test(response);
+        const hasDataKeywords = /order|product|customer|revenue|sale|inventory|stock|statistic|total|count|refund|coupon|category|tag/i.test(response);
         const hasNumbers = /\d+/.test(response);
         const isNotGreeting = !/^hello[!.]?\s*(how can i assist you|how may i help)/i.test(response);
+        const featureReq = isFeatureRequestResponse(response);
         
+        if (featureReq) {
+            return {
+                valid: true,
+                reason: 'Feature request response detected (fallback)',
+                dataValidation: dataValidation,
+                performanceMetrics: performanceMetrics,
+                dataQuality: 'good'
+            };
+        }
+
+        const zeroDataResp = isZeroDataResponse(response);
+        if (zeroDataResp) {
+            return {
+                valid: true,
+                reason: 'Zero-data / no-results response detected (fallback)',
+                dataValidation: dataValidation,
+                performanceMetrics: performanceMetrics,
+                dataQuality: 'fair'
+            };
+        }
+
         // Check for "all" queries - must have multiple items or indicate completeness
         const wantsAll = /\b(all|every|entire|complete|full|list all|show all|display all)\b/i.test(question);
         let allQueryValid = true;

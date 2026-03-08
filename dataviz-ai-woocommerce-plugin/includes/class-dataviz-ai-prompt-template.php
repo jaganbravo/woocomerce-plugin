@@ -294,14 +294,15 @@ class Dataviz_AI_Prompt_Template {
 			'  \"metrics\": [\"total_revenue\"|\"total_orders\"|\"avg_order_value\"|\"unique_customers\"|\"top_products\"],\n' .
 			'  \"dimensions\": [\"status\"|\"category\"|\"customer\"|\"day\"|\"week\"|\"month\"|\"hour\"],\n' .
 			'  \"filters\": {\n' .
-			'    \"date_range\": {\"from\": \"YYYY-MM-DD\"|null, \"to\": \"YYYY-MM-DD\"|null, \"preset\": \"today\"|\"yesterday\"|\"this_week\"|\"last_week\"|\"this_month\"|\"last_month\"|\"this_year\"|\"last_year\"|\"last_quarter\"|null},\n' .
+			'    \"date_range\": {\"from\": \"YYYY-MM-DD\"|null, \"to\": \"YYYY-MM-DD\"|null, \"preset\": \"today\"|\"yesterday\"|\"this_week\"|\"last_week\"|\"this_month\"|\"last_month\"|\"this_year\"|\"last_year\"|\"last_quarter\"|\"last_N_days\"|\"last_N_months\"|\"last_N_weeks\"|null},\n' .
 			'    \"status\": string|null,\n' .
 			'    \"limit\": integer|null,\n' .
 			'    \"sort_by\": \"total_spent\"|\"order_count\"|null,\n' .
 			'    \"group_by\": \"customer\"|\"category\"|null,\n' .
 			'    \"min_orders\": integer|null,\n' .
 			'    \"stock_status\": \"instock\"|\"outofstock\"|\"onbackorder\"|null,\n' .
-			'    \"stock_threshold\": integer|null\n' .
+			'    \"stock_threshold\": integer|null,\n' .
+			'    \"category_name\": string|null\n' .
 			'  },\n' .
 			'  \"confidence\": \"low\"|\"medium\"|\"high\",\n' .
 			'  \"draft_answer\": string|null\n' .
@@ -311,6 +312,8 @@ class Dataviz_AI_Prompt_Template {
 			'- If the question is NOT asking for WooCommerce data (e.g., weather), set requires_data=false and set entity=\"orders\" and operation=\"list\" as safe defaults.\n' .
 			'- Use presets for relative time like \"this month\" when possible.\n' .
 			'- For questions like \"in the last 30 days\" or \"last 7 days\", set date_range.preset to \"last_30_days\" / \"last_7_days\" and set from/to to null.\n' .
+			'- For \"last N months\" (e.g., \"last 6 months\", \"last six months\"), set date_range.preset to \"last_6_months\" / \"last_N_months\" (replace N with the number) and set from/to to null.\n' .
+			'- For \"last N weeks\" (e.g., \"last 2 weeks\"), set date_range.preset to \"last_2_weeks\" / \"last_N_weeks\" and set from/to to null.\n' .
 			'- For \"last quarter\", set date_range.preset to \"last_quarter\" and set from/to to null.\n' .
 			'- Revenue questions: entity=orders, operation=statistics, metrics includes total_revenue.\n' .
 			'- \"Sales by category\": entity=orders, operation=statistics, dimensions includes category.\n' .
@@ -320,7 +323,12 @@ class Dataviz_AI_Prompt_Template {
 			'- Coupon usage questions (e.g., \"coupons used in the last month\"): entity=coupons, operation=statistics. If the question says \"last month\", use date_range.preset=\"last_month\".\n' .
 			'- Tag count questions (e.g., \"How many products have the tag \\\"New Arrival\\\"?\"): entity=tags, operation=list.\n' .
 			'- Product category listing (e.g., \"What categories do my products belong to?\"): entity=categories, operation=list.\n' .
+			'- Products by category (e.g., \"Show me products under the Electronics category\"): entity=products, operation=list, filters.category_name=\"Electronics\".\n' .
+			'- Refund questions (e.g., \"How many refunds this year?\", \"Show me refunds\"): entity=refunds, operation=list. Use date_range preset if time period is specified.\n' .
+			'- Chart / graph / visualization with monthly data: entity=orders, operation=by_period, dimensions includes \"month\".\n' .
+			'- Chart / graph with daily data: entity=orders, operation=by_period, dimensions includes \"day\".\n' .
 			'- \"Top customers\" or \"total spend by customers\": entity=customers, operation=statistics, filters.sort_by=\"total_spent\", filters.group_by=\"customer\". If question says \"last year\", use date_range.preset=\"last_year\".\n' .
+			'- Customer queries mentioning \"location\" or \"sorted by location\": entity=customers, operation=list. Do NOT use sort_by=\"location\" (unsupported).\n' .
 			'- draft_answer can be a brief best-effort sentence, but MUST NOT claim to fetch data or mention tools.\n\n' .
 			'User question: \"{question}\"',
 			array( 'question' => '' )

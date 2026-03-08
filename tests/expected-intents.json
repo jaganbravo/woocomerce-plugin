@@ -66,6 +66,28 @@
     "requires_data": true,
     "entity": "coupons",
     "operation": "statistics"
+  },
+  "How many refunds have been issued this year?": {
+    "requires_data": true,
+    "entity": "refunds",
+    "operation": "list"
+  },
+  "Show me products under the 'Electronics' category.": {
+    "requires_data": true,
+    "entity": "products",
+    "operation": "list"
+  },
+  "Generate a bar chart showing monthly revenue for the last six months.": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "by_period"
+  },
+  "List all customers sorted by location.": {
+    "requires_data": true,
+    "entity": "customers"
+  },
+  "What is the current inventory distribution across categories?": {
+    "requires_data": true,
+    "entity": "inventory"
   }
 }
-

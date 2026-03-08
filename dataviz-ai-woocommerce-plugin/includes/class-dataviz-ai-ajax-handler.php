@@ -105,6 +105,117 @@ class Dataviz_AI_AJAX_Handler {
 			}
 		}
 
+		// Handle "last N months" / "in the last N months" (digits or common English words).
+		$q_months = (string) $question;
+		$q_months = preg_replace_callback(
+			'/\blast\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+months?\b/i',
+			function ( $wm ) {
+				$map = array( 'one' => 1, 'two' => 2, 'three' => 3, 'four' => 4, 'five' => 5, 'six' => 6, 'seven' => 7, 'eight' => 8, 'nine' => 9, 'ten' => 10, 'eleven' => 11, 'twelve' => 12 );
+				$n = $map[ strtolower( $wm[1] ) ] ?? 0;
+				return 'last ' . $n . ' months';
+			},
+			$q_months
+		);
+		if ( preg_match( '/\b(?:in\s+the\s+)?last\s+(\d+)\s+months?\b/i', $q_months, $m ) ) {
+			$months = (int) $m[1];
+			$months = max( 1, min( 120, $months ) );
+
+			$needs_override = empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] );
+			if ( ! $needs_override ) {
+				$current_year = (int) current_time( 'Y' );
+				$from_year = (int) substr( (string) ( $validated_intent['filters']['date_from'] ?? '' ), 0, 4 );
+				if ( $from_year < ( $current_year - 1 ) ) {
+					$needs_override = true;
+				}
+			}
+			if ( $needs_override ) {
+				$now    = current_time( 'timestamp' );
+				$from_ts = strtotime( sprintf( '-%d months', $months ), $now );
+				$validated_intent['filters']['date_from'] = date( 'Y-m-d', $from_ts );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			}
+		}
+
+		// Handle "last N weeks" / "in the last N weeks" (digits or common English words).
+		$q_weeks = (string) $question;
+		$q_weeks = preg_replace_callback(
+			'/\blast\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+weeks?\b/i',
+			function ( $wm ) {
+				$map = array( 'one' => 1, 'two' => 2, 'three' => 3, 'four' => 4, 'five' => 5, 'six' => 6, 'seven' => 7, 'eight' => 8, 'nine' => 9, 'ten' => 10, 'eleven' => 11, 'twelve' => 12 );
+				$n = $map[ strtolower( $wm[1] ) ] ?? 0;
+				return 'last ' . $n . ' weeks';
+			},
+			$q_weeks
+		);
+		if ( preg_match( '/\b(?:in\s+the\s+)?last\s+(\d+)\s+weeks?\b/i', $q_weeks, $m ) ) {
+			$weeks = (int) $m[1];
+			$weeks = max( 1, min( 520, $weeks ) );
+
+			$needs_override = empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] );
+			if ( ! $needs_override ) {
+				$current_year = (int) current_time( 'Y' );
+				$from_year = (int) substr( (string) ( $validated_intent['filters']['date_from'] ?? '' ), 0, 4 );
+				if ( $from_year < ( $current_year - 1 ) ) {
+					$needs_override = true;
+				}
+			}
+			if ( $needs_override ) {
+				$now = current_time( 'timestamp' );
+				$validated_intent['filters']['date_from'] = date( 'Y-m-d', $now - ( $weeks * 7 * DAY_IN_SECONDS ) );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			}
+		}
+
+		// Handle "this week" deterministically.
+		if ( preg_match( '/\bthis\s+week\b/i', (string) $question ) ) {
+			$needs_override = empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] );
+			if ( $needs_override ) {
+				$now = current_time( 'timestamp' );
+				$week_start = strtotime( 'monday this week', $now );
+				$validated_intent['filters']['date_from'] = date( 'Y-m-d', $week_start );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			}
+		}
+
+		// Handle "this year" deterministically.
+		if ( preg_match( '/\bthis\s+year\b/i', (string) $question ) ) {
+			$needs_override = empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] );
+			if ( $needs_override ) {
+				$now = current_time( 'timestamp' );
+				$validated_intent['filters']['date_from'] = date( 'Y-01-01', $now );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			}
+		}
+
+		// Handle "this month" deterministically.
+		if ( preg_match( '/\bthis\s+month\b/i', (string) $question ) ) {
+			$needs_override = empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] );
+			if ( $needs_override ) {
+				$now = current_time( 'timestamp' );
+				$validated_intent['filters']['date_from'] = date( 'Y-m-01', $now );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			}
+		}
+
+		// Handle "last month" deterministically.
+		if ( preg_match( '/\blast\s+month\b/i', (string) $question ) && ! preg_match( '/\blast\s+\d+\s+months?\b/i', (string) $question ) ) {
+			$needs_override = empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] );
+			if ( $needs_override ) {
+				$current_year  = (int) current_time( 'Y' );
+				$current_month = (int) current_time( 'm' );
+				if ( $current_month === 1 ) {
+					$lm = 12;
+					$ly = $current_year - 1;
+				} else {
+					$lm = $current_month - 1;
+					$ly = $current_year;
+				}
+				$from = sprintf( '%04d-%02d-01', $ly, $lm );
+				$validated_intent['filters']['date_from'] = $from;
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', strtotime( $from . ' +1 month -1 day' ) );
+			}
+		}
+
 		// Handle "last quarter" deterministically.
 		if ( preg_match( '/\blast\s+quarter\b/i', (string) $question ) ) {
 			$has_dates = ! empty( $validated_intent['filters']['date_from'] ) && ! empty( $validated_intent['filters']['date_to'] );
@@ -186,6 +297,56 @@ class Dataviz_AI_AJAX_Handler {
 	}
 
 	/**
+	 * Detect complex cross-entity queries that require combining multiple data sources.
+	 *
+	 * @param string $question Question.
+	 * @return bool
+	 */
+	protected function is_cross_entity_question( $question ) {
+		$q = strtolower( (string) $question );
+		if ( preg_match( '/\bcombine\b/i', $question ) ) {
+			$entities = array( 'sales', 'order', 'customer', 'product', 'category', 'inventory' );
+			$found = 0;
+			foreach ( $entities as $e ) {
+				if ( strpos( $q, $e ) !== false ) {
+					$found++;
+				}
+			}
+			return $found >= 2;
+		}
+		return false;
+	}
+
+	/**
+	 * Detect questions that require external data sources not available in WooCommerce.
+	 *
+	 * @param string $question Question.
+	 * @return string|false The unsupported entity keyword, or false.
+	 */
+	protected function get_unsupported_data_source( $question ) {
+		$q = strtolower( (string) $question );
+
+		$external_sources = array(
+			'social media referral'  => 'social_media_referrals',
+			'social media'           => 'social_media_analytics',
+			'referral'               => 'referral_analytics',
+			'affiliate'              => 'affiliate_data',
+			'google analytics'       => 'google_analytics',
+			'advertising'            => 'advertising_data',
+			'ad spend'               => 'advertising_data',
+			'email campaign'         => 'email_campaigns',
+			'seo'                    => 'seo_analytics',
+		);
+
+		foreach ( $external_sources as $keyword => $entity ) {
+			if ( strpos( $q, $keyword ) !== false ) {
+				return $entity;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Normalize high-level intent from question when the intent parser misclassifies.
 	 * PHP remains source of truth for critical routing decisions.
 	 *
@@ -195,6 +356,28 @@ class Dataviz_AI_AJAX_Handler {
 	 */
 	protected function normalize_intent_from_question( $question, array $validated_intent ) {
 		$q = (string) $question;
+
+		// "Total revenue to date" / "generated to date" — all-time order statistics with no date filter.
+		if (
+			preg_match( '/\b(revenue|sales)\b/i', $q )
+			&& preg_match( '/\bto\s+date\b/i', $q )
+		) {
+			$validated_intent['entity']    = 'orders';
+			$validated_intent['operation'] = 'statistics';
+			unset( $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] );
+			return $validated_intent;
+		}
+
+		// Inventory distribution / across categories → inventory entity.
+		if (
+			preg_match( '/\binventory\b/i', $q )
+			&& preg_match( '/\b(distribution|across|by)\b/i', $q )
+			&& preg_match( '/\bcategor/i', $q )
+		) {
+			$validated_intent['entity']    = 'inventory';
+			$validated_intent['operation'] = 'list';
+			return $validated_intent;
+		}
 
 		// Coupon usage in a period: route to coupon statistics so PHP can aggregate from orders.
 		// Example: "Show me all coupons that have been used in the last month."
@@ -236,10 +419,105 @@ class Dataviz_AI_AJAX_Handler {
 
 		// Product categories listing should route to categories list deterministically.
 		// Example: "What categories do my products belong to?"
-		if ( preg_match( '/\bcategor(y|ies)\b/i', $q ) && preg_match( '/\bproducts?\b/i', $q ) ) {
+		if (
+			preg_match( '/\bcategor(y|ies)\b/i', $q )
+			&& preg_match( '/\bproducts?\b/i', $q )
+			&& ! preg_match( '/\bunder\b|\bfrom\b|\bin\s+the\b/i', $q )
+		) {
 			$validated_intent['entity']    = 'categories';
 			$validated_intent['operation'] = 'list';
 			return $validated_intent;
+		}
+
+		// Products under/in a specific category: extract category_name.
+		// Example: "Show me products under the 'Electronics' category."
+		if (
+			preg_match( '/\bproducts?\b/i', $q )
+			&& preg_match( '/\b(under|in|from|of)\s+(the\s+)?[\'"]?([A-Za-z][A-Za-z0-9 &-]+)[\'"]?\s*(category|categories)?\b/i', $q, $cat_m )
+		) {
+			$cat_name = trim( $cat_m[3] );
+			if ( $cat_name !== '' ) {
+				$validated_intent['entity']    = 'products';
+				$validated_intent['operation'] = 'list';
+				$validated_intent['filters']['category_name'] = $cat_name;
+				if ( empty( $validated_intent['filters']['limit'] ) ) {
+					$validated_intent['filters']['limit'] = -1;
+				}
+				return $validated_intent;
+			}
+		}
+
+		// "How many pending/processing/completed/... orders" → order statistics with status filter.
+		if (
+			preg_match( '/\b(how\s+many|count|number\s+of|total)\b/i', $q )
+			&& preg_match( '/\b(orders?)\b/i', $q )
+			&& preg_match( '/\b(pending|processing|completed|on[\s-]?hold|cancelled|canceled|refunded|failed)\b/i', $q, $st_m )
+		) {
+			$validated_intent['entity']    = 'orders';
+			$validated_intent['operation'] = 'statistics';
+			$raw_status = strtolower( $st_m[1] );
+			$raw_status = preg_replace( '/^on\s+hold$/', 'on-hold', $raw_status );
+			$raw_status = str_replace( 'canceled', 'cancelled', $raw_status );
+			$validated_intent['filters']['status'] = $raw_status;
+			return $validated_intent;
+		}
+
+		// Refund count / list queries.
+		if ( preg_match( '/\b(refund|refunds|returns?)\b/i', $q ) ) {
+			$validated_intent['entity']    = 'refunds';
+			$validated_intent['operation'] = 'list';
+
+			// Deterministic date handling for refund questions.
+			if ( preg_match( '/\bthis\s+year\b/i', $q ) ) {
+				$now = current_time( 'timestamp' );
+				$validated_intent['filters']['date_from'] = date( 'Y-01-01', $now );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			} elseif ( preg_match( '/\blast\s+month\b/i', $q ) ) {
+				$current_year  = (int) current_time( 'Y' );
+				$current_month = (int) current_time( 'm' );
+				if ( $current_month === 1 ) {
+					$lm = 12;
+					$ly = $current_year - 1;
+				} else {
+					$lm = $current_month - 1;
+					$ly = $current_year;
+				}
+				$from = sprintf( '%04d-%02d-01', $ly, $lm );
+				$validated_intent['filters']['date_from'] = $from;
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', strtotime( $from . ' +1 month -1 day' ) );
+			} elseif ( preg_match( '/\bthis\s+month\b/i', $q ) ) {
+				$now = current_time( 'timestamp' );
+				$validated_intent['filters']['date_from'] = date( 'Y-m-01', $now );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			}
+			return $validated_intent;
+		}
+
+		// "How many customers placed/have placed orders" → customer statistics.
+		if (
+			preg_match( '/\b(how\s+many|count|number\s+of)\b/i', $q )
+			&& preg_match( '/\bcustomers?\b/i', $q )
+			&& preg_match( '/\b(placed|made|submitted)\b/i', $q )
+		) {
+			$validated_intent['entity']    = 'customers';
+			$validated_intent['operation'] = 'statistics';
+			$validated_intent['filters']['sort_by']  = 'total_spent';
+			$validated_intent['filters']['group_by'] = 'customer';
+			if ( empty( $validated_intent['filters']['limit'] ) ) {
+				$validated_intent['filters']['limit'] = -1;
+			}
+		}
+
+		// Order totals / breakdown by status: ensure entity=orders, operation=statistics, dimensions=['status'].
+		if (
+			preg_match( '/\border\b/i', $q )
+			&& preg_match( '/\b(by\s+status|status(es)?)\b/i', $q )
+		) {
+			$validated_intent['entity']    = 'orders';
+			$validated_intent['operation'] = 'statistics';
+			if ( ! in_array( 'status', $validated_intent['dimensions'] ?? array(), true ) ) {
+				$validated_intent['dimensions'][] = 'status';
+			}
 		}
 
 		// Top customers / total spend queries should route to customers statistics.
@@ -252,12 +530,50 @@ class Dataviz_AI_AJAX_Handler {
 				$validated_intent['filters']['limit'] = 10;
 			}
 
-			// Handle "last year" deterministically.
+			// Handle date ranges deterministically.
 			if ( preg_match( '/\blast\s+year\b/i', $q ) ) {
-				$now = current_time( 'timestamp' );
 				$last_year = (int) current_time( 'Y' ) - 1;
 				$validated_intent['filters']['date_from'] = $last_year . '-01-01';
 				$validated_intent['filters']['date_to']   = $last_year . '-12-31';
+			} elseif ( preg_match( '/\bthis\s+year\b/i', $q ) ) {
+				$now = current_time( 'timestamp' );
+				$validated_intent['filters']['date_from'] = date( 'Y-01-01', $now );
+				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			}
+		}
+
+		// Top-selling / best-selling products should use the get_top_products tool.
+		if ( preg_match( '/\b(top[\s-]?sell|best[\s-]?sell|most[\s-]?sold|most[\s-]?popular)\w*\b/i', $q ) && preg_match( '/\bproducts?\b/i', $q ) ) {
+			$validated_intent['entity']    = 'products';
+			$validated_intent['operation'] = 'list';
+			if ( ! in_array( 'top_products', $validated_intent['metrics'] ?? array(), true ) ) {
+				$validated_intent['metrics'][] = 'top_products';
+			}
+			if ( empty( $validated_intent['filters']['limit'] ) ) {
+				$validated_intent['filters']['limit'] = 10;
+			}
+		}
+
+		// Chart / visualization queries with monthly revenue.
+		// Example: "Generate a bar chart showing monthly revenue for the last six months."
+		if ( preg_match( '/\b(chart|graph|visualiz|overview)\b/i', $q ) && preg_match( '/\bmonth(ly|s)?\b/i', $q ) ) {
+			if ( preg_match( '/\b(revenue|sales|order)\b/i', $q ) ) {
+				$validated_intent['entity']    = 'orders';
+				$validated_intent['operation'] = 'by_period';
+				if ( ! in_array( 'month', $validated_intent['dimensions'] ?? array(), true ) ) {
+					$validated_intent['dimensions'][] = 'month';
+				}
+			}
+		}
+
+		// Chart queries with daily order counts.
+		if ( preg_match( '/\b(chart|graph|visualiz)\b/i', $q ) && preg_match( '/\bdail(y|ies)\b/i', $q ) ) {
+			if ( preg_match( '/\border\b/i', $q ) ) {
+				$validated_intent['entity']    = 'orders';
+				$validated_intent['operation'] = 'by_period';
+				if ( ! in_array( 'day', $validated_intent['dimensions'] ?? array(), true ) ) {
+					$validated_intent['dimensions'][] = 'day';
+				}
 			}
 		}
 
@@ -631,6 +947,13 @@ class Dataviz_AI_AJAX_Handler {
 				'operation'     => 'feature_request',
 			);
 			$tool_calls = array( $this->build_feature_request_tool_call( 'comparisons' ) );
+		} elseif ( $this->is_cross_entity_question( $question ) ) {
+			$validated_intent = array(
+				'requires_data' => true,
+				'entity'        => 'cross_entity_analysis',
+				'operation'     => 'feature_request',
+			);
+			$tool_calls = array( $this->build_feature_request_tool_call( 'cross_entity_analysis' ) );
 		} elseif ( $this->is_conversion_rate_question( $question ) ) {
 			$validated_intent = array(
 				'requires_data' => true,
@@ -638,6 +961,13 @@ class Dataviz_AI_AJAX_Handler {
 				'operation'     => 'feature_request',
 			);
 			$tool_calls = array( $this->build_feature_request_tool_call( 'conversion_rate' ) );
+		} elseif ( ( $unsupported_src = $this->get_unsupported_data_source( $question ) ) !== false ) {
+			$validated_intent = array(
+				'requires_data' => true,
+				'entity'        => $unsupported_src,
+				'operation'     => 'feature_request',
+			);
+			$tool_calls = array( $this->build_feature_request_tool_call( $unsupported_src ) );
 		} else {
 			// Normal data question: parse intent via LLM, validate, and build tool calls.
 			$intent_parse = $this->api_client->parse_intent( $question );
@@ -1646,6 +1976,13 @@ class Dataviz_AI_AJAX_Handler {
 				'operation'     => 'feature_request',
 			);
 			$tool_calls = array( $this->build_feature_request_tool_call( 'comparisons' ) );
+		} elseif ( $this->is_cross_entity_question( $question ) ) {
+			$validated_intent = array(
+				'requires_data' => true,
+				'entity'        => 'cross_entity_analysis',
+				'operation'     => 'feature_request',
+			);
+			$tool_calls = array( $this->build_feature_request_tool_call( 'cross_entity_analysis' ) );
 		} elseif ( $this->is_conversion_rate_question( $question ) ) {
 			$validated_intent = array(
 				'requires_data' => true,
@@ -1653,6 +1990,13 @@ class Dataviz_AI_AJAX_Handler {
 				'operation'     => 'feature_request',
 			);
 			$tool_calls = array( $this->build_feature_request_tool_call( 'conversion_rate' ) );
+		} elseif ( ( $unsupported_src = $this->get_unsupported_data_source( $question ) ) !== false ) {
+			$validated_intent = array(
+				'requires_data' => true,
+				'entity'        => $unsupported_src,
+				'operation'     => 'feature_request',
+			);
+			$tool_calls = array( $this->build_feature_request_tool_call( $unsupported_src ) );
 		} else {
 			// Normal data questions: parse intent via LLM (strict JSON), validate in PHP, execute tools in PHP.
 			$intent_parse = $this->api_client->parse_intent( $question );
@@ -2144,6 +2488,10 @@ class Dataviz_AI_AJAX_Handler {
 
 		if ( isset( $filters['category_id'] ) ) {
 			$sanitized['category_id'] = max( 0, (int) $filters['category_id'] );
+		}
+
+		if ( isset( $filters['category_name'] ) ) {
+			$sanitized['category_name'] = sanitize_text_field( $filters['category_name'] );
 		}
 
 		if ( isset( $filters['period'] ) ) {
@@ -2805,12 +3153,25 @@ class Dataviz_AI_AJAX_Handler {
 			$limit = 10;
 		}
 
+		// Resolve category_name to category_id if needed.
+		if ( ! isset( $filters['category_id'] ) && ! empty( $filters['category_name'] ) ) {
+			$cat_name = sanitize_text_field( $filters['category_name'] );
+			if ( function_exists( 'get_term_by' ) ) {
+				$term = get_term_by( 'name', $cat_name, 'product_cat' );
+				if ( ! $term || is_wp_error( $term ) ) {
+					$term = get_term_by( 'slug', sanitize_title( $cat_name ), 'product_cat' );
+				}
+				if ( $term && ! is_wp_error( $term ) ) {
+					$filters['category_id'] = (int) $term->term_id;
+				}
+			}
+		}
+
 		switch ( $query_type ) {
 			case 'list':
 			default:
 				if ( isset( $filters['category_id'] ) ) {
-					// For category queries, use category-specific method
-					$category_limit = $limit === -1 ? 500 : $limit; // Cap at 500 for categories
+					$category_limit = $limit === -1 ? 500 : $limit;
 					return $this->data_fetcher->get_products_by_category( (int) $filters['category_id'], $category_limit );
 				} else {
 					// Check if user wants "all" products or just top products
@@ -3461,6 +3822,11 @@ class Dataviz_AI_AJAX_Handler {
 				400
 			);
 		}
+
+		// Apply the same PHP-side normalization used in the real streaming/smart handlers
+		// so the debug endpoint reflects the actual intent that would be executed.
+		$validated_intent = $this->normalize_relative_date_ranges_from_question( $question, $validated_intent );
+		$validated_intent = $this->normalize_intent_from_question( $question, $validated_intent );
 
 		wp_send_json_success(
 			array(

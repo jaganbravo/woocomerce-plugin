@@ -1015,14 +1015,35 @@ class Dataviz_AI_Data_Fetcher {
 			return array();
 		}
 
-		$defaults = array(
+		$query_args = array(
 			'type'    => 'shop_order_refund',
 			'limit'   => isset( $args['limit'] ) ? (int) $args['limit'] : 50,
 			'orderby' => 'date',
 			'order'   => 'DESC',
 		);
 
-		$refunds = wc_get_orders( wp_parse_args( $args, $defaults ) );
+		$date_from = isset( $args['date_from'] ) ? sanitize_text_field( $args['date_from'] ) : null;
+		$date_to   = isset( $args['date_to'] ) ? sanitize_text_field( $args['date_to'] ) : null;
+
+		if ( $date_from && $date_to ) {
+			$from_ts = strtotime( $date_from . ' 00:00:00' );
+			$to_ts   = strtotime( $date_to . ' 23:59:59' );
+			if ( $from_ts && $to_ts ) {
+				$query_args['date_created'] = $from_ts . '...' . $to_ts;
+			}
+		} elseif ( $date_from ) {
+			$from_ts = strtotime( $date_from . ' 00:00:00' );
+			if ( $from_ts ) {
+				$query_args['date_created'] = '>=' . $from_ts;
+			}
+		} elseif ( $date_to ) {
+			$to_ts = strtotime( $date_to . ' 23:59:59' );
+			if ( $to_ts ) {
+				$query_args['date_created'] = '<=' . $to_ts;
+			}
+		}
+
+		$refunds = wc_get_orders( $query_args );
 
 		if ( empty( $refunds ) ) {
 			return array();

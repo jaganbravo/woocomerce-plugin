@@ -30,6 +30,14 @@ class Dataviz_AI_Intent_Classifier {
 			'conversion', 'conversion rate', 'cvr', 'traffic', 'visitors', 'sessions', 'pageviews',
 			// Discounts / coupons.
 			'discount', 'discounts', 'coupon', 'coupons', 'promo', 'promotion', 'promotions', 'promo code', 'promo codes',
+			// Refunds / returns.
+			'refund', 'refunds', 'return', 'returns', 'returned',
+			// Categories / tags.
+			'category', 'categories', 'tag', 'tags',
+			// Charts / visualizations.
+			'chart', 'graph', 'pie chart', 'bar chart', 'line chart', 'visualize', 'visualization',
+			// General analytics.
+			'metric', 'metrics', 'statistic', 'statistics', 'overview', 'report',
 		);
 		
 		$lower_question = strtolower( $question );

@@ -129,11 +129,18 @@ class Dataviz_AI_Answer_Composer {
 			$is_customer_stats = ( isset( $validated_intent['entity'], $validated_intent['operation'] ) && $validated_intent['entity'] === 'customers' && $validated_intent['operation'] === 'statistics' );
 			if ( $is_customer_stats && is_array( $res ) && ! isset( $res['error'] ) && isset( $res['customers'] ) && is_array( $res['customers'] ) ) {
 				if ( empty( $res['customers'] ) ) {
-					// Prefer tool message if present.
-					if ( isset( $res['message'] ) && is_string( $res['message'] ) && $res['message'] !== '' ) {
-						return $res['message'];
+					$period_text = '';
+					if ( isset( $res['date_range']['from'], $res['date_range']['to'] ) && $res['date_range']['from'] && $res['date_range']['to'] ) {
+						$period_text = sprintf(
+							' %s',
+							sprintf( __( 'from %s to %s', 'dataviz-ai-woocommerce' ), $res['date_range']['from'], $res['date_range']['to'] )
+						);
 					}
-					return __( 'No customers found matching the criteria.', 'dataviz-ai-woocommerce' );
+					$is_how_many = (bool) preg_match( '/\b(how\s+many|count|number\s+of)\b/i', (string) $question );
+					if ( $is_how_many ) {
+						return sprintf( __( '0 customers have placed orders%s.', 'dataviz-ai-woocommerce' ), $period_text );
+					}
+					return sprintf( __( 'No customers found with orders%s.', 'dataviz-ai-woocommerce' ), $period_text );
 				}
 
 				$lines = array();
@@ -227,11 +234,122 @@ class Dataviz_AI_Answer_Composer {
 				return $header . "\n" . implode( "\n", $lines );
 			}
 
+			// Refunds short-circuit.
+			$is_refunds = ( isset( $validated_intent['entity'] ) && $validated_intent['entity'] === 'refunds' );
+			if ( $is_refunds && is_array( $res ) ) {
+				$is_how_many_refunds = (bool) preg_match( '/\b(how\s+many|count|total|number\s+of)\b/i', (string) $question );
+
+				if ( empty( $res ) ) {
+					$period_text = '';
+					if ( isset( $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] ) ) {
+						$period_text = sprintf(
+							' %s',
+							sprintf( __( 'from %s to %s', 'dataviz-ai-woocommerce' ), $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] )
+						);
+					}
+					if ( $is_how_many_refunds ) {
+						return sprintf( __( 'There are 0 refunds%s.', 'dataviz-ai-woocommerce' ), $period_text );
+					}
+					return sprintf( __( 'No refunds found%s.', 'dataviz-ai-woocommerce' ), $period_text );
+				}
+
+				$count = count( $res );
+				$total_amount = 0.0;
+				foreach ( $res as $r ) {
+					if ( is_array( $r ) && isset( $r['amount'] ) ) {
+						$total_amount += (float) $r['amount'];
+					}
+				}
+
+				if ( $is_how_many_refunds ) {
+					$amount_str = self::format_currency( $total_amount );
+					$period_text = '';
+					if ( isset( $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] ) ) {
+						$period_text = sprintf(
+							' %s',
+							sprintf( __( 'from %s to %s', 'dataviz-ai-woocommerce' ), $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] )
+						);
+					}
+					return sprintf(
+						__( 'There are %1$d refunds%2$s, totaling %3$s.', 'dataviz-ai-woocommerce' ),
+						$count,
+						$period_text,
+						$amount_str
+					);
+				}
+
+				$lines = array();
+				foreach ( $res as $idx => $r ) {
+					if ( ! is_array( $r ) ) {
+						continue;
+					}
+					$id     = isset( $r['id'] ) ? (int) $r['id'] : 0;
+					$amount = isset( $r['amount'] ) ? self::format_currency( (float) $r['amount'] ) : self::format_currency( 0 );
+					$reason = isset( $r['reason'] ) && $r['reason'] !== '' ? (string) $r['reason'] : __( 'No reason given', 'dataviz-ai-woocommerce' );
+					$date   = isset( $r['date'] ) ? (string) $r['date'] : '';
+					$parent = isset( $r['parent_order'] ) ? (int) $r['parent_order'] : 0;
+
+					$line = sprintf( '%d. Refund #%d — %s', (int) ( $idx + 1 ), $id, $amount );
+					if ( $parent ) {
+						$line .= sprintf( ' (Order #%d)', $parent );
+					}
+					if ( $reason !== __( 'No reason given', 'dataviz-ai-woocommerce' ) ) {
+						$line .= ' — ' . $reason;
+					}
+					if ( $date !== '' ) {
+						$line .= ' — ' . $date;
+					}
+					$lines[] = $line;
+				}
+
+				$header = sprintf( __( '%d refunds found:', 'dataviz-ai-woocommerce' ), $count );
+				return $header . "\n" . implode( "\n", $lines );
+			}
+
 			// Order statistics revenue/total short-circuit (orders only).
 			$is_order_stats = ( isset( $validated_intent['entity'] ) && $validated_intent['entity'] === 'orders' );
 			if ( $is_order_stats && is_array( $res ) && ! isset( $res['error'] ) && isset( $res['summary'] ) && is_array( $res['summary'] ) && array_key_exists( 'total_revenue', $res['summary'] ) ) {
 				$total_revenue = (float) $res['summary']['total_revenue'];
 				$total_orders  = array_key_exists( 'total_orders', $res['summary'] ) ? (int) $res['summary']['total_orders'] : null;
+
+				// Detect status-specific count questions (e.g. "how many pending orders").
+				$status_filter = $validated_intent['filters']['status'] ?? null;
+				$asks_count    = (bool) preg_match( '/\b(how many|count|number of|total)\b/i', (string) $question );
+				$asks_specific_status = (bool) preg_match(
+					'/\b(pending|processing|on[\s-]?hold|completed|cancelled|canceled|refunded|failed|trash)\b/i',
+					(string) $question,
+					$status_match
+				);
+
+				if ( $asks_count && ( $status_filter || $asks_specific_status ) ) {
+					$status_label = $status_filter ? ucfirst( $status_filter ) : ucfirst( $status_match[1] );
+					$status_label = str_ireplace( array( 'on-hold', 'onhold', 'on hold' ), 'On-hold', $status_label );
+
+					$count = $total_orders ?? 0;
+					if ( 0 === $count ) {
+						return sprintf(
+							__( 'There are currently no %s orders.', 'dataviz-ai-woocommerce' ),
+							strtolower( $status_label )
+						);
+					}
+					$answer = sprintf(
+						_n(
+							'There is currently %d %s order.',
+							'There are currently %d %s orders.',
+							$count,
+							'dataviz-ai-woocommerce'
+						),
+						$count,
+						strtolower( $status_label )
+					);
+					if ( $total_revenue > 0 ) {
+						$answer .= ' ' . sprintf(
+							__( 'Their total value is %s.', 'dataviz-ai-woocommerce' ),
+							self::format_currency( $total_revenue )
+						);
+					}
+					return $answer;
+				}
 
 				$period_text = '';
 				if ( isset( $res['date_range'] ) && is_array( $res['date_range'] ) ) {
@@ -262,6 +380,24 @@ class Dataviz_AI_Answer_Composer {
 						$answer .= ' ' . __( 'There is 1 order in this period.', 'dataviz-ai-woocommerce' );
 					} else {
 						$answer .= ' ' . sprintf( __( 'There are %d orders in this period.', 'dataviz-ai-woocommerce' ), $total_orders );
+					}
+				}
+
+				// Append status breakdown when available and the question asks for it.
+				$wants_status = (bool) preg_match( '/\b(status|statuses|by\s+status)\b/i', (string) $question );
+				if ( $wants_status && ! empty( $res['status_breakdown'] ) && is_array( $res['status_breakdown'] ) ) {
+					$status_lines = array();
+					foreach ( $res['status_breakdown'] as $sb ) {
+						if ( ! is_array( $sb ) ) {
+							continue;
+						}
+						$s_name  = isset( $sb['status'] ) ? ucfirst( (string) $sb['status'] ) : __( 'Unknown', 'dataviz-ai-woocommerce' );
+						$s_count = isset( $sb['count'] ) ? (int) $sb['count'] : 0;
+						$s_rev   = isset( $sb['revenue'] ) ? self::format_currency( (float) $sb['revenue'] ) : self::format_currency( 0 );
+						$status_lines[] = sprintf( '- %s: %d orders (%s)', $s_name, $s_count, $s_rev );
+					}
+					if ( ! empty( $status_lines ) ) {
+						$answer .= "\n\n" . __( 'Breakdown by status:', 'dataviz-ai-woocommerce' ) . "\n" . implode( "\n", $status_lines );
 					}
 				}
 

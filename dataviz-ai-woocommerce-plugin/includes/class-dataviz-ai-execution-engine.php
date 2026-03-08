@@ -50,6 +50,10 @@ class Dataviz_AI_Execution_Engine {
 				$args['date_to']   = $filters['date_to'];
 			}
 
+			if ( ! empty( $filters['status'] ) ) {
+				$args['status'] = $filters['status'];
+			}
+
 			// group_by mapping.
 			$group_by = null;
 			if ( in_array( 'category', $dimensions, true ) ) {
@@ -86,6 +90,15 @@ class Dataviz_AI_Execution_Engine {
 			$filters['period'] = $period;
 		}
 
+		// Resolve category_name → category_id for product queries.
+		if ( $entity === 'products' && ! empty( $filters['category_name'] ) && empty( $filters['category_id'] ) ) {
+			$cat_id = self::resolve_category_id( $filters['category_name'] );
+			if ( $cat_id ) {
+				$filters['category_id'] = $cat_id;
+			}
+			unset( $filters['category_name'] );
+		}
+
 		// Default: use the flexible tool.
 		$tool_calls[] = array(
 			'function' => array(
@@ -102,6 +115,31 @@ class Dataviz_AI_Execution_Engine {
 		);
 
 		return $tool_calls;
+	}
+
+	/**
+	 * Resolve a product category name/slug to its term ID.
+	 *
+	 * @param string $name Category name or slug.
+	 * @return int|null Term ID or null if not found.
+	 */
+	private static function resolve_category_id( $name ) {
+		if ( ! function_exists( 'get_term_by' ) ) {
+			return null;
+		}
+		$name = trim( (string) $name );
+		if ( $name === '' ) {
+			return null;
+		}
+		// Try by name first, then slug.
+		$term = get_term_by( 'name', $name, 'product_cat' );
+		if ( ! $term || is_wp_error( $term ) ) {
+			$term = get_term_by( 'slug', sanitize_title( $name ), 'product_cat' );
+		}
+		if ( $term && ! is_wp_error( $term ) ) {
+			return (int) $term->term_id;
+		}
+		return null;
 	}
 }
 
