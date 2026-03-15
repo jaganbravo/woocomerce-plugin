@@ -16,11 +16,33 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const expectedIntentsPath = path.join(__dirname, 'expected-intents.json');
+// CLI: --questions <file> loads an alternate questions file (and its matching *-expected-intents.json).
+const questionsArgIdx = process.argv.indexOf('--questions');
+const customQuestionsFile = questionsArgIdx !== -1 && process.argv[questionsArgIdx + 1]
+    ? path.resolve(__dirname, process.argv[questionsArgIdx + 1])
+    : null;
+
+function resolveExpectedIntentsPath(questionsFile) {
+    if (questionsFile) {
+        const base = questionsFile.replace(/\.json$/, '');
+        const candidate = base + '-expected-intents.json';
+        if (fs.existsSync(candidate)) return candidate;
+        const dir = path.dirname(questionsFile);
+        const name = path.basename(questionsFile, '.json');
+        const candidate2 = path.join(dir, name.replace('-questions', '') + '-expected-intents.json');
+        if (fs.existsSync(candidate2)) return candidate2;
+    }
+    return path.join(__dirname, 'expected-intents.json');
+}
+
+const expectedIntentsPath = resolveExpectedIntentsPath(customQuestionsFile);
 let EXPECTED_INTENTS = {};
 try {
     if (fs.existsSync(expectedIntentsPath)) {
         EXPECTED_INTENTS = JSON.parse(fs.readFileSync(expectedIntentsPath, 'utf8')) || {};
+        if (customQuestionsFile) {
+            console.log(`[LOAD] Using expected intents from ${expectedIntentsPath}`);
+        }
     }
 } catch (e) {
     console.log(`[WARN] Failed to load expected intents: ${e.message}`);
@@ -59,7 +81,7 @@ const testResults = {
  * Get path to saved questions file
  */
 function getQuestionsFilePath() {
-    return path.join(__dirname, 'saved-questions.json');
+    return customQuestionsFile || path.join(__dirname, 'saved-questions.json');
 }
 
 /**
@@ -849,10 +871,9 @@ async function testChatQuestion(page, question, questionNumber) {
                     // Try to get text from the latest message's content
                     const messageContent = await latestMessage.$('.dataviz-ai-message-content');
                     if (messageContent) {
-                        responseText = await messageContent.textContent();
+                        responseText = await messageContent.innerText();
                     } else {
-                        // Fallback: get text from the message container itself
-                        responseText = await latestMessage.textContent();
+                        responseText = await latestMessage.innerText();
                     }
                 } else {
                     // Fallback: try getting from any AI message (shouldn't happen)
@@ -862,9 +883,9 @@ async function testChatQuestion(page, question, questionNumber) {
                         const latestMessage = allAiMessages[allAiMessages.length - 1];
                         const messageContent = await latestMessage.$('.dataviz-ai-message-content');
                         if (messageContent) {
-                            responseText = await messageContent.textContent();
+                            responseText = await messageContent.innerText();
                         } else {
-                            responseText = await latestMessage.textContent();
+                            responseText = await latestMessage.innerText();
                         }
                     }
                 }
@@ -905,9 +926,9 @@ async function testChatQuestion(page, question, questionNumber) {
                     const latestMessage = allAiMessages[allAiMessages.length - 1];
                     const messageContent = await latestMessage.$('.dataviz-ai-message-content');
                     if (messageContent) {
-                        responseText = await messageContent.textContent();
+                        responseText = await messageContent.innerText();
                     } else {
-                        responseText = await latestMessage.textContent();
+                        responseText = await latestMessage.innerText();
                     }
                 }
                 responseText = responseText ? responseText.trim() : '';
@@ -935,7 +956,7 @@ async function testChatQuestion(page, question, questionNumber) {
                     if (allAiMessages.length > 0) {
                         const latestMessage = allAiMessages[allAiMessages.length - 1];
                         const messageContent = await latestMessage.$('.dataviz-ai-message-content');
-                        const newResponse = messageContent ? await messageContent.textContent() : await latestMessage.textContent();
+                        const newResponse = messageContent ? await messageContent.innerText() : await latestMessage.innerText();
                         const newResponseTrimmed = newResponse ? newResponse.trim() : '';
                         
                         // Check if response has changed and contains data

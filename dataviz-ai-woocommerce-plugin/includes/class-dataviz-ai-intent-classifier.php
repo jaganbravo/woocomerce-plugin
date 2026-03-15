@@ -26,6 +26,8 @@ class Dataviz_AI_Intent_Classifier {
 			'purchase', 'buy', 'item', 'inventory', 'stock', 'buyer',
 			'client', 'purchased', 'sold', 'total', 'recent', 'list',
 			'show me', 'display', 'what are', 'how many', 'tell me about',
+			// Spending / financial.
+			'spent', 'spend', 'spending', 'earning', 'income', 'profit',
 			// Funnel / conversion questions (often require external analytics).
 			'conversion', 'conversion rate', 'cvr', 'traffic', 'visitors', 'sessions', 'pageviews',
 			// Discounts / coupons.
@@ -38,6 +40,8 @@ class Dataviz_AI_Intent_Classifier {
 			'chart', 'graph', 'pie chart', 'bar chart', 'line chart', 'visualize', 'visualization',
 			// General analytics.
 			'metric', 'metrics', 'statistic', 'statistics', 'overview', 'report',
+			// Restocking / availability.
+			'restock', 'restocking', 'available', 'availability', 'out of stock',
 		);
 		
 		$lower_question = strtolower( $question );

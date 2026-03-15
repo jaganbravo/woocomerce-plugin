@@ -98,6 +98,11 @@ class Dataviz_AI_Query_Orchestrator {
 
 		// Pipeline hard error.
 		if ( $pipeline_result['error'] instanceof \WP_Error ) {
+			Dataviz_AI_Support_Requests::store_failed_question(
+				$question,
+				$pipeline_result['error']->get_error_message(),
+				$pipeline_result['raw_intent'] ?? null
+			);
 			$this->stream_handler->send_error(
 				__( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' )
 			);
@@ -106,6 +111,11 @@ class Dataviz_AI_Query_Orchestrator {
 
 		// Intent not found / feature request prompt.
 		if ( ! empty( $pipeline_result['error_reason'] ) && empty( $pipeline_result['tool_calls'] ) ) {
+			Dataviz_AI_Support_Requests::store_failed_question(
+				$question,
+				$pipeline_result['error_reason'],
+				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
+			);
 			$resp = $this->build_intent_not_found_response( $question, $pipeline_result['error_reason'] );
 			$this->stream_handler->send_chunk( $resp['answer'] );
 			$this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
@@ -115,6 +125,11 @@ class Dataviz_AI_Query_Orchestrator {
 
 		// No tool calls produced.
 		if ( empty( $pipeline_result['tool_calls'] ) ) {
+			Dataviz_AI_Support_Requests::store_failed_question(
+				$question,
+				'Execution engine produced no tool calls.',
+				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
+			);
 			$resp = $this->build_intent_not_found_response( $question, 'Execution engine produced no tool calls.' );
 			$this->stream_handler->send_chunk( $resp['answer'] );
 			$this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
@@ -203,14 +218,29 @@ class Dataviz_AI_Query_Orchestrator {
 		$pipeline_result = $this->pipeline->process( $question );
 
 		if ( $pipeline_result['error'] instanceof \WP_Error ) {
+			Dataviz_AI_Support_Requests::store_failed_question(
+				$question,
+				$pipeline_result['error']->get_error_message(),
+				$pipeline_result['raw_intent'] ?? null
+			);
 			return $pipeline_result['error'];
 		}
 
 		if ( ! empty( $pipeline_result['error_reason'] ) && empty( $pipeline_result['tool_calls'] ) ) {
+			Dataviz_AI_Support_Requests::store_failed_question(
+				$question,
+				$pipeline_result['error_reason'],
+				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
+			);
 			return $this->build_intent_not_found_response( $question, $pipeline_result['error_reason'] );
 		}
 
 		if ( empty( $pipeline_result['tool_calls'] ) ) {
+			Dataviz_AI_Support_Requests::store_failed_question(
+				$question,
+				'Execution engine produced no tool calls.',
+				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
+			);
 			return $this->build_intent_not_found_response( $question, 'Execution engine produced no tool calls.' );
 		}
 

@@ -7,7 +7,9 @@
     "test": "node ai-chat-test-agent.js",
     "test:headless": "HEADLESS=true node ai-chat-test-agent.js",
     "test:static": "node ai-chat-test-agent.js --static",
-    "test:static:headless": "HEADLESS=true node ai-chat-test-agent.js --static"
+    "test:static:headless": "HEADLESS=true node ai-chat-test-agent.js --static",
+    "test:ambiguous": "node ai-chat-test-agent.js --questions ambiguous-questions.json",
+    "test:ambiguous:headless": "HEADLESS=true node ai-chat-test-agent.js --questions ambiguous-questions.json"
   },
   "keywords": [
     "testing",
