@@ -1,31 +1,10 @@
-# Environment variables
+# Test output files
+reports/
+saved-questions.json
+
+# Node modules
+node_modules/
+
+# Environment files
 .env
 .env.local
-.env.*.local
-
-# Dependencies
-node_modules/
-package-lock.json
-yarn.lock
-
-# Test results
-test-results/
-playwright-report/
-playwright/.cache/
-reports/
-*.pdf
-
-# Logs
-*.log
-npm-debug.log*
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
