@@ -52,7 +52,7 @@
     "entity": "categories",
     "operation": "list"
   },
-  "How many products have the tag 'New Arrival'?": {
+  "How many products have the tag 'New'?": {
     "requires_data": true,
     "entity": "tags",
     "operation": "list"
@@ -89,5 +89,10 @@
   "What is the current inventory distribution across categories?": {
     "requires_data": true,
     "entity": "inventory"
+  },
+  "How many products have the tag 'New Arrival'?": {
+    "requires_data": true,
+    "entity": "tags",
+    "operation": "list"
   }
 }

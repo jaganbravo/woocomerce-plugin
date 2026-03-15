@@ -54,13 +54,13 @@ class Dataviz_AI_Execution_Engine {
 				$args['status'] = $filters['status'];
 			}
 
-			// group_by mapping.
+			// group_by mapping: prefer dimensions, fallback to filters (e.g. from PHP normalization).
 			$group_by = null;
-			if ( in_array( 'category', $dimensions, true ) ) {
+			if ( in_array( 'category', $dimensions, true ) || ( isset( $filters['group_by'] ) && $filters['group_by'] === 'category' ) ) {
 				$group_by = 'category';
-			} elseif ( in_array( 'customer', $dimensions, true ) ) {
+			} elseif ( in_array( 'customer', $dimensions, true ) || ( isset( $filters['group_by'] ) && $filters['group_by'] === 'customer' ) ) {
 				$group_by = 'customer';
-			} elseif ( in_array( 'status', $dimensions, true ) ) {
+			} elseif ( in_array( 'status', $dimensions, true ) || ( isset( $filters['group_by'] ) && $filters['group_by'] === 'status' ) ) {
 				$group_by = 'status';
 			}
 			if ( $group_by ) {

@@ -18,6 +18,11 @@ require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-valida
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-execution-engine.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-answer-composer.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-prompt-template.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-normalizer.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-stream-handler.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-tool-executor.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-pipeline.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-query-orchestrator.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-admin.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-onboarding.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-widget.php';
@@ -79,6 +84,20 @@ class Dataviz_AI_Loader {
 	protected function init_components() {
 		$api_client   = new Dataviz_AI_API_Client();
 		$data_fetcher = new Dataviz_AI_Data_Fetcher();
+		$chat_history = new Dataviz_AI_Chat_History();
+
+		$stream_handler  = new Dataviz_AI_Stream_Handler( $api_client );
+		$tool_executor   = new Dataviz_AI_Tool_Executor( $data_fetcher );
+		$intent_pipeline = new Dataviz_AI_Intent_Pipeline( $api_client );
+
+		$orchestrator = new Dataviz_AI_Query_Orchestrator(
+			$intent_pipeline,
+			$tool_executor,
+			$api_client,
+			$stream_handler,
+			$chat_history
+		);
+		$orchestrator->set_data_fetcher( $data_fetcher );
 
 		$this->admin = new Dataviz_AI_Admin(
 			$this->plugin_name,
@@ -96,7 +115,9 @@ class Dataviz_AI_Loader {
 		$this->ajax = new Dataviz_AI_AJAX_Handler(
 			$this->plugin_name,
 			$data_fetcher,
-			$api_client
+			$api_client,
+			$orchestrator,
+			$intent_pipeline
 		);
 
 		new Dataviz_AI_Chat_Widget( $this->plugin_name, $this->version, $api_client );

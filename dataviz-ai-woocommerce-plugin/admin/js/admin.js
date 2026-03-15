@@ -317,17 +317,27 @@
 				let data = [];
 				const lowerQuestion = question.toLowerCase();
 
-				// Sales by product category: use category_breakdown when question mentions category
-				if ( lowerQuestion.indexOf( 'category' ) !== -1 && orderStatistics && orderStatistics.category_breakdown && orderStatistics.category_breakdown.length > 0 ) {
-					orderStatistics.category_breakdown.forEach( function( catData ) {
-						labels.push( catData.category_name || 'Uncategorized' );
-						data.push( typeof catData.revenue !== 'undefined' ? parseFloat( catData.revenue ) : ( catData.order_count || 0 ) );
-					} );
-					if ( labels.length > 0 && data.length > 0 ) {
-						renderPieChart( $chartContainer, data, labels, 'Sales by Product Category' );
+				// "Sales by category" / "revenue by category" / "pie chart of sales by product category" → ONLY category chart
+				const wantsSalesByCategory = (
+					lowerQuestion.indexOf( 'category' ) !== -1 &&
+					( lowerQuestion.indexOf( 'pie' ) !== -1 || lowerQuestion.indexOf( 'sales' ) !== -1 || lowerQuestion.indexOf( 'revenue' ) !== -1 || lowerQuestion.indexOf( 'sale' ) !== -1 )
+				);
+
+				if ( wantsSalesByCategory ) {
+					if ( orderStatistics && orderStatistics.category_breakdown && orderStatistics.category_breakdown.length > 0 ) {
+						orderStatistics.category_breakdown.forEach( function( catData ) {
+							labels.push( catData.category_name || 'Uncategorized' );
+							data.push( typeof catData.revenue !== 'undefined' ? parseFloat( catData.revenue ) : ( catData.order_count || 0 ) );
+						} );
+						// Render if we have labels and at least one non-zero value (Chart.js needs meaningful data)
+						const hasNonZero = data.some( function( v ) { return parseFloat( v ) > 0; } );
+						if ( labels.length > 0 && hasNonZero ) {
+							renderPieChart( $chartContainer, data, labels, 'Sales by Product Category' );
+						}
 					}
+					// Do NOT fall back to order status when user asked for sales by category
 				} else {
-					// Order status pie chart
+					// Order status pie chart (when question is about orders/status, not sales by category)
 					let statusCounts = {};
 					if ( orderStatistics && orderStatistics.status_breakdown ) {
 						orderStatistics.status_breakdown.forEach( function( statusData ) {
@@ -660,35 +670,33 @@
 
 						lines.forEach( function( line ) {
 							if ( line.startsWith( 'data: ' ) ) {
-								const dataStr = line.substring( 6 );
-								
-								if ( dataStr === '[DONE]' || streamStopped ) {
-									currentStreamReader = null;
-									currentStreamController = null;
-									
-									if ( ! streamStopped && fullResponse.trim() ) {
-										conversationHistory.push( { role: 'assistant', content: fullResponse } );
-										
-										// Render charts if question mentions charts, passing tool data
-										if ( mentionsChart( question ) ) {
-											setTimeout( function() {
-												renderChartForQuestion( question, $aiMessage, streamToolData );
-											}, 300 );
-										}
-									}
-									
-									// Hide stop button, show send button
-									$stopButton.removeClass( 'show' ).hide();
-									$sendButton.show();
-									$input.prop( 'disabled', false );
-									$sendButton.prop( 'disabled', false );
-									$input.focus();
-									return;
-								}
+								const dataStr = line.substring( 6 ).trim();
 
 								try {
 									const data = JSON.parse( dataStr );
-									
+									// Handle done event with optional embedded tool_data (ensures chart data is received)
+									if ( data.done === true ) {
+										if ( data.tool_data ) {
+											streamToolData = data.tool_data;
+										}
+										currentStreamReader = null;
+										currentStreamController = null;
+										if ( ! streamStopped && fullResponse.trim() ) {
+											conversationHistory.push( { role: 'assistant', content: fullResponse } );
+											if ( mentionsChart( question ) ) {
+												setTimeout( function() {
+													renderChartForQuestion( question, $aiMessage, streamToolData );
+												}, 300 );
+											}
+										}
+										$stopButton.removeClass( 'show' ).hide();
+										$sendButton.show();
+										$input.prop( 'disabled', false );
+										$sendButton.prop( 'disabled', false );
+										$input.focus();
+										return;
+									}
+
 									if ( data.error ) {
 										$aiContent.html( '<span style="color: #d63638;">' + data.error + '</span>' );
 										$stopButton.removeClass( 'show' ).hide();
@@ -701,20 +709,36 @@
 										return;
 									}
 
-									// Store tool data from stream for chart rendering (if present)
 									if ( data.tool_data ) {
 										streamToolData = data.tool_data;
 									}
 
 									if ( data.chunk && ! streamStopped ) {
 										fullResponse += data.chunk;
-										// Update message content with accumulated text
 										const formattedText = fullResponse.replace( /\n/g, '<br>' );
 										$aiContent.html( formattedText );
 										scrollToBottom();
 									}
 								} catch ( e ) {
-									// Ignore JSON parse errors for incomplete chunks
+									// Not JSON - check for legacy [DONE] marker
+									if ( dataStr === '[DONE]' || streamStopped ) {
+										currentStreamReader = null;
+										currentStreamController = null;
+										if ( ! streamStopped && fullResponse.trim() ) {
+											conversationHistory.push( { role: 'assistant', content: fullResponse } );
+											if ( mentionsChart( question ) ) {
+												setTimeout( function() {
+													renderChartForQuestion( question, $aiMessage, streamToolData );
+												}, 300 );
+											}
+										}
+										$stopButton.removeClass( 'show' ).hide();
+										$sendButton.show();
+										$input.prop( 'disabled', false );
+										$sendButton.prop( 'disabled', false );
+										$input.focus();
+										return;
+									}
 								}
 							}
 						} );

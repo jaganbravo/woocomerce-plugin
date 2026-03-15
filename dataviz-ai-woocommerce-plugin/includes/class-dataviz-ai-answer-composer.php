@@ -351,6 +351,33 @@ class Dataviz_AI_Answer_Composer {
 					return $answer;
 				}
 
+				// Sales by product category: empty category_breakdown → clear deterministic message (avoid mixing with product counts).
+				$wants_sales_by_category = in_array( 'category', $validated_intent['dimensions'] ?? array(), true )
+					|| ( isset( $validated_intent['filters']['group_by'] ) && $validated_intent['filters']['group_by'] === 'category' );
+				$category_breakdown = $res['category_breakdown'] ?? array();
+				if ( $wants_sales_by_category ) {
+					if ( empty( $category_breakdown ) || ! is_array( $category_breakdown ) ) {
+						$period_text = '';
+						if ( isset( $res['date_range'] ) && is_array( $res['date_range'] ) ) {
+							$df = $res['date_range']['from'] ?? '';
+							$dt = $res['date_range']['to'] ?? '';
+							if ( $df && $dt ) {
+								$period_text = ' ' . sprintf(
+									__( 'in the selected period (%s to %s)', 'dataviz-ai-woocommerce' ),
+									$df,
+									$dt
+								);
+							}
+						}
+						return sprintf(
+							__( 'There are no sales records by product category%s. This can happen when there are no completed orders, or when ordered products are not assigned to categories.', 'dataviz-ai-woocommerce' ),
+							$period_text
+						);
+					}
+					// Non-empty category_breakdown: let LLM summarize; frontend will render pie chart from tool data.
+					return null;
+				}
+
 				$period_text = '';
 				if ( isset( $res['date_range'] ) && is_array( $res['date_range'] ) ) {
 					$date_from = $res['date_range']['from'] ?? '';
