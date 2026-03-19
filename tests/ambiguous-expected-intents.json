@@ -1,0 +1,127 @@
+{
+  "Show me category revenue.": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "What's the revenue breakdown by category?": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Products with zero stock.": {
+    "requires_data": true,
+    "entity": "stock",
+    "filters": { "stock_status": "outofstock" }
+  },
+  "Show me products that have no stock left.": {
+    "requires_data": true,
+    "entity": "stock",
+    "filters": { "stock_status": "outofstock" }
+  },
+  "How many orders were refunded last month?": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "What are the refund totals for recent orders?": {
+    "requires_data": true,
+    "entity": "refunds"
+  },
+  "Show me the top 3 products.": {
+    "requires_data": true,
+    "entity": "products"
+  },
+  "List my best products.": {
+    "requires_data": true,
+    "entity": "products"
+  },
+  "Show me all orders.": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Give me every order in the system.": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Products in the Sports category.": {
+    "requires_data": true,
+    "entity": "products",
+    "operation": "list"
+  },
+  "What do I have under Clothing?": {
+    "requires_data": true,
+    "entity": "products",
+    "operation": "list"
+  },
+  "Tell me about my store.": {
+    "requires_data": false
+  },
+  "Hello, what can you do?": {
+    "requires_data": false
+  },
+  "What's the weather like today?": {
+    "requires_data": false
+  },
+  "Revenue by month for this year.": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Monthly sales breakdown.": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Which coupons are active and how many times were they used?": {
+    "requires_data": true,
+    "entity": "coupons"
+  },
+  "Customer spending in the last quarter.": {
+    "requires_data": true,
+    "entity": "customers"
+  },
+  "Who spent the most last month?": {
+    "requires_data": true,
+    "entity": "customers"
+  },
+  "Any products tagged as 'Sale'?": {
+    "requires_data": true,
+    "entity": "tags"
+  },
+  "Show me tags.": {
+    "requires_data": true,
+    "entity": "tags"
+  },
+  "Order count by category.": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "How many items did I sell in each category?": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Products that need restocking.": {
+    "requires_data": true,
+    "entity": "stock"
+  },
+  "What inventory needs attention?": {
+    "requires_data": true,
+    "entity": "inventory"
+  },
+  "Average revenue per customer.": {
+    "requires_data": true,
+    "entity": "customers"
+  },
+  "Daily revenue for last week.": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "What did I sell yesterday?": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Show me returns from this month.": {
+    "requires_data": true,
+    "entity": "refunds"
+  }
+}

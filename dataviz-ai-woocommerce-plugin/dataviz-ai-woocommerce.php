@@ -62,6 +62,10 @@ function dataviz_ai_wc_activate() {
 	$feature_requests = new Dataviz_AI_Feature_Requests();
 	$feature_requests->create_table();
 
+	// Create unified support requests table.
+	require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-support-requests.php';
+	Dataviz_AI_Support_Requests::create_table();
+
 	// Schedule daily cleanup of old messages.
 	if ( ! wp_next_scheduled( 'dataviz_ai_cleanup_chat_history' ) ) {
 		wp_schedule_event( time(), 'daily', 'dataviz_ai_cleanup_chat_history' );

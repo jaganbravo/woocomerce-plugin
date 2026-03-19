@@ -43,6 +43,7 @@ class Dataviz_AI_Intent_Pipeline {
 	public function process( $question ) {
 		$result = array(
 			'intent'          => null,
+			'raw_intent'      => null,
 			'tool_calls'      => array(),
 			'feature_request' => false,
 			'feature_entity'  => null,
@@ -81,6 +82,8 @@ class Dataviz_AI_Intent_Pipeline {
 			$result['error'] = $intent_parse;
 			return $result;
 		}
+
+		$result['raw_intent'] = $intent_parse['raw'] ?? null;
 
 		// Step 2: Validate via Intent_Validator.
 		$validated = Dataviz_AI_Intent_Validator::validate(
