@@ -282,10 +282,7 @@ class Dataviz_AI_Prompt_Template {
 	 * @return self
 	 */
 	public static function intent_parser() {
-		$template = new self(
-			'You are an intent parser for a WooCommerce analytics assistant.\n\n' .
-			'Your task: Convert the user question into a STRICT JSON object matching the schema below. Output ONLY JSON. No markdown, no backticks, no explanations.\n\n' .
-			'SCHEMA (intent_version = \"1\"):\n' .
+		$schema =
 			'{\n' .
 			'  \"intent_version\": \"1\",\n' .
 			'  \"requires_data\": true|false,\n' .
@@ -306,30 +303,78 @@ class Dataviz_AI_Prompt_Template {
 			'  },\n' .
 			'  \"confidence\": \"low\"|\"medium\"|\"high\",\n' .
 			'  \"draft_answer\": string|null\n' .
-			'}\n\n' .
-			'RULES:\n' .
-			'- If the question mentions WooCommerce entities like orders/products/customers/categories/tags/coupons/refunds/stock/inventory, then requires_data MUST be true.\n' .
-			'- If the question is NOT asking for WooCommerce data (e.g., weather), set requires_data=false and set entity=\"orders\" and operation=\"list\" as safe defaults.\n' .
-			'- Use presets for relative time like \"this month\" when possible.\n' .
-			'- For questions like \"in the last 30 days\" or \"last 7 days\", set date_range.preset to \"last_30_days\" / \"last_7_days\" and set from/to to null.\n' .
-			'- For \"last N months\" (e.g., \"last 6 months\", \"last six months\"), set date_range.preset to \"last_6_months\" / \"last_N_months\" (replace N with the number) and set from/to to null.\n' .
-			'- For \"last N weeks\" (e.g., \"last 2 weeks\"), set date_range.preset to \"last_2_weeks\" / \"last_N_weeks\" and set from/to to null.\n' .
-			'- For \"last quarter\", set date_range.preset to \"last_quarter\" and set from/to to null.\n' .
-			'- Revenue questions: entity=orders, operation=statistics, metrics includes total_revenue.\n' .
-			'- \"Sales by category\": entity=orders, operation=statistics, dimensions includes category.\n' .
-			'- \"Out of stock\": entity=stock, filters.stock_status=\"outofstock\".\n' .
-			'- \"Low stock\": entity=stock, filters.stock_threshold=10 unless the user provided a number.\n' .
-			'- Discounts/coupons questions (e.g., \"What discounts are currently active?\" / \"Show me coupons\"): entity=coupons, operation=list.\n' .
-			'- Coupon usage questions (e.g., \"coupons used in the last month\"): entity=coupons, operation=statistics. If the question says \"last month\", use date_range.preset=\"last_month\".\n' .
-			'- Tag count questions (e.g., \"How many products have the tag \\\"New Arrival\\\"?\"): entity=tags, operation=list.\n' .
-			'- Product category listing (e.g., \"What categories do my products belong to?\"): entity=categories, operation=list.\n' .
-			'- Products by category (e.g., \"Show me products under the Electronics category\"): entity=products, operation=list, filters.category_name=\"Electronics\".\n' .
-			'- Refund questions (e.g., \"How many refunds this year?\", \"Show me refunds\"): entity=refunds, operation=list. Use date_range preset if time period is specified.\n' .
-			'- Chart / graph / visualization with monthly data: entity=orders, operation=by_period, dimensions includes \"month\".\n' .
-			'- Chart / graph with daily data: entity=orders, operation=by_period, dimensions includes \"day\".\n' .
-			'- \"Top customers\" or \"total spend by customers\": entity=customers, operation=statistics, filters.sort_by=\"total_spent\", filters.group_by=\"customer\". If question says \"last year\", use date_range.preset=\"last_year\".\n' .
-			'- Customer queries mentioning \"location\" or \"sorted by location\": entity=customers, operation=list. Do NOT use sort_by=\"location\" (unsupported).\n' .
-			'- draft_answer can be a brief best-effort sentence, but MUST NOT claim to fetch data or mention tools.\n\n' .
+			'}';
+
+		$guidelines =
+			'GUIDELINES:\n' .
+			'- requires_data = true whenever the question asks about any WooCommerce data (orders, products, customers, sales, revenue, stock, etc.).\n' .
+			'- requires_data = false only for generic chat completely unrelated to store data. Use entity=\"orders\", operation=\"list\" as safe defaults in that case.\n' .
+			'- Choose the entity that best represents what the user is ultimately asking about. Think about who/what the answer is really about.\n' .
+			'- Use date_range.preset for relative time references (\"this month\", \"last 7 days\", \"last_quarter\", etc.) and set from/to to null.\n' .
+			'- For \"last N days/weeks/months\", use preset format \"last_N_days\"/\"last_N_weeks\"/\"last_N_months\" (replace N with the number).\n' .
+			'- draft_answer: a brief best-effort sentence. MUST NOT claim to fetch data or mention tools.';
+
+		$examples =
+			'EXAMPLES:\n\n' .
+
+			'Q: \"What is the total revenue this month?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"orders\",\"operation\":\"statistics\",\"metrics\":[\"total_revenue\"],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":\"this_month\"}},\"confidence\":\"high\",\"draft_answer\":\"Checking revenue for this month.\"}\n\n' .
+
+			'Q: \"How many orders are currently pending?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"orders\",\"operation\":\"statistics\",\"metrics\":[\"total_orders\"],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":null},\"status\":\"pending\"},\"confidence\":\"high\",\"draft_answer\":\"Checking pending order count.\"}\n\n' .
+
+			'Q: \"Generate a bar chart showing monthly revenue for the last six months\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"orders\",\"operation\":\"by_period\",\"metrics\":[\"total_revenue\"],\"dimensions\":[\"month\"],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":\"last_6_months\"}},\"confidence\":\"high\",\"draft_answer\":\"Preparing monthly revenue chart.\"}\n\n' .
+
+			'Q: \"Can I see a pie chart of sales by product category?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"orders\",\"operation\":\"statistics\",\"metrics\":[\"total_revenue\"],\"dimensions\":[\"category\"],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":null},\"group_by\":\"category\"},\"confidence\":\"high\",\"draft_answer\":\"Fetching sales breakdown by category.\"}\n\n' .
+
+			'Q: \"Show me products under the Electronics category\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"products\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":null},\"category_name\":\"Electronics\",\"limit\":-1},\"confidence\":\"high\",\"draft_answer\":\"Listing Electronics products.\"}\n\n' .
+
+			'Q: \"What are the best-selling products?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"products\",\"operation\":\"list\",\"metrics\":[\"top_products\"],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":null},\"limit\":10},\"confidence\":\"high\",\"draft_answer\":\"Looking up best sellers.\"}\n\n' .
+
+			'Q: \"Who are my top customers by total spend?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"customers\",\"operation\":\"statistics\",\"metrics\":[],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":null},\"sort_by\":\"total_spent\",\"group_by\":\"customer\",\"limit\":10},\"confidence\":\"high\",\"draft_answer\":\"Finding top customers by spend.\"}\n\n' .
+
+			'Q: \"Average revenue per customer\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"customers\",\"operation\":\"statistics\",\"metrics\":[\"avg_order_value\",\"total_revenue\"],\"dimensions\":[\"customer\"],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":null},\"group_by\":\"customer\"},\"confidence\":\"medium\",\"draft_answer\":\"Calculating average revenue per customer.\"}\n\n' .
+
+			'Q: \"What categories do my products belong to?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"categories\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{},\"confidence\":\"high\",\"draft_answer\":\"Listing product categories.\"}\n\n' .
+
+			'Q: \"How many products have the tag \'Sale\'?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"tags\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{},\"confidence\":\"high\",\"draft_answer\":\"Checking products with that tag.\"}\n\n' .
+
+			'Q: \"What discounts are currently active in my store?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"coupons\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{},\"confidence\":\"high\",\"draft_answer\":\"Listing active coupons.\"}\n\n' .
+
+			'Q: \"Show me coupons used last month\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"coupons\",\"operation\":\"statistics\",\"metrics\":[],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":\"last_month\"}},\"confidence\":\"high\",\"draft_answer\":\"Checking coupon usage for last month.\"}\n\n' .
+
+			'Q: \"How many refunds this year?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"refunds\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":\"this_year\"}},\"confidence\":\"high\",\"draft_answer\":\"Counting refunds for this year.\"}\n\n' .
+
+			'Q: \"Can you provide a list of products that are currently out of stock?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"stock\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{\"stock_status\":\"outofstock\"},\"confidence\":\"high\",\"draft_answer\":\"Checking out-of-stock products.\"}\n\n' .
+
+			'Q: \"Which products are running low on stock?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"stock\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{\"stock_threshold\":10},\"confidence\":\"high\",\"draft_answer\":\"Checking low-stock products.\"}\n\n' .
+
+			'Q: \"Show inventory distribution across categories\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"inventory\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[\"category\"],\"filters\":{},\"confidence\":\"medium\",\"draft_answer\":\"Looking at inventory by category.\"}\n\n' .
+
+			'Q: \"What\'s the weather like today?\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":false,\"entity\":\"orders\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{},\"confidence\":\"high\",\"draft_answer\":\"I focus on WooCommerce analytics and cannot help with weather.\"}';
+
+		$template = new self(
+			'You are an intent parser for a WooCommerce analytics assistant.\n\n' .
+			'Your task: Convert the user question into a STRICT JSON object matching the schema below. Output ONLY JSON. No markdown, no backticks, no explanations.\n\n' .
+			'SCHEMA (intent_version = \"1\"):\n' .
+			$schema . '\n\n' .
+			$guidelines . '\n\n' .
+			$examples . '\n\n' .
 			'User question: \"{question}\"',
 			array( 'question' => '' )
 		);

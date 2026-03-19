@@ -72,14 +72,22 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 		$question = esc_html( wp_trim_words( $item['question'] ?? '', 12, '...' ) );
 		$actions  = array();
 
-		if ( ! empty( $item['raw_intent'] ) ) {
-			$actions['view_intent'] = sprintf(
-				'<a href="#" class="dataviz-sr-view-intent" data-id="%d" data-intent="%s">%s</a>',
-				$item['id'],
-				esc_attr( $item['raw_intent'] ),
-				esc_html__( 'View Intent', 'dataviz-ai-woocommerce' )
-			);
-		}
+		$detail_data = array(
+			'question'     => $item['question'] ?? '',
+			'error_reason' => $item['error_reason'] ?? '',
+			'description'  => $item['description'] ?? '',
+			'raw_intent'   => $item['raw_intent'] ?? '',
+			'entity_type'  => $item['entity_type'] ?? '',
+			'user_name'    => $item['user_name'] ?? '',
+			'created_at'   => $item['created_at'] ?? '',
+		);
+
+		$actions['view_details'] = sprintf(
+			'<a href="#" class="dataviz-sr-view-details" data-id="%d" data-detail="%s">%s</a>',
+			$item['id'],
+			esc_attr( wp_json_encode( $detail_data ) ),
+			esc_html__( 'View Details', 'dataviz-ai-woocommerce' )
+		);
 
 		if ( $item['status'] === 'pending' ) {
 			$resolve_url = wp_nonce_url(
@@ -328,33 +336,56 @@ class Dataviz_AI_Support_Requests_Admin {
 			</form>
 		</div>
 
-		<div id="dataviz-sr-intent-modal" class="dataviz-sr-modal" style="display:none;">
+		<div id="dataviz-sr-detail-modal" class="dataviz-sr-modal" style="display:none;">
 			<div class="dataviz-sr-modal__backdrop"></div>
 			<div class="dataviz-sr-modal__content">
 				<div class="dataviz-sr-modal__header">
-					<h2><?php esc_html_e( 'Raw Intent JSON', 'dataviz-ai-woocommerce' ); ?></h2>
+					<h2><?php esc_html_e( 'Request Details', 'dataviz-ai-woocommerce' ); ?></h2>
 					<button type="button" class="dataviz-sr-modal__close">&times;</button>
 				</div>
-				<pre class="dataviz-sr-modal__body"></pre>
+				<div class="dataviz-sr-modal__body dataviz-sr-detail-body"></div>
 			</div>
 		</div>
 
 		<script>
 		(function(){
-			document.querySelectorAll('.dataviz-sr-view-intent').forEach(function(el){
+			function escHtml(s) {
+				var d = document.createElement('div');
+				d.textContent = s;
+				return d.innerHTML;
+			}
+			function buildSection(label, value, isCode) {
+				if (!value) return '';
+				var content;
+				if (isCode) {
+					try { content = '<pre class="dataviz-sr-detail-code">' + escHtml(JSON.stringify(JSON.parse(value), null, 2)) + '</pre>'; }
+					catch(_) { content = '<pre class="dataviz-sr-detail-code">' + escHtml(value) + '</pre>'; }
+				} else {
+					content = '<p class="dataviz-sr-detail-text">' + escHtml(value) + '</p>';
+				}
+				return '<div class="dataviz-sr-detail-section"><strong>' + escHtml(label) + '</strong>' + content + '</div>';
+			}
+
+			document.querySelectorAll('.dataviz-sr-view-details').forEach(function(el){
 				el.addEventListener('click', function(e){
 					e.preventDefault();
-					var modal = document.getElementById('dataviz-sr-intent-modal');
-					var body  = modal.querySelector('.dataviz-sr-modal__body');
-					try {
-						body.textContent = JSON.stringify(JSON.parse(this.dataset.intent), null, 2);
-					} catch(_) {
-						body.textContent = this.dataset.intent;
-					}
+					var modal = document.getElementById('dataviz-sr-detail-modal');
+					var body  = modal.querySelector('.dataviz-sr-detail-body');
+					var data  = JSON.parse(this.dataset.detail);
+					var html  = '';
+					html += buildSection('<?php echo esc_js( __( 'Question', 'dataviz-ai-woocommerce' ) ); ?>', data.question);
+					html += buildSection('<?php echo esc_js( __( 'Error / Reason', 'dataviz-ai-woocommerce' ) ); ?>', data.error_reason);
+					html += buildSection('<?php echo esc_js( __( 'Description', 'dataviz-ai-woocommerce' ) ); ?>', data.description);
+					html += buildSection('<?php echo esc_js( __( 'Entity Type', 'dataviz-ai-woocommerce' ) ); ?>', data.entity_type);
+					html += buildSection('<?php echo esc_js( __( 'User', 'dataviz-ai-woocommerce' ) ); ?>', data.user_name);
+					html += buildSection('<?php echo esc_js( __( 'Created', 'dataviz-ai-woocommerce' ) ); ?>', data.created_at);
+					html += buildSection('<?php echo esc_js( __( 'Raw Intent JSON', 'dataviz-ai-woocommerce' ) ); ?>', data.raw_intent, true);
+					body.innerHTML = html || '<p><?php echo esc_js( __( 'No details available.', 'dataviz-ai-woocommerce' ) ); ?></p>';
 					modal.style.display = 'flex';
 				});
 			});
-			var modal = document.getElementById('dataviz-sr-intent-modal');
+
+			var modal = document.getElementById('dataviz-sr-detail-modal');
 			if (modal) {
 				modal.querySelector('.dataviz-sr-modal__close').addEventListener('click', function(){ modal.style.display = 'none'; });
 				modal.querySelector('.dataviz-sr-modal__backdrop').addEventListener('click', function(){ modal.style.display = 'none'; });

@@ -26,6 +26,10 @@ class Dataviz_AI_Intent_Classifier {
 			'purchase', 'buy', 'item', 'inventory', 'stock', 'buyer',
 			'client', 'purchased', 'sold', 'total', 'recent', 'list',
 			'show me', 'display', 'what are', 'how many', 'tell me about',
+			// Category-style phrasing like \"What do I have under Clothing?\"
+			'what do i have under', 'under clothing', 'under sports', 'under electronics', 'under accessories',
+			// Common generic category names (helps catch \"under Clothing\" etc.).
+			'clothing', 'electronics', 'sports', 'accessories',
 			// Spending / financial.
 			'spent', 'spend', 'spending', 'earning', 'income', 'profit',
 			// Funnel / conversion questions (often require external analytics).

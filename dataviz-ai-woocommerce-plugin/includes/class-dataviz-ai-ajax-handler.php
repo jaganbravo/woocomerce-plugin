@@ -212,7 +212,7 @@ class Dataviz_AI_AJAX_Handler {
 		$feature_requests = new Dataviz_AI_Feature_Requests();
 		$request_id       = $feature_requests->submit_request( $entity_type, $user_id, $description );
 
-		Dataviz_AI_Support_Requests::store_feature_request( $entity_type, $user_id, $description );
+		Dataviz_AI_Support_Requests::store_feature_request( $entity_type, $user_id, $description, $description );
 
 		if ( $request_id ) {
 			wp_send_json_success( array(

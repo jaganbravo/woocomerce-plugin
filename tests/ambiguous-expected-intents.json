@@ -21,7 +21,7 @@
   },
   "How many orders were refunded last month?": {
     "requires_data": true,
-    "entity": "refunds"
+    "entity": "orders"
   },
   "What are the refund totals for recent orders?": {
     "requires_data": true,
@@ -106,7 +106,7 @@
   },
   "What inventory needs attention?": {
     "requires_data": true,
-    "entity": "stock"
+    "entity": "inventory"
   },
   "Average revenue per customer.": {
     "requires_data": true,

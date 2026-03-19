@@ -132,9 +132,43 @@
 	overflow: auto;
 	font-size: 13px;
 	line-height: 1.6;
-	white-space: pre-wrap;
 	word-break: break-word;
 	background: #f6f7f7;
 	margin: 0;
 	border-radius: 0 0 8px 8px;
+}
+
+/* Detail modal sections */
+.dataviz-sr-detail-section {
+	margin-bottom: 16px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #e0e0e0;
+}
+.dataviz-sr-detail-section:last-child {
+	border-bottom: none;
+	margin-bottom: 0;
+	padding-bottom: 0;
+}
+.dataviz-sr-detail-section strong {
+	display: block;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: .5px;
+	color: #646970;
+	margin-bottom: 4px;
+}
+.dataviz-sr-detail-text {
+	margin: 0;
+	color: #1d2327;
+}
+.dataviz-sr-detail-code {
+	margin: 0;
+	padding: 10px 12px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	font-size: 12px;
+	white-space: pre-wrap;
+	max-height: 200px;
+	overflow: auto;
 }

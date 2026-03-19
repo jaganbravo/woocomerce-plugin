@@ -444,9 +444,6 @@ class Dataviz_AI_Tool_Executor {
 
 		$request_id = $feature_requests->submit_request( $entity_type, $user_id, $description );
 
-		// Also store in the unified support requests table.
-		Dataviz_AI_Support_Requests::store_feature_request( $entity_type, $user_id, $description );
-
 		if ( $request_id ) {
 			$this->send_feature_request_email( $request_id, $entity_type, $user_id, $description );
 			return array(

@@ -137,6 +137,16 @@ class Dataviz_AI_Query_Orchestrator {
 			return;
 		}
 
+		// Store feature request in unified support table (with question context).
+		if ( ! empty( $pipeline_result['feature_request'] ) && ! empty( $pipeline_result['feature_entity'] ) ) {
+			Dataviz_AI_Support_Requests::store_feature_request(
+				$pipeline_result['feature_entity'],
+				get_current_user_id(),
+				'',
+				$question
+			);
+		}
+
 		// Execute tools.
 		$exec = $this->tool_executor->execute_all( $pipeline_result['tool_calls'] );
 
@@ -242,6 +252,16 @@ class Dataviz_AI_Query_Orchestrator {
 				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
 			);
 			return $this->build_intent_not_found_response( $question, 'Execution engine produced no tool calls.' );
+		}
+
+		// Store feature request in unified support table (with question context).
+		if ( ! empty( $pipeline_result['feature_request'] ) && ! empty( $pipeline_result['feature_entity'] ) ) {
+			Dataviz_AI_Support_Requests::store_feature_request(
+				$pipeline_result['feature_entity'],
+				get_current_user_id(),
+				'',
+				$question
+			);
 		}
 
 		$exec = $this->tool_executor->execute_all( $pipeline_result['tool_calls'] );
