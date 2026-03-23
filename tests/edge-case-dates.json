@@ -1,0 +1,22 @@
+{
+  "questions": [
+    "Revenue from Black Friday 2025",
+    "Orders between Jan 15 and Feb 3",
+    "Sales last Christmas week",
+    "What did I make two Tuesdays ago?",
+    "Year-to-date profit",
+    "Orders from Q3",
+    "How did January compare to February?",
+    "Sales the week of March 10th",
+    "Revenue from 90 days ago to 30 days ago",
+    "What happened three quarters ago?",
+    "Total orders placed on New Year's Day",
+    "Show me last weekend's revenue",
+    "Orders this morning",
+    "Revenue since the store opened",
+    "Sales from 2024-12-01 to 2025-01-31"
+  ],
+  "description": "Date/time parsing stress test. Tests named events, relative weekday arithmetic, quarter references, year boundaries, sub-day granularity, and open-ended ranges. Date hallucination from the LLM is the #1 real-world risk.",
+  "generatedAt": "2026-02-24T00:00:00.000Z",
+  "count": 15
+}

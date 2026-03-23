@@ -25,6 +25,12 @@ require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-pipeli
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-query-orchestrator.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-support-requests.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-support-requests-admin.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-email-digests.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-mailer.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-generator.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-email-template.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-cron.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-admin.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-admin.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-onboarding.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-widget.php';
@@ -49,26 +55,20 @@ class Dataviz_AI_Loader {
 	 */
 	protected $version;
 
-	/**
-	 * Admin component.
-	 *
-	 * @var Dataviz_AI_Admin
-	 */
+	/** @var Dataviz_AI_Admin */
 	protected $admin;
 
-	/**
-	 * Onboarding component.
-	 *
-	 * @var Dataviz_AI_Onboarding
-	 */
+	/** @var Dataviz_AI_Onboarding */
 	protected $onboarding;
 
-	/**
-	 * AJAX handler.
-	 *
-	 * @var Dataviz_AI_AJAX_Handler
-	 */
+	/** @var Dataviz_AI_AJAX_Handler */
 	protected $ajax;
+
+	/** @var Dataviz_AI_Digest_Admin */
+	protected $digest_admin;
+
+	/** @var Dataviz_AI_Digest_Cron */
+	protected $digest_cron;
 
 	/**
 	 * Constructor.
@@ -91,6 +91,10 @@ class Dataviz_AI_Loader {
 		$stream_handler  = new Dataviz_AI_Stream_Handler( $api_client );
 		$tool_executor   = new Dataviz_AI_Tool_Executor( $data_fetcher );
 		$intent_pipeline = new Dataviz_AI_Intent_Pipeline( $api_client );
+
+		$digest_generator = new Dataviz_AI_Digest_Generator( $data_fetcher );
+		$this->digest_admin = new Dataviz_AI_Digest_Admin( $digest_generator );
+		$this->digest_cron = new Dataviz_AI_Digest_Cron( $digest_generator );
 
 		$orchestrator = new Dataviz_AI_Query_Orchestrator(
 			$intent_pipeline,
@@ -134,6 +138,7 @@ class Dataviz_AI_Loader {
 		$this->define_admin_hooks();
 		$this->define_ajax_hooks();
 		$this->define_public_hooks();
+		$this->digest_cron->init();
 	}
 
 	/**
@@ -144,8 +149,10 @@ class Dataviz_AI_Loader {
 	protected function define_admin_hooks() {
 		add_action( 'admin_menu', array( $this->admin, 'register_menu_page' ) );
 		add_action( 'admin_menu', array( 'Dataviz_AI_Support_Requests_Admin', 'register_submenu' ) );
+		add_action( 'admin_menu', array( $this->digest_admin, 'register_submenu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( 'Dataviz_AI_Support_Requests_Admin', 'enqueue_assets' ) );
+		add_action( 'admin_enqueue_scripts', array( $this->digest_admin, 'enqueue_assets' ) );
 		$this->onboarding->init();
 	}
 
