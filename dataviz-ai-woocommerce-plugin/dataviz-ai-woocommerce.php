@@ -66,10 +66,18 @@ function dataviz_ai_wc_activate() {
 	require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-support-requests.php';
 	Dataviz_AI_Support_Requests::create_table();
 
+	// Create email digests table.
+	require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-email-digests.php';
+	Dataviz_AI_Email_Digests::create_table();
+
 	// Schedule daily cleanup of old messages.
 	if ( ! wp_next_scheduled( 'dataviz_ai_cleanup_chat_history' ) ) {
 		wp_schedule_event( time(), 'daily', 'dataviz_ai_cleanup_chat_history' );
 	}
+
+	// Schedule digest cron.
+	require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-cron.php';
+	Dataviz_AI_Digest_Cron::schedule();
 
 	flush_rewrite_rules();
 }
@@ -82,6 +90,10 @@ register_activation_hook( __FILE__, 'dataviz_ai_wc_activate' );
 function dataviz_ai_wc_deactivate() {
 	// Clear scheduled cleanup task.
 	wp_clear_scheduled_hook( 'dataviz_ai_cleanup_chat_history' );
+
+	// Clear digest cron.
+	require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-cron.php';
+	Dataviz_AI_Digest_Cron::unschedule();
 
 	flush_rewrite_rules();
 }

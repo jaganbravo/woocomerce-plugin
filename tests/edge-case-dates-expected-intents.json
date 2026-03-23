@@ -1,0 +1,70 @@
+{
+  "Revenue from Black Friday 2025": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Orders between Jan 15 and Feb 3": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Sales last Christmas week": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "What did I make two Tuesdays ago?": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Year-to-date profit": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Orders from Q3": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "How did January compare to February?": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Sales the week of March 10th": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Revenue from 90 days ago to 30 days ago": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "What happened three quarters ago?": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Total orders placed on New Year's Day": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Show me last weekend's revenue": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Orders this morning": {
+    "requires_data": true,
+    "entity": "orders"
+  },
+  "Revenue since the store opened": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Sales from 2024-12-01 to 2025-01-31": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  }
+}
