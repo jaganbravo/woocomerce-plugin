@@ -147,15 +147,15 @@ class Dataviz_AI_Query_Orchestrator {
 			);
 		}
 
-		// Execute tools.
-		$exec = $this->tool_executor->execute_all( $pipeline_result['tool_calls'] );
+		$validated_intent = is_array( $pipeline_result['intent'] ) ? $pipeline_result['intent'] : array();
+		$validated_intent['_question'] = $question;
+
+		$exec = $this->tool_executor->execute_all( $pipeline_result['tool_calls'], $validated_intent );
 
 		// Send chart data to frontend early.
 		if ( ! empty( $exec['frontend_data'] ) ) {
 			$this->stream_handler->send_chunk( '', array( 'tool_data' => $exec['frontend_data'] ) );
 		}
-
-		$validated_intent = is_array( $pipeline_result['intent'] ) ? $pipeline_result['intent'] : array();
 
 		// Try deterministic answer first.
 		$direct = Dataviz_AI_Answer_Composer::maybe_compose( $question, $validated_intent, $exec['results_for_prompt'] );
@@ -264,13 +264,16 @@ class Dataviz_AI_Query_Orchestrator {
 			);
 		}
 
-		$exec = $this->tool_executor->execute_all( $pipeline_result['tool_calls'] );
 		$validated_intent = is_array( $pipeline_result['intent'] ) ? $pipeline_result['intent'] : array();
+		$validated_intent['_question'] = $question;
+		$exec = $this->tool_executor->execute_all( $pipeline_result['tool_calls'], $validated_intent );
+
+		$tool_data = ! empty( $exec['frontend_data'] ) ? $exec['frontend_data'] : array();
 
 		// Deterministic answer.
 		$direct = Dataviz_AI_Answer_Composer::maybe_compose( $question, $validated_intent, $exec['results_for_prompt'] );
 		if ( is_string( $direct ) && $direct !== '' ) {
-			return array( 'answer' => $direct, 'provider' => 'openai', 'operations_used' => $exec['operations_used'] );
+			return array( 'answer' => $direct, 'provider' => 'openai', 'operations_used' => $exec['operations_used'], 'tool_data' => $tool_data );
 		}
 
 		// LLM summarization.
@@ -286,7 +289,7 @@ class Dataviz_AI_Query_Orchestrator {
 			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-woocommerce' ) );
 		}
 
-		return array( 'answer' => $answer, 'provider' => 'openai', 'operations_used' => $exec['operations_used'] );
+		return array( 'answer' => $answer, 'provider' => 'openai', 'operations_used' => $exec['operations_used'], 'tool_data' => $tool_data );
 	}
 
 	// ------------------------------------------------------------------

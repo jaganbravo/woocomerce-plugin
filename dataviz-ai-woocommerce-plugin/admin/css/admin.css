@@ -318,22 +318,28 @@
 
 /* Chart Wrapper in Chat Messages */
 .dataviz-ai-admin .dataviz-ai-chart-wrapper {
+	position: relative;
 	margin-top: 1rem;
-	padding: 1rem;
-	background: #f9f9f9;
-	border-radius: 8px;
-	border: 1px solid #e5e5e5;
+	padding: 1rem 1rem 0.75rem;
+	background: #fff;
+	border-radius: 10px;
+	border: 1px solid #e2e4e9;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 	max-width: 100%;
-	min-height: 300px;
-	max-height: 500px;
+	aspect-ratio: 16 / 10;
+	min-height: 240px;
+	max-height: 420px;
 }
 
-.dataviz-ai-admin .dataviz-ai-message--ai .dataviz-ai-chart-wrapper {
-	background: #fff;
-	border: 1px solid #dcdcde;
+.dataviz-ai-admin .dataviz-ai-chart-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #1e1e1e;
+	margin-bottom: 0.5rem;
+	letter-spacing: -0.01em;
 }
 
 .dataviz-ai-admin .dataviz-ai-chart-wrapper canvas {
-	max-height: 450px;
+	max-height: 380px;
 }
 

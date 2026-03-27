@@ -29,7 +29,8 @@ class Dataviz_AI_Tool_Executor {
 	/**
 	 * Execute all tool calls and return structured results.
 	 *
-	 * @param array $tool_calls Tool calls from the execution engine.
+	 * @param array $tool_calls       Tool calls from the execution engine.
+	 * @param array $validated_intent  Optional. Validated intent for chart descriptor building.
 	 * @return array {
 	 *     @type array $results_for_prompt  Array of tool/arguments/result entries for LLM context.
 	 *     @type array $frontend_data       Chart-relevant data for the frontend (tool_data).
@@ -38,7 +39,7 @@ class Dataviz_AI_Tool_Executor {
 	 *     @type array $assistant_tool_calls OpenAI-format assistant tool_calls array.
 	 * }
 	 */
-	public function execute_all( array $tool_calls ) {
+	public function execute_all( array $tool_calls, array $validated_intent = array() ) {
 		$results_for_prompt    = array();
 		$frontend_data         = array();
 		$operations_used       = array();
@@ -110,6 +111,13 @@ class Dataviz_AI_Tool_Executor {
 			);
 
 			$operations_used[] = $function_name;
+		}
+
+		if ( ! empty( $validated_intent ) && ! empty( $results_for_prompt ) ) {
+			$chart_descriptor = Dataviz_AI_Chart_Descriptor::build( $validated_intent, $results_for_prompt );
+			if ( $chart_descriptor ) {
+				$frontend_data['chart_descriptor'] = $chart_descriptor;
+			}
 		}
 
 		return array(
@@ -624,6 +632,8 @@ class Dataviz_AI_Tool_Executor {
 		if ( $function_name === 'get_woocommerce_data' || $function_name === 'get_order_statistics' ) {
 			if ( in_array( $entity_type, array( 'inventory', 'stock' ), true ) ) {
 				$frontend_data['inventory'] = $tool_result;
+			} elseif ( $entity_type === 'orders' && $query_type === 'by_period' && is_array( $tool_result ) ) {
+				$frontend_data['orders_by_period'] = $tool_result;
 			} elseif ( $entity_type === 'orders' && $query_type === 'list' ) {
 				if ( isset( $tool_result['orders'] ) && is_array( $tool_result['orders'] ) ) {
 					$frontend_data['orders'] = $tool_result['orders'];

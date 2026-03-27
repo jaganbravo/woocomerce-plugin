@@ -68,11 +68,10 @@
 	}
 
 	// Add message to chat
-	function addMessage( text, type, forceScroll = true, questionForChart = null ) {
+	function addMessage( text, type, forceScroll = true, toolData = null ) {
 		const $messages = $( '#dataviz-ai-chat-messages' );
 		const $welcome = $messages.find( '.dataviz-ai-chat-welcome' );
 		
-		// Hide welcome message after first message
 		if ( $welcome.length && conversationHistory.length === 0 ) {
 			$welcome.fadeOut( 300, function() {
 				$( this ).remove();
@@ -83,22 +82,16 @@
 		const $message = $( '<div class="dataviz-ai-message ' + messageClass + '"></div>' );
 		const $content = $( '<div class="dataviz-ai-message-content"></div>' );
 		
-		// Format text (preserve line breaks)
 		const formattedText = text.replace( /\n/g, '<br>' );
 		$content.html( formattedText );
 
 		$message.append( $content );
 		$messages.append( $message );
-		
-		// Render charts if this is an AI response and question mentions charts
-		if ( type === 'ai' && questionForChart && mentionsChart( questionForChart ) ) {
-			setTimeout( function() {
-				renderChartForQuestion( questionForChart, $message );
-				scrollToBottom( forceScroll );
-			}, 100 );
+
+		if ( type === 'ai' && toolData && toolData.chart_descriptor ) {
+			maybeRenderChart( toolData, $message );
 		}
-		
-		// Only scroll if forced (new messages) or if user is near bottom
+
 		scrollToBottom( forceScroll );
 		
 		return $message;
@@ -136,353 +129,123 @@
 		} );
 	}
 
-	// Check if question mentions charts
-	function mentionsChart( text ) {
-		// Only trigger on explicit chart/visualization requests, not generic "show me" or "display"
-		const chartKeywords = [ 'chart', 'pie', 'bar', 'graph', 'visualize', 'visualization', 'plot', 'diagram' ];
-		const lowerText = text.toLowerCase();
-		// Check if it's an explicit chart request (not just "show me" or "display")
-		const hasChartKeyword = chartKeywords.some( keyword => lowerText.includes( keyword ) );
-		// Also check for "show me" + "chart" combination, but not just "show me" alone
-		const hasShowMeWithChart = lowerText.includes( 'show me' ) && ( lowerText.includes( 'chart' ) || lowerText.includes( 'graph' ) || lowerText.includes( 'visual' ) );
-		return hasChartKeyword || hasShowMeWithChart;
-	}
+	// ------------------------------------------------------------------
+	// Chart rendering from backend descriptor (no question parsing)
+	// ------------------------------------------------------------------
 
-	// Detect chart type from question
-	function detectChartType( question ) {
-		const lowerQuestion = question.toLowerCase();
-		if ( lowerQuestion.includes( 'pie' ) ) {
-			return 'pie';
-		} else if ( lowerQuestion.includes( 'bar' ) ) {
-			return 'bar';
-		}
-		// Default based on context
-		return 'pie'; // Default to pie chart
-	}
+	var chartPalette = [
+		'#6366f1', '#8b5cf6', '#a78bfa',
+		'#10b981', '#059669', '#047857',
+		'#f59e0b', '#d97706', '#b45309',
+		'#ef4444', '#dc2626', '#b91c1c',
+		'#3b82f6', '#2563eb', '#1d4ed8',
+	];
 
-	// Detect what data to chart from question
-	function detectChartData( question ) {
-		const lowerQuestion = question.toLowerCase();
-		if ( lowerQuestion.includes( 'order' ) || lowerQuestion.includes( 'sale' ) || lowerQuestion.includes( 'revenue' ) || lowerQuestion.includes( 'transaction' ) ) {
-			return 'orders';
-		} else if ( lowerQuestion.includes( 'product' ) || lowerQuestion.includes( 'item' ) ) {
-			return 'products';
-		} else if ( lowerQuestion.includes( 'inventory' ) || lowerQuestion.includes( 'stock' ) ) {
-			return 'inventory';
-		} else if ( lowerQuestion.includes( 'coupon' ) || lowerQuestion.includes( 'discount' ) ) {
-			return 'coupons';
-		} else if ( lowerQuestion.includes( 'customer' ) || lowerQuestion.includes( 'buyer' ) ) {
-			return 'customers';
-		} else if ( lowerQuestion.includes( 'category' ) || lowerQuestion.includes( 'tag' ) ) {
-			return 'categories';
-		}
-		// Return null if we can't determine the data type - don't default to orders
-		return null;
-	}
-
-	// Render pie chart
-	function renderPieChart( $container, data, labels, title ) {
-		if ( typeof Chart === 'undefined' ) {
+	function renderChartFromDescriptor( descriptor, $container ) {
+		if ( ! descriptor || typeof Chart === 'undefined' ) {
 			return;
 		}
 
-		const canvas = document.createElement( 'canvas' );
-		$container.append( canvas );
-
-		new Chart( canvas, {
-			type: 'pie',
-			data: {
-				labels: labels,
-				datasets: [ {
-					data: data,
-					backgroundColor: [
-						'#2271b1',
-						'#135e96',
-						'#0a4b78',
-						'#10b981',
-						'#059669',
-						'#047857',
-						'#f59e0b',
-						'#d97706',
-						'#b45309',
-						'#ef4444',
-						'#dc2626',
-						'#b91c1c',
-						'#8b5cf6',
-						'#7c3aed',
-						'#6d28d9',
-					],
-				} ],
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					title: {
-						display: !!title,
-						text: title || '',
-					},
-					legend: {
-						position: 'bottom',
-					},
-				},
-			},
-		} );
-	}
-
-	// Render bar chart
-	function renderBarChart( $container, data, labels, title, yAxisLabel = 'Value' ) {
-		if ( typeof Chart === 'undefined' ) {
+		if ( $container.find( '.dataviz-ai-chart-wrapper' ).length > 0 ) {
 			return;
 		}
 
-		const canvas = document.createElement( 'canvas' );
-		$container.append( canvas );
-
-		new Chart( canvas, {
-			type: 'bar',
-			data: {
-				labels: labels,
-				datasets: [ {
-					label: yAxisLabel,
-					data: data,
-					backgroundColor: '#2271b1',
-					borderColor: '#135e96',
-					borderWidth: 1,
-				} ],
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					title: {
-						display: !!title,
-						text: title || '',
-					},
-					legend: {
-						display: false,
-					},
-				},
-				scales: {
-					y: {
-						beginAtZero: true,
-					},
-				},
-			},
-		} );
-	}
-
-	// Render chart based on question and data
-	function renderChartForQuestion( question, $messageContainer, streamToolData = null ) {
-		if ( ! mentionsChart( question ) || typeof DatavizAIAdmin === 'undefined' ) {
+		var labels   = descriptor.labels || [];
+		var datasets = descriptor.datasets || [];
+		if ( ! labels.length || ! datasets.length || ! datasets[0].data || ! datasets[0].data.length ) {
 			return;
 		}
 
-		// Check if chart already exists in this container to prevent duplicates
-		if ( $messageContainer.find( '.dataviz-ai-chart-wrapper' ).length > 0 ) {
-			return; // Chart already rendered
+		var $wrapper = $( '<div class="dataviz-ai-chart-wrapper"></div>' );
+		if ( descriptor.title ) {
+			$wrapper.append( '<div class="dataviz-ai-chart-title">' + $( '<span>' ).text( descriptor.title ).html() + '</div>' );
 		}
+		var canvas = document.createElement( 'canvas' );
+		$wrapper.append( canvas );
+		$container.append( $wrapper );
 
-		const chartType = detectChartType( question );
-		const dataType = detectChartData( question );
+		var chartType = descriptor.chart_type || 'bar';
+		var isCurrency = descriptor.format === 'currency';
+		var isHorizontal = chartType === 'horizontalBar';
+		var cjsType = isHorizontal ? 'bar' : chartType;
 
-		// Don't render chart if we can't determine the data type or it's not a supported type
-		if ( ! dataType || ( dataType !== 'orders' && dataType !== 'products' && dataType !== 'inventory' ) ) {
-			return;
-		}
-
-		// Create chart container
-		const $chartContainer = $( '<div class="dataviz-ai-chart-wrapper"></div>' );
-		$messageContainer.append( $chartContainer );
-
-		// Use streamToolData if available (from actual query), otherwise fall back to static data
-		let orders = null;
-		let orderStatistics = null;
-		if ( dataType === 'orders' ) {
-			// Prefer order_statistics (status_breakdown or category_breakdown) from statistics query
-			if ( streamToolData && streamToolData.order_statistics && ( streamToolData.order_statistics.status_breakdown || streamToolData.order_statistics.category_breakdown ) ) {
-				orderStatistics = streamToolData.order_statistics;
-			} else if ( streamToolData && streamToolData.orders && streamToolData.orders.length > 0 ) {
-				// Use individual orders from list query
-				orders = streamToolData.orders;
-			} else if ( DatavizAIAdmin.orderChartData && DatavizAIAdmin.orderChartData.length > 0 ) {
-				// Fallback to static pre-loaded data
-				orders = DatavizAIAdmin.orderChartData;
-			}
-		}
-
-		if ( dataType === 'orders' ) {
-			if ( chartType === 'pie' ) {
-				let labels = [];
-				let data = [];
-				const lowerQuestion = question.toLowerCase();
-
-				// "Sales by category" / "revenue by category" / "pie chart of sales by product category" → ONLY category chart
-				const wantsSalesByCategory = (
-					lowerQuestion.indexOf( 'category' ) !== -1 &&
-					( lowerQuestion.indexOf( 'pie' ) !== -1 || lowerQuestion.indexOf( 'sales' ) !== -1 || lowerQuestion.indexOf( 'revenue' ) !== -1 || lowerQuestion.indexOf( 'sale' ) !== -1 )
-				);
-
-				if ( wantsSalesByCategory ) {
-					if ( orderStatistics && orderStatistics.category_breakdown && orderStatistics.category_breakdown.length > 0 ) {
-						orderStatistics.category_breakdown.forEach( function( catData ) {
-							labels.push( catData.category_name || 'Uncategorized' );
-							data.push( typeof catData.revenue !== 'undefined' ? parseFloat( catData.revenue ) : ( catData.order_count || 0 ) );
-						} );
-						// Render if we have labels and at least one non-zero value (Chart.js needs meaningful data)
-						const hasNonZero = data.some( function( v ) { return parseFloat( v ) > 0; } );
-						if ( labels.length > 0 && hasNonZero ) {
-							renderPieChart( $chartContainer, data, labels, 'Sales by Product Category' );
-						}
-					}
-					// Do NOT fall back to order status when user asked for sales by category
-				} else {
-					// Order status pie chart (when question is about orders/status, not sales by category)
-					let statusCounts = {};
-					if ( orderStatistics && orderStatistics.status_breakdown ) {
-						orderStatistics.status_breakdown.forEach( function( statusData ) {
-							const status = statusData.status || 'unknown';
-							const cleanStatus = status.replace( /^wc-/, '' );
-							statusCounts[ cleanStatus ] = statusData.count || 0;
-						} );
-						labels = Object.keys( statusCounts );
-						data = Object.values( statusCounts );
-					} else if ( orders && orders.length > 0 ) {
-						orders.forEach( function( order ) {
-							const status = order.status || 'unknown';
-							const cleanStatus = status.replace( /^wc-/, '' );
-							statusCounts[ cleanStatus ] = ( statusCounts[ cleanStatus ] || 0 ) + 1;
-						} );
-						labels = Object.keys( statusCounts );
-						data = Object.values( statusCounts );
-					}
-					if ( labels.length > 0 && data.length > 0 ) {
-						renderPieChart( $chartContainer, data, labels, 'Order Status Distribution' );
-					}
-				}
-			} else if ( chartType === 'bar' ) {
-				// Order totals bar chart (top 10)
-				const sortedOrders = orders
-					.filter( o => o.total > 0 )
-					.sort( ( a, b ) => b.total - a.total )
-					.slice( 0, 10 );
-
-				const labels = sortedOrders.map( o => 'Order #' + o.id );
-				const data = sortedOrders.map( o => o.total );
-
-				if ( labels.length > 0 ) {
-					renderBarChart( $chartContainer, data, labels, 'Top Orders by Value', 'Total ($)' );
-				}
-			}
-		} else if ( dataType === 'products' && DatavizAIAdmin.productChartData && DatavizAIAdmin.productChartData.length > 0 ) {
-			const products = DatavizAIAdmin.productChartData;
-			
-			if ( chartType === 'pie' ) {
-				// Product sales pie chart (top 8)
-				const topProducts = products
-					.filter( p => p.sales > 0 )
-					.sort( ( a, b ) => b.sales - a.sales )
-					.slice( 0, 8 );
-
-				const labels = topProducts.map( p => p.name.length > 20 ? p.name.substring( 0, 20 ) + '...' : p.name );
-				const data = topProducts.map( p => p.sales );
-
-				if ( labels.length > 0 ) {
-					renderPieChart( $chartContainer, data, labels, 'Top Products by Sales' );
-				}
-			} else if ( chartType === 'bar' ) {
-				// Product sales bar chart
-				const topProducts = products
-					.filter( p => p.sales > 0 )
-					.sort( ( a, b ) => b.sales - a.sales )
-					.slice( 0, 10 );
-
-				const labels = topProducts.map( p => p.name.length > 15 ? p.name.substring( 0, 15 ) + '...' : p.name );
-				const data = topProducts.map( p => p.sales );
-
-				if ( labels.length > 0 ) {
-					renderBarChart( $chartContainer, data, labels, 'Top Products by Sales', 'Units Sold' );
-				}
-			}
-		} else if ( dataType === 'inventory' ) {
-			// Inventory chart - use data from stream if available, otherwise fetch via AJAX
-			// streamToolData is passed as third parameter when called from stream completion
-			if ( streamToolData && streamToolData.inventory && streamToolData.inventory.products ) {
-				// Use data already fetched by LLM (no redundant AJAX call)
-				renderInventoryChart( $chartContainer, chartType, streamToolData.inventory.products );
+		var cjsDatasets = datasets.map( function( ds, idx ) {
+			var base = {
+				label: ds.label || '',
+				data: ds.data,
+			};
+			if ( cjsType === 'pie' ) {
+				base.backgroundColor = chartPalette.slice( 0, labels.length );
+			} else if ( cjsType === 'line' ) {
+				base.borderColor = chartPalette[ idx ] || '#6366f1';
+				base.backgroundColor = ( chartPalette[ idx ] || '#6366f1' ) + '22';
+				base.fill = true;
+				base.tension = 0.3;
+				base.pointRadius = 3;
 			} else {
-				// Fallback: fetch data via AJAX if not in stream
-				fetchInventoryForChart( $chartContainer, chartType, question );
+				base.backgroundColor = chartPalette[ idx ] || '#6366f1';
+				base.borderColor = ( chartPalette[ idx ] || '#6366f1' );
+				base.borderWidth = 1;
+				base.borderRadius = 4;
 			}
-		}
-	}
-
-	// Render inventory chart from products data (shared by both stream and AJAX)
-	function renderInventoryChart( $chartContainer, chartType, products ) {
-		if ( chartType === 'pie' ) {
-			// Inventory pie chart - group by stock status or stock ranges
-			const stockGroups = {};
-			
-			products.forEach( function( product ) {
-				const stockQty = product.stock_quantity;
-				let group;
-				
-				if ( stockQty === null || stockQty === undefined ) {
-					group = 'No Stock Management';
-				} else if ( stockQty === 0 ) {
-					group = 'Out of Stock';
-				} else if ( stockQty < 10 ) {
-					group = 'Low Stock (1-9)';
-				} else if ( stockQty < 50 ) {
-					group = 'Medium Stock (10-49)';
-				} else {
-					group = 'High Stock (50+)';
-				}
-				
-				stockGroups[ group ] = ( stockGroups[ group ] || 0 ) + 1;
-			} );
-			
-			const labels = Object.keys( stockGroups );
-			const data = Object.values( stockGroups );
-			
-			if ( labels.length > 0 ) {
-				renderPieChart( $chartContainer, data, labels, 'Inventory Distribution by Stock Level' );
-			}
-		} else if ( chartType === 'bar' ) {
-			// Top products by stock quantity (bar chart)
-			const productsWithStock = products
-				.filter( p => p.stock_quantity !== null && p.stock_quantity !== undefined )
-				.sort( ( a, b ) => b.stock_quantity - a.stock_quantity )
-				.slice( 0, 10 );
-			
-			const labels = productsWithStock.map( p => p.name.length > 15 ? p.name.substring( 0, 15 ) + '...' : p.name );
-			const data = productsWithStock.map( p => p.stock_quantity );
-			
-			if ( labels.length > 0 ) {
-				renderBarChart( $chartContainer, data, labels, 'Top Products by Stock Quantity', 'Stock Qty' );
-			}
-		}
-	}
-
-	// Fetch inventory data for chart rendering (fallback if not in stream)
-	function fetchInventoryForChart( $chartContainer, chartType, question ) {
-		// Make AJAX call to get inventory data
-		jQuery.ajax( {
-			url: DatavizAIAdmin.ajaxUrl,
-			type: 'POST',
-			data: {
-				action: 'dataviz_ai_get_inventory_chart',
-				nonce: DatavizAIAdmin.nonce,
-			},
-			success: function( response ) {
-				if ( response.success && response.data && response.data.products ) {
-					renderInventoryChart( $chartContainer, chartType, response.data.products );
-				}
-			},
-			error: function() {
-				console.error( 'Failed to fetch inventory data for chart' );
-			}
+			return base;
 		} );
+
+		var tooltipCallback = {};
+		if ( isCurrency ) {
+			tooltipCallback = {
+				label: function( ctx ) {
+					var val = ctx.parsed !== undefined ? ( typeof ctx.parsed === 'object' ? ( isHorizontal ? ctx.parsed.x : ctx.parsed.y ) : ctx.parsed ) : ctx.raw;
+					return ( ctx.dataset.label || '' ) + ': $' + parseFloat( val ).toLocaleString( undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 } );
+				}
+			};
+		}
+
+		var scales = {};
+		if ( cjsType !== 'pie' ) {
+			var xCfg = { display: true };
+			var yCfg = { display: true, beginAtZero: true };
+			if ( descriptor.x_axis_label ) xCfg.title = { display: true, text: descriptor.x_axis_label };
+			if ( descriptor.y_axis_label ) yCfg.title = { display: true, text: descriptor.y_axis_label };
+			if ( isCurrency ) {
+				var currencyAxis = isHorizontal ? xCfg : yCfg;
+				currencyAxis.ticks = { callback: function( v ) { return '$' + v.toLocaleString(); } };
+			}
+			if ( isHorizontal ) {
+				xCfg.beginAtZero = true;
+			}
+			scales = { x: xCfg, y: yCfg };
+		}
+
+		var options = {
+			responsive: true,
+			maintainAspectRatio: false,
+			plugins: {
+				title: { display: false },
+				legend: { display: cjsType === 'pie', position: 'bottom' },
+				tooltip: { callbacks: tooltipCallback },
+			},
+			scales: scales,
+		};
+
+		if ( isHorizontal ) {
+			options.indexAxis = 'y';
+		}
+
+		new Chart( canvas, {
+			type: cjsType,
+			data: { labels: labels, datasets: cjsDatasets },
+			options: options,
+		} );
+	}
+
+	function maybeRenderChart( streamToolData, $messageContainer ) {
+		if ( streamToolData && streamToolData.chart_descriptor ) {
+			setTimeout( function() {
+				renderChartFromDescriptor( streamToolData.chart_descriptor, $messageContainer );
+				scrollToBottom( true );
+			}, 200 );
+		}
 	}
 
 	// Stop the current stream
@@ -674,7 +437,6 @@
 
 								try {
 									const data = JSON.parse( dataStr );
-									// Handle done event with optional embedded tool_data (ensures chart data is received)
 									if ( data.done === true ) {
 										if ( data.tool_data ) {
 											streamToolData = data.tool_data;
@@ -683,11 +445,7 @@
 										currentStreamController = null;
 										if ( ! streamStopped && fullResponse.trim() ) {
 											conversationHistory.push( { role: 'assistant', content: fullResponse } );
-											if ( mentionsChart( question ) ) {
-												setTimeout( function() {
-													renderChartForQuestion( question, $aiMessage, streamToolData );
-												}, 300 );
-											}
+											maybeRenderChart( streamToolData, $aiMessage );
 										}
 										$stopButton.removeClass( 'show' ).hide();
 										$sendButton.show();
@@ -720,17 +478,12 @@
 										scrollToBottom();
 									}
 								} catch ( e ) {
-									// Not JSON - check for legacy [DONE] marker
 									if ( dataStr === '[DONE]' || streamStopped ) {
 										currentStreamReader = null;
 										currentStreamController = null;
 										if ( ! streamStopped && fullResponse.trim() ) {
 											conversationHistory.push( { role: 'assistant', content: fullResponse } );
-											if ( mentionsChart( question ) ) {
-												setTimeout( function() {
-													renderChartForQuestion( question, $aiMessage, streamToolData );
-												}, 300 );
-											}
+											maybeRenderChart( streamToolData, $aiMessage );
 										}
 										$stopButton.removeClass( 'show' ).hide();
 										$sendButton.show();
