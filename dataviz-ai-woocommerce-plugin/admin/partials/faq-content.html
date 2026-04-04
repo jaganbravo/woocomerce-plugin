@@ -1,0 +1,363 @@
+<h1>Frequently Asked Questions (FAQ)</h1>
+<h2>Dataviz AI for WooCommerce</h2>
+
+<hr>
+
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#general-questions">General Questions</a></li>
+<li><a href="#installation-setup">Installation &amp; Setup</a></li>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#usage">Usage</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+<li><a href="#technical-questions">Technical Questions</a></li>
+<li><a href="#support">Support</a></li>
+</ol>
+
+<hr>
+
+<h2 id="general-questions">General Questions</h2>
+
+<h3>What is Dataviz AI for WooCommerce?</h3>
+<p><strong>Answer:</strong> Dataviz AI for WooCommerce is an AI-powered analytics plugin that allows WooCommerce store owners to ask questions about their store data and receive intelligent, data-driven answers. It provides a ChatGPT-style interface in your WordPress admin dashboard where you can query your orders, products, customers, and other store metrics using natural language.</p>
+
+<h3>What are the main features?</h3>
+<p><strong>Answer:</strong> The plugin includes:</p>
+<ul>
+<li><strong>AI Chat Interface</strong>: Natural language queries about your store data</li>
+<li><strong>Admin Dashboard</strong>: ChatGPT-style interface in WordPress admin</li>
+<li><strong>Data Analysis</strong>: Access to orders, products, customers, categories, tags, coupons, refunds, and stock data</li>
+<li><strong>Streaming Responses</strong>: Real-time chat experience with streaming responses</li>
+<li><strong>Chat History</strong>: Save and review previous conversations</li>
+<li><strong>Function Calling</strong>: Intelligent tool selection based on your questions</li>
+<li><strong>Large Dataset Handling</strong>: Efficient processing of large amounts of data through statistics and sampling</li>
+</ul>
+
+<h3>Do I need coding knowledge to use this plugin?</h3>
+<p><strong>Answer:</strong> No, the plugin is designed to be user-friendly. You simply type questions in natural language, and the AI will analyze your WooCommerce data and provide answers. Basic WordPress knowledge is helpful for installation and configuration.</p>
+
+<h3>Is this plugin free?</h3>
+<p><strong>Answer:</strong> Please check the plugin's pricing information on the official website or WordPress plugin directory. Pricing may vary based on your usage plan.</p>
+
+<hr>
+
+<h2 id="installation-setup">Installation &amp; Setup</h2>
+
+<h3>What are the system requirements?</h3>
+<p><strong>Answer:</strong> The plugin requires:</p>
+<ul>
+<li><strong>WordPress</strong>: Version 6.0 or higher</li>
+<li><strong>PHP</strong>: Version 7.4 or higher</li>
+<li><strong>WooCommerce</strong>: Version 6.0 or higher (must be installed and activated)</li>
+<li><strong>WooCommerce Tested</strong>: Up to version 8.5</li>
+</ul>
+
+<h3>How do I install the plugin?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Upload the <code>dataviz-ai-woocommerce-plugin</code> folder to <code>/wp-content/plugins/</code></li>
+<li>Activate the plugin through the 'Plugins' menu in WordPress</li>
+<li>Ensure WooCommerce is installed and activated before activation</li>
+<li>Navigate to the <strong>Dataviz AI</strong> menu in your WordPress admin sidebar</li>
+</ol>
+
+<h3>Can I install this if WooCommerce is not active?</h3>
+<p><strong>Answer:</strong> No, the plugin requires WooCommerce to be installed and activated. If you try to activate the plugin without WooCommerce, it will automatically deactivate and display an error message.</p>
+
+<h3>What happens during plugin activation?</h3>
+<p><strong>Answer:</strong> During activation, the plugin:</p>
+<ul>
+<li>Verifies WooCommerce is installed and active</li>
+<li>Creates database tables for chat history and feature requests</li>
+<li>Schedules daily cleanup tasks for old chat messages</li>
+<li>Sets up necessary WordPress hooks and filters</li>
+</ul>
+
+<hr>
+
+<h2 id="configuration">Configuration</h2>
+
+<h3>How do I configure the API connection?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Go to <strong>Dataviz AI</strong> in your WordPress admin sidebar</li>
+<li>Navigate to the <strong>Settings</strong> page</li>
+<li>Enter your backend API base URL</li>
+<li>Configure your API key (preferably via environment variables for security)</li>
+<li>Save the settings</li>
+</ol>
+
+<h3>How do I set up the API key using environment variables?</h3>
+<p><strong>Answer:</strong> For security, it's recommended to set your API key as an environment variable:</p>
+<ul>
+<li>Set <code>OPENAI_API_KEY</code> or <code>DATAVIZ_AI_API_KEY</code> in your server's environment variables</li>
+<li>The plugin will automatically read from these variables</li>
+<li>This prevents the API key from being stored in the WordPress database</li>
+</ul>
+
+<h3>What API endpoints does the plugin use?</h3>
+<p><strong>Answer:</strong> The plugin communicates with these backend endpoints:</p>
+<ul>
+<li><code>/api/woocommerce/ask</code> - For WooCommerce data queries</li>
+<li><code>/api/chat</code> - For general chat interactions</li>
+</ul>
+<p>You may need to adjust these endpoints to match your specific API routes.</p>
+
+<h3>Can I use this without a backend API?</h3>
+<p><strong>Answer:</strong> No, the plugin requires a backend API to process AI requests. The plugin sends WooCommerce data to your backend, which then communicates with the AI provider (such as OpenAI or Groq) and returns the results.</p>
+
+<hr>
+
+<h2 id="usage">Usage</h2>
+
+<h3>How do I start using the AI chat?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Navigate to <strong>Dataviz AI</strong> in your WordPress admin</li>
+<li>You'll see the chat interface</li>
+<li>Type your question in natural language (e.g., "What are my top-selling products this month?")</li>
+<li>Press Enter or click Send</li>
+<li>The AI will analyze your data and provide an answer</li>
+</ol>
+
+<h3>What kind of questions can I ask?</h3>
+<p><strong>Answer:</strong> You can ask questions about:</p>
+<ul>
+<li><strong>Orders</strong>: "Show me orders from last week", "What's the total revenue this month?"</li>
+<li><strong>Products</strong>: "What are my best-selling products?", "Which products have low stock?"</li>
+<li><strong>Customers</strong>: "How many new customers did I get this month?", "Who are my top customers?"</li>
+<li><strong>Categories &amp; Tags</strong>: "What categories are most popular?"</li>
+<li><strong>Coupons</strong>: "Which coupons were used most?"</li>
+<li><strong>Refunds</strong>: "How many refunds were processed this month?"</li>
+<li><strong>Stock</strong>: "Which products are out of stock?"</li>
+</ul>
+
+<h3>How do I use the chat widget on the frontend?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Use the <code>[dataviz_ai_chat]</code> shortcode on any page or post</li>
+<li>The shortcode will display a lightweight AI chat widget</li>
+<li>Visitors can interact with the chat widget to ask questions about your store</li>
+</ol>
+<p>Example: <code>[dataviz_ai_chat]</code></p>
+
+<h3>Can I view my chat history?</h3>
+<p><strong>Answer:</strong> Yes, the plugin saves your chat history. You can view previous conversations in the admin dashboard. The plugin also includes a daily cleanup task that removes old messages to keep the database optimized.</p>
+
+<h3>How does the quick analysis form work?</h3>
+<p><strong>Answer:</strong> The quick analysis form allows you to quickly send order data to the backend for analysis. It normalizes WooCommerce data before sending it to your backend API endpoint.</p>
+
+<hr>
+
+<h2 id="features">Features</h2>
+
+<h3>What data can the AI access?</h3>
+<p><strong>Answer:</strong> The plugin can access:</p>
+<ul>
+<li>Orders (with filtering, statistics, sampling, and time-series aggregation)</li>
+<li>Products (list and statistics)</li>
+<li>Customers (list and statistics)</li>
+<li>Categories and Tags</li>
+<li>Coupons</li>
+<li>Refunds</li>
+<li>Stock levels</li>
+</ul>
+
+<h3>How does the function calling work?</h3>
+<p><strong>Answer:</strong> The plugin uses intelligent function calling where the AI (LLM) automatically decides which data tools to use based on your question. For example, if you ask about orders, it will use the orders tool; if you ask about products, it will use the products tool.</p>
+
+<h3>Does the plugin handle large datasets?</h3>
+<p><strong>Answer:</strong> Yes, the plugin includes smart handling for large datasets:</p>
+<ul>
+<li><strong>Statistics</strong>: Provides aggregated statistics instead of raw data</li>
+<li><strong>Sampling</strong>: Uses intelligent sampling for large datasets</li>
+<li><strong>Time-series Aggregation</strong>: Groups data by time periods for efficient analysis</li>
+<li><strong>Backend Fetching</strong>: Can fetch data via REST API for very large stores</li>
+</ul>
+
+<h3>What is streaming responses?</h3>
+<p><strong>Answer:</strong> Streaming responses (SSE - Server-Sent Events) provide a real-time chat experience where you see the AI's response appear word-by-word as it's generated, similar to ChatGPT. This creates a more interactive and engaging user experience.</p>
+
+<hr>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3>The plugin won't activate. What should I do?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Ensure WooCommerce is installed and activated</li>
+<li>Check that your WordPress version is 6.0 or higher</li>
+<li>Verify PHP version is 7.4 or higher</li>
+<li>Check for plugin conflicts by deactivating other plugins temporarily</li>
+<li>Review the error message displayed during activation</li>
+</ol>
+
+<h3>I'm getting API connection errors. How do I fix this?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Verify your API base URL is correct in the settings</li>
+<li>Check that your API key is properly configured (via environment variables or settings)</li>
+<li>Ensure your backend API is running and accessible</li>
+<li>Check server logs for detailed error messages</li>
+<li>Verify firewall settings aren't blocking API requests</li>
+<li>Test the API endpoint directly using a tool like Postman or curl</li>
+</ol>
+
+<h3>The chat widget isn't appearing on my frontend. Why?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Verify you've added the <code>[dataviz_ai_chat]</code> shortcode correctly</li>
+<li>Check that the plugin's public CSS and JavaScript files are loading</li>
+<li>Clear your browser cache and WordPress cache</li>
+<li>Check browser console for JavaScript errors</li>
+<li>Ensure your theme supports shortcodes</li>
+</ol>
+
+<h3>Responses are slow or timing out. What can I do?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Check your server's PHP execution time limits</li>
+<li>Verify your backend API response times</li>
+<li>For large datasets, the plugin uses sampling - this is normal</li>
+<li>Check your server resources (CPU, memory)</li>
+<li>Consider optimizing your WooCommerce database</li>
+<li>Review API rate limits if using external AI services</li>
+</ol>
+
+<h3>I'm seeing "WooCommerce required" error even though it's installed.</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Deactivate and reactivate WooCommerce</li>
+<li>Deactivate and reactivate the Dataviz AI plugin</li>
+<li>Check that WooCommerce is the correct version (6.0+)</li>
+<li>Clear WordPress cache</li>
+<li>Check for conflicting plugins</li>
+</ol>
+
+<h3>Chat history is not saving. What should I check?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Verify the database tables were created during activation</li>
+<li>Check database permissions</li>
+<li>Review WordPress debug logs for database errors</li>
+<li>Try deactivating and reactivating the plugin to recreate tables</li>
+<li>Check that the scheduled cleanup task isn't removing messages too aggressively</li>
+</ol>
+
+<h3>The AI is giving incorrect answers about my data.</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Verify your WooCommerce data is accurate and up-to-date</li>
+<li>Check that the data fetchers are working correctly</li>
+<li>Review the data being sent to the API (check network requests in browser dev tools)</li>
+<li>Ensure your backend API is processing data correctly</li>
+<li>Try rephrasing your question for better clarity</li>
+</ol>
+
+<hr>
+
+<h2 id="technical-questions">Technical Questions</h2>
+
+<h3>Can I customize the data fetchers?</h3>
+<p><strong>Answer:</strong> Yes, you can extend the data fetcher methods in <code>class-dataviz-ai-data-fetcher.php</code>. The plugin provides helper methods that you can customize or extend based on your specific analytics needs.</p>
+
+<h3>How do I add custom tools or data sources?</h3>
+<p><strong>Answer:</strong> You can extend the plugin by:</p>
+<ol>
+<li>Adding new data fetcher methods in <code>class-dataviz-ai-data-fetcher.php</code></li>
+<li>Registering new tools in your backend API</li>
+<li>Updating the function calling schema to include new tools</li>
+<li>Modifying the AJAX handlers to support new data types</li>
+</ol>
+
+<h3>Can I change the AI model or provider?</h3>
+<p><strong>Answer:</strong> The AI model and provider are configured on your backend API, not in the WordPress plugin. You can modify your backend to use different providers (OpenAI, Groq, etc.) or different models. The plugin simply sends requests to your backend API.</p>
+
+<h3>How does the plugin handle data privacy?</h3>
+<p><strong>Answer:</strong></p>
+<ul>
+<li>Data is sent to your configured backend API</li>
+<li>Chat history is stored in your WordPress database</li>
+<li>You control what data is sent and where it goes</li>
+<li>Review your backend API's privacy policy and data handling</li>
+<li>Consider implementing data retention policies</li>
+</ul>
+
+<h3>Can I export chat history?</h3>
+<p><strong>Answer:</strong> Currently, chat history is stored in the database. You can:</p>
+<ol>
+<li>Access it directly from the database</li>
+<li>Use WordPress export tools</li>
+<li>Create a custom export feature by extending the plugin</li>
+<li>Use database backup tools to export the chat history table</li>
+</ol>
+
+<h3>How do I translate the plugin?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Generate a <code>.pot</code> file into the <code>languages/</code> directory using <code>wp i18n make-pot</code></li>
+<li>Create translation files for your language</li>
+<li>Load the translations in your WordPress installation</li>
+<li>The plugin uses the text domain <code>dataviz-ai-woocommerce</code></li>
+</ol>
+
+<h3>What database tables does the plugin create?</h3>
+<p><strong>Answer:</strong> The plugin creates two custom tables:</p>
+<ol>
+<li><strong>Chat History Table</strong>: Stores conversation history</li>
+<li><strong>Feature Requests Table</strong>: Stores user feature requests</li>
+</ol>
+<p>Both tables are created during plugin activation and removed during uninstallation (if you choose to delete data).</p>
+
+<hr>
+
+<h2 id="support">Support</h2>
+
+<h3>Where can I get help?</h3>
+<p><strong>Answer:</strong></p>
+<ul>
+<li>Check this FAQ document first</li>
+<li>Review the plugin documentation in the <code>documentation/</code> folder</li>
+<li>Check the README.md file for setup instructions</li>
+<li>Contact the plugin author through the official support channel</li>
+<li>Review WordPress and WooCommerce forums for related issues</li>
+</ul>
+
+<h3>How do I report a bug?</h3>
+<p><strong>Answer:</strong></p>
+<ol>
+<li>Document the issue clearly</li>
+<li>Note your WordPress, WooCommerce, and PHP versions</li>
+<li>Check WordPress debug logs for error messages</li>
+<li>List steps to reproduce the issue</li>
+<li>Contact support with this information</li>
+</ol>
+
+<h3>Can I request new features?</h3>
+<p><strong>Answer:</strong> Yes! The plugin includes a feature requests system. You can submit feature requests through the admin interface, and they will be stored in the database for review.</p>
+
+<h3>Is there developer documentation?</h3>
+<p><strong>Answer:</strong> Yes, check the following documentation files:</p>
+<ul>
+<li><code>ARCHITECTURE.md</code> - Plugin architecture overview</li>
+<li><code>ARCHITECTURE_DOCUMENTATION.md</code> - Detailed technical documentation</li>
+<li><code>DATABASE_STRUCTURE.md</code> - Database schema information</li>
+<li><code>PLUGIN_GUIDE.md</code> - Development guide</li>
+<li>Code comments in the plugin files</li>
+</ul>
+
+<hr>
+
+<h2>Additional Resources</h2>
+<ul>
+<li><strong>Quick Start Guide</strong>: See <code>QUICK_START.md</code></li>
+<li><strong>Plugin Guide</strong>: See <code>PLUGIN_GUIDE.md</code></li>
+<li><strong>Architecture Documentation</strong>: See <code>ARCHITECTURE_DOCUMENTATION.md</code></li>
+<li><strong>Testing Strategy</strong>: See <code>TESTING_STRATEGY.md</code></li>
+</ul>
+
+<hr>
+
+<p><strong>Last Updated:</strong> February 2025 | <strong>Plugin Version:</strong> 0.1.0</p>
+<p>For the most up-to-date information, please refer to the official plugin documentation or contact support.</p>
