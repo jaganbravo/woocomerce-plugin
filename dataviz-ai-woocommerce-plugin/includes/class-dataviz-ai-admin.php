@@ -79,9 +79,96 @@ class Dataviz_AI_Admin {
 			'dashicons-admin-comments',
 			56
 		);
+
+		add_submenu_page(
+			$this->menu_slug,
+			__( 'FAQ', 'dataviz-ai-woocommerce' ),
+			__( 'FAQ', 'dataviz-ai-woocommerce' ),
+			'manage_woocommerce',
+			'dataviz-ai-faq',
+			array( $this, 'render_faq_page' )
+		);
+
+		add_submenu_page(
+			$this->menu_slug,
+			__( 'Onboarding', 'dataviz-ai-woocommerce' ),
+			__( 'Onboarding', 'dataviz-ai-woocommerce' ),
+			'manage_woocommerce',
+			'dataviz-ai-onboarding',
+			array( $this, 'render_onboarding_page' )
+		);
 	}
 
+	/**
+	 * Render FAQ page with content from FAQ.md.
+	 *
+	 * @return void
+	 */
+	public function render_faq_page() {
+		$faq_file = DATAVIZ_AI_WC_PLUGIN_DIR . 'admin/partials/faq-content.html';
+		?>
+		<div class="wrap dataviz-ai-admin dataviz-ai-faq">
+			<h1><?php esc_html_e( 'FAQ', 'dataviz-ai-woocommerce' ); ?></h1>
+			<div class="dataviz-ai-faq-content">
+				<?php
+				if ( file_exists( $faq_file ) ) {
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static HTML content from plugin
+					echo file_get_contents( $faq_file );
+				} else {
+					echo '<p>' . esc_html__( 'FAQ content not found.', 'dataviz-ai-woocommerce' ) . '</p>';
+				}
+				?>
+			</div>
+		</div>
+		<?php
+	}
 
+	/**
+	 * Render Onboarding page with content from ONBOARDING_FLOW.md.
+	 *
+	 * @return void
+	 */
+	public function render_onboarding_page() {
+		$onboarding_file = DATAVIZ_AI_WC_PLUGIN_DIR . 'admin/partials/onboarding-content.html';
+		?>
+		<div class="wrap dataviz-ai-admin dataviz-ai-onboarding">
+			<h1><?php esc_html_e( 'Onboarding', 'dataviz-ai-woocommerce' ); ?></h1>
+			<div class="dataviz-ai-onboarding-content">
+				<?php
+				if ( file_exists( $onboarding_file ) ) {
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static HTML content from plugin
+					echo file_get_contents( $onboarding_file );
+				} else {
+					echo '<p>' . esc_html__( 'Onboarding content not found.', 'dataviz-ai-woocommerce' ) . '</p>';
+				}
+				?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Hide WooCommerce incompatibility notice on Dataviz AI admin pages.
+	 *
+	 * @return void
+	 */
+	public function hide_woocommerce_incompatibility_notice() {
+		$screen = get_current_screen();
+		if ( ! $screen || strpos( $screen->id, 'dataviz-ai' ) === false ) {
+			return;
+		}
+		?>
+		<script>
+		document.addEventListener('DOMContentLoaded', function() {
+			document.querySelectorAll('.notice').forEach(function(n) {
+				if (n.textContent.indexOf('incompatible with currently enabled WooCommerce features') !== -1) {
+					n.style.display = 'none';
+				}
+			});
+		});
+		</script>
+		<?php
+	}
 
 	/**
 	 * Enqueue admin assets.
@@ -91,9 +178,11 @@ class Dataviz_AI_Admin {
 	 * @return void
 	 */
 	public function enqueue_assets( $hook ) {
-		$is_main_page = 'toplevel_page_' . $this->menu_slug === $hook;
+		$is_main_page       = 'toplevel_page_' . $this->menu_slug === $hook;
+		$is_faq_page        = $this->menu_slug . '_page_dataviz-ai-faq' === $hook;
+		$is_onboarding_page = $this->menu_slug . '_page_dataviz-ai-onboarding' === $hook;
 
-		if ( ! $is_main_page ) {
+		if ( ! $is_main_page && ! $is_faq_page && ! $is_onboarding_page ) {
 			return;
 		}
 

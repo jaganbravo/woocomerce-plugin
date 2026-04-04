@@ -27,6 +27,18 @@ define( 'DATAVIZ_AI_WC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'DATAVIZ_AI_WC_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 /**
+ * Declare compatibility with WooCommerce features (HPOS, etc.) to prevent incompatibility notices.
+ */
+add_action(
+	'before_woocommerce_init',
+	static function() {
+		if ( class_exists( '\Automattic\WooCommerce\Utilities\FeaturesUtil' ) ) {
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+		}
+	}
+);
+
+/**
  * Load configuration file if it exists.
  */
 $config_file = DATAVIZ_AI_WC_PLUGIN_DIR . 'config.php';

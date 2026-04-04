@@ -343,3 +343,142 @@
 	max-height: 380px;
 }
 
+/* FAQ Page */
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content {
+	max-width: 800px;
+	line-height: 1.6;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content h1 {
+	margin-bottom: 0.5rem;
+	font-size: 1.75rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content h2 {
+	margin: 2rem 0 1rem;
+	font-size: 1.25rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid #f0f0f1;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content h2:first-of-type {
+	margin-top: 1rem;
+	border-top: none;
+	padding-top: 0;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content h3 {
+	margin: 1.25rem 0 0.5rem;
+	font-size: 1rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content p,
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content ul,
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content ol {
+	margin: 0 0 1rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content ul,
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content ol {
+	padding-left: 1.5rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content li {
+	margin-bottom: 0.5rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content code {
+	background: #f0f0f1;
+	padding: 0.15em 0.4em;
+	border-radius: 3px;
+	font-size: 0.9em;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content a {
+	color: #2271b1;
+}
+
+.dataviz-ai-admin.dataviz-ai-faq .dataviz-ai-faq-content hr {
+	margin: 1.5rem 0;
+	border: none;
+	border-top: 1px solid #dcdcde;
+}
+
+/* Onboarding Page */
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content {
+	max-width: 800px;
+	line-height: 1.6;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content h1 {
+	margin-bottom: 0.5rem;
+	font-size: 1.75rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content h2 {
+	margin: 2rem 0 1rem;
+	font-size: 1.25rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid #f0f0f1;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content h2:first-of-type {
+	margin-top: 1rem;
+	border-top: none;
+	padding-top: 0;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content h3,
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content h4 {
+	margin: 1.25rem 0 0.5rem;
+	font-size: 1rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content p,
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content ul,
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content ol {
+	margin: 0 0 1rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content ul,
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content ol {
+	padding-left: 1.5rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content li {
+	margin-bottom: 0.5rem;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content code {
+	background: #f0f0f1;
+	padding: 0.15em 0.4em;
+	border-radius: 3px;
+	font-size: 0.9em;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content pre {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 1rem;
+	overflow-x: auto;
+	margin: 1rem 0;
+	font-size: 0.9em;
+	line-height: 1.5;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content pre code {
+	background: none;
+	padding: 0;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content a {
+	color: #2271b1;
+}
+
+.dataviz-ai-admin.dataviz-ai-onboarding .dataviz-ai-onboarding-content hr {
+	margin: 1.5rem 0;
+	border: none;
+	border-top: 1px solid #dcdcde;
+}
+
