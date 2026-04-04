@@ -1,0 +1,98 @@
+{
+  "Show me current inventory": {
+    "requires_data": true,
+    "entity": "inventory"
+  },
+  "Show me out of stock products": {
+    "requires_data": true,
+    "entity": "stock",
+    "filters": { "stock_status": "outofstock" }
+  },
+  "Can you provide a list of products that are currently out of stock?": {
+    "requires_data": true,
+    "entity": "stock",
+    "filters": { "stock_status": "outofstock" }
+  },
+  "What products are low in stock?": {
+    "requires_data": true,
+    "entity": "stock"
+  },
+  "Which products are running low on stock?": {
+    "requires_data": true,
+    "entity": "stock"
+  },
+  "What is the total revenue generated this month?": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "What is my total revenue?": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Show me orders by status": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics",
+    "dimensions": ["status"]
+  },
+  "Can I see a pie chart of sales by product category?": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "statistics",
+    "dimensions": ["category"]
+  },
+  "Who are my top customers for last year based on total spend?": {
+    "requires_data": true,
+    "entity": "customers"
+  },
+  "What categories do my products belong to?": {
+    "requires_data": true,
+    "entity": "categories",
+    "operation": "list"
+  },
+  "How many products have the tag 'New'?": {
+    "requires_data": true,
+    "entity": "tags",
+    "operation": "list"
+  },
+  "What discounts are currently active in my store?": {
+    "requires_data": true,
+    "entity": "coupons",
+    "operation": "list"
+  },
+  "Show me all coupons that have been used in the last month.": {
+    "requires_data": true,
+    "entity": "coupons",
+    "operation": "statistics"
+  },
+  "How many refunds have been issued this year?": {
+    "requires_data": true,
+    "entity": "refunds",
+    "operation": "list"
+  },
+  "Show me products under the 'Electronics' category.": {
+    "requires_data": true,
+    "entity": "products",
+    "operation": "list"
+  },
+  "Generate a bar chart showing monthly revenue for the last six months.": {
+    "requires_data": true,
+    "entity": "orders",
+    "operation": "by_period"
+  },
+  "List all customers sorted by location.": {
+    "requires_data": true,
+    "entity": "customers"
+  },
+  "What is the current inventory distribution across categories?": {
+    "requires_data": true,
+    "entity": "inventory"
+  },
+  "How many products have the tag 'New Arrival'?": {
+    "requires_data": true,
+    "entity": "tags",
+    "operation": "list"
+  }
+}

@@ -5,7 +5,13 @@
   "main": "ai-chat-test-agent.js",
   "scripts": {
     "test": "node ai-chat-test-agent.js",
-    "test:headless": "HEADLESS=true node ai-chat-test-agent.js"
+    "test:headless": "HEADLESS=true node ai-chat-test-agent.js",
+    "test:static": "node ai-chat-test-agent.js --static",
+    "test:static:headless": "HEADLESS=true node ai-chat-test-agent.js --static",
+    "test:ambiguous": "node ai-chat-test-agent.js --questions ambiguous-questions.json",
+    "test:ambiguous:headless": "HEADLESS=true node ai-chat-test-agent.js --questions ambiguous-questions.json",
+    "test:dates": "node ai-chat-test-agent.js --questions edge-case-dates.json",
+    "test:dates:headless": "HEADLESS=true node ai-chat-test-agent.js --questions edge-case-dates.json"
   },
   "keywords": [
     "testing",
