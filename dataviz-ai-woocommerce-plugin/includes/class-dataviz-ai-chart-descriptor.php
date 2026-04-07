@@ -379,12 +379,50 @@ class Dataviz_AI_Chart_Descriptor {
 
 	/**
 	 * Return true only when the user explicitly asks for a chart / graph / visualization.
+	 * Phrases like "without a chart" contain the word "chart" but must not enable rendering.
 	 */
 	private static function question_wants_chart( $question ) {
 		if ( empty( $question ) ) {
 			return false;
 		}
-		$lower    = strtolower( $question );
+		$lower = strtolower( $question );
+
+		$negations = array(
+			'without a chart',
+			'without chart',
+			'without graphs',
+			'without graph',
+			'without visualization',
+			'without a graph',
+			'without a pie',
+			'no chart',
+			'no graphs',
+			'no graph',
+			'no pie chart',
+			'no bar chart',
+			'no line chart',
+			'no visualization',
+			'not a chart',
+			'not a graph',
+			'text only',
+			'only text',
+			'list only',
+			'table only',
+			"don't show a chart",
+			"don't show chart",
+			'dont show a chart',
+			'dont show chart',
+			'do not show a chart',
+			'do not show chart',
+			'do not include a chart',
+			'dont include a chart',
+		);
+		foreach ( $negations as $phrase ) {
+			if ( strpos( $lower, $phrase ) !== false ) {
+				return false;
+			}
+		}
+
 		$keywords = array( 'chart', 'graph', 'pie', 'bar', 'line chart', 'visualize', 'visualization', 'plot', 'diagram' );
 		foreach ( $keywords as $kw ) {
 			if ( strpos( $lower, $kw ) !== false ) {

@@ -178,7 +178,7 @@ class Dataviz_AI_AJAX_Handler {
 
 		if ( $all_sessions || empty( $session_id ) ) {
 			$history = $this->chat_history->get_recent_history( $limit, $days );
-		} else {
+				} else {
 			$history = $this->chat_history->get_session_history( $session_id, $limit, $days );
 		}
 
