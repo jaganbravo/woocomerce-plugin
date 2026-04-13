@@ -23,10 +23,12 @@ fi
 # Create destination directory if it doesn't exist
 mkdir -p "$PLUGIN_DEST"
 
-# Sync files (rsync preserves permissions and excludes unnecessary files)
+# Sync files (rsync preserves permissions and excludes unnecessary files).
+# Exclude config.php so a missing or gitignored local file does not wipe the Docker install's API key.
 rsync -av --delete \
     "$PLUGIN_SOURCE/" \
     "$PLUGIN_DEST/" \
+    --exclude="config.php" \
     --exclude="*.log" \
     --exclude="node_modules" \
     --exclude=".git" \
