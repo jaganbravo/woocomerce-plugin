@@ -227,6 +227,9 @@ class Dataviz_AI_Prompt_Template {
 				'Start your response by directly addressing their question.',
 				'If the user asked "how many", "count", or requested a number, you MUST include the exact numeric value.',
 				'Use the numbers provided in "KEY DATA FROM TOOLS" or extract them from the tool response JSON.',
+				'For order lists: if the JSON includes total_matching, that is the authoritative total for that query — use it for any headline count. Do not substitute summary.total_orders unless the tool response used the same status and date filters.',
+				'For order statistics: if the user names a specific status (e.g. pending), use status_breakdown counts for that status — not summary.total_orders when the latter is an all-status total.',
+				'NEVER contradict the tool JSON: your stated counts must match the retrieved data for the same filters.',
 				'NEVER say generic phrases like "there are orders" - ALWAYS include the specific number.',
 				'If the count is 0, say "There are 0 completed orders" explicitly.',
 				'If the user asks to list product tags or categories (e.g., "Show me product tags"), list the names only. Do NOT include counts and do NOT include labels like "Count:". Only include counts if the user explicitly asked for a count/number/how many.',
@@ -312,6 +315,8 @@ class Dataviz_AI_Prompt_Template {
 			'- Choose the entity that best represents what the user is ultimately asking about. Think about who/what the answer is really about.\n' .
 			'- Use date_range.preset for relative time references (\"this month\", \"last 7 days\", \"last_quarter\", etc.) and set from/to to null.\n' .
 			'- For \"last N days/weeks/months\", use preset format \"last_N_days\"/\"last_N_weeks\"/\"last_N_months\" (replace N with the number).\n' .
+			'- Orders: to list or show orders with a specific status (pending, processing, completed, etc.), use operation=\"list\", set filters.status to that slug, and set filters.limit to -1 when the user said \"all\" or wants the full set.\n' .
+			'- Orders: for counts only (how many), use operation=\"statistics\" and set filters.status when the question names one status.\n' .
 			'- draft_answer: a brief best-effort sentence. MUST NOT claim to fetch data or mention tools.';
 
 		$examples =
@@ -322,6 +327,9 @@ class Dataviz_AI_Prompt_Template {
 
 			'Q: \"How many orders are currently pending?\"\n' .
 			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"orders\",\"operation\":\"statistics\",\"metrics\":[\"total_orders\"],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":null},\"status\":\"pending\"},\"confidence\":\"high\",\"draft_answer\":\"Checking pending order count.\"}\n\n' .
+
+			'Q: \"Show me all pending orders\"\n' .
+			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"orders\",\"operation\":\"list\",\"metrics\":[],\"dimensions\":[],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":null},\"status\":\"pending\",\"limit\":-1},\"confidence\":\"high\",\"draft_answer\":\"Listing pending orders.\"}\n\n' .
 
 			'Q: \"Generate a bar chart showing monthly revenue for the last six months\"\n' .
 			'A: {\"intent_version\":\"1\",\"requires_data\":true,\"entity\":\"orders\",\"operation\":\"by_period\",\"metrics\":[\"total_revenue\"],\"dimensions\":[\"month\"],\"filters\":{\"date_range\":{\"from\":null,\"to\":null,\"preset\":\"last_6_months\"}},\"confidence\":\"high\",\"draft_answer\":\"Preparing monthly revenue chart.\"}\n\n' .

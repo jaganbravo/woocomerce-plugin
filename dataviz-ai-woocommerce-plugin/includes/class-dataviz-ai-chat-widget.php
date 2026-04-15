@@ -80,6 +80,10 @@ class Dataviz_AI_Chat_Widget {
 	 * @return string
 	 */
 	public function render_shortcode( $atts = array() ) {
+		if ( ! is_user_logged_in() || ! current_user_can( 'manage_woocommerce' ) ) {
+			return '<p class="dataviz-ai-chat-widget dataviz-ai-chat-widget--restricted">' . esc_html__( 'Store analytics chat is only available to shop managers. Use Dataviz AI from the WordPress admin.', 'dataviz-ai-woocommerce' ) . '</p>';
+		}
+
 		wp_enqueue_style( self::$plugin_name . '-chat' );
 		wp_enqueue_script( self::$plugin_name . '-chat' );
 

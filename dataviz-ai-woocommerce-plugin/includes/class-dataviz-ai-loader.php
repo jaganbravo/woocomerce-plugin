@@ -165,10 +165,8 @@ class Dataviz_AI_Loader {
 	 */
 	protected function define_ajax_hooks() {
 		add_action( 'wp_ajax_dataviz_ai_analyze', array( $this->ajax, 'handle_analysis_request' ) );
-		add_action( 'wp_ajax_nopriv_dataviz_ai_analyze', array( $this->ajax, 'handle_analysis_request' ) );
 
 		add_action( 'wp_ajax_dataviz_ai_chat', array( $this->ajax, 'handle_chat_request' ) );
-		add_action( 'wp_ajax_nopriv_dataviz_ai_chat', array( $this->ajax, 'handle_chat_request' ) );
 
 		add_action( 'wp_ajax_dataviz_ai_get_history', array( $this->ajax, 'handle_get_history_request' ) );
 

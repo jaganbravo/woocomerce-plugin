@@ -304,6 +304,40 @@ class Dataviz_AI_Data_Fetcher {
 	}
 
 	/**
+	 * Count orders matching the same arguments as get_recent_orders (IDs only; no objects loaded).
+	 *
+	 * @param array $args Same shape as get_recent_orders (limit ignored; uses -1).
+	 * @return int
+	 */
+	public function count_orders( array $args = array() ) {
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return 0;
+		}
+
+		if ( isset( $args['date_created'] ) && is_string( $args['date_created'] ) && strpos( $args['date_created'], '...' ) !== false ) {
+			list( $from, $to ) = explode( '...', $args['date_created'], 2 );
+			$args['date_created'] = absint( $from ) . '...' . absint( $to );
+		}
+
+		$query_args = wp_parse_args(
+			$args,
+			array(
+				'orderby'  => 'date',
+				'order'    => 'DESC',
+				'limit'    => -1,
+				'return'   => 'ids',
+				'paginate' => false,
+			)
+		);
+		$query_args['limit']    = -1;
+		$query_args['return']   = 'ids';
+		$query_args['paginate'] = false;
+
+		$ids = wc_get_orders( $query_args );
+		return is_array( $ids ) ? count( $ids ) : 0;
+	}
+
+	/**
 	 * Get all products (not just top-selling).
 	 *
 	 * @param int $limit Number of products (-1 for all).

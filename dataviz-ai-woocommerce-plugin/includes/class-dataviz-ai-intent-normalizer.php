@@ -230,6 +230,7 @@ class Dataviz_AI_Intent_Normalizer {
 			'try_sales_by_category',
 			'try_categories_listing',
 			'try_products_under_category',
+			'try_orders_status_list',
 			'try_order_status_count',
 			'try_refunds',
 			'try_customer_count',
@@ -384,6 +385,43 @@ class Dataviz_AI_Intent_Normalizer {
 		$intent['operation'] = 'list';
 		$intent['filters']['category_name'] = $cat_name;
 		if ( empty( $intent['filters']['limit'] ) ) {
+			$intent['filters']['limit'] = -1;
+		}
+		return array( 'score' => $s, 'intent' => $intent );
+	}
+
+	/**
+	 * "Show/list … pending orders" must route to a status-filtered list, not generic recent orders.
+	 * Skips pure count questions (handled by try_order_status_count).
+	 */
+	private static function try_orders_status_list( $q, array $intent ) {
+		if ( preg_match( '/\b(how\s+many|count|number\s+of)\b/i', $q ) ) {
+			return null;
+		}
+		$s = 0;
+		if ( preg_match( '/\b(show|list|lists?|display|see|view|fetch|pull\s+up|print)\b/i', $q ) ) {
+			$s += 25;
+		}
+		if ( preg_match( '/\b(give|send)\s+(me\s+)?/i', $q ) ) {
+			$s += 20;
+		}
+		if ( preg_match( '/\b(orders?)\b/i', $q ) ) {
+			$s += 20;
+		}
+		if ( preg_match( '/\b(pending|processing|completed|on[\s-]?hold|cancelled|canceled|refunded|failed)\b/i', $q, $st_m ) ) {
+			$s += 35;
+		}
+		if ( $s < 65 ) {
+			return null;
+		}
+
+		$intent['entity']    = 'orders';
+		$intent['operation'] = 'list';
+		$raw_status = strtolower( $st_m[1] );
+		$raw_status          = preg_replace( '/^on\s+hold$/', 'on-hold', $raw_status );
+		$raw_status          = str_replace( 'canceled', 'cancelled', $raw_status );
+		$intent['filters']['status'] = $raw_status;
+		if ( preg_match( '/\b(all|every|full|complete|entire)\b/i', $q ) ) {
 			$intent['filters']['limit'] = -1;
 		}
 		return array( 'score' => $s, 'intent' => $intent );

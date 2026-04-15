@@ -121,6 +121,10 @@ class Dataviz_AI_AJAX_Handler {
 	public function handle_chat_request() {
 		check_ajax_referer( 'dataviz_ai_chat', 'nonce' );
 
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
 		$question = isset( $_POST['message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
 		if ( empty( $question ) ) {
 			wp_send_json_error( array( 'message' => __( 'Message cannot be empty.', 'dataviz-ai-woocommerce' ) ), 400 );
@@ -263,6 +267,10 @@ class Dataviz_AI_AJAX_Handler {
 	 */
 	public function handle_debug_intent_request() {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
+
+		if ( ! defined( 'DATAVIZ_AI_DEBUG_INTENT' ) || ! DATAVIZ_AI_DEBUG_INTENT ) {
+			wp_send_json_error( array( 'message' => __( 'Debug intent is disabled.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
