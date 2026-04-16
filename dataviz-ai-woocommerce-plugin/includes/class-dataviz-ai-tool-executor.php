@@ -331,7 +331,13 @@ class Dataviz_AI_Tool_Executor {
 				if ( empty( $formatted ) ) {
 					return array( 'orders' => array(), 'message' => 'No orders found matching the criteria.' );
 				}
-				return $formatted;
+				$count_args = $args;
+				unset( $count_args['offset'] );
+				$total_matching = $this->data_fetcher->count_orders( $count_args );
+				return array(
+					'orders'           => $formatted,
+					'total_matching'   => $total_matching,
+				);
 		}
 	}
 

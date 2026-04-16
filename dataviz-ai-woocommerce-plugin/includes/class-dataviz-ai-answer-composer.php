@@ -64,9 +64,26 @@ class Dataviz_AI_Answer_Composer {
 	 * @return string|null
 	 */
 	public static function maybe_compose( $question, array $validated_intent, array $results_for_prompt ) {
-		// Empty orders list short-circuit.
-		if ( count( $results_for_prompt ) === 1 ) {
-			$single = $results_for_prompt[0];
+		if ( empty( $results_for_prompt ) ) {
+			return null;
+		}
+		foreach ( $results_for_prompt as $single ) {
+			if ( ! is_array( $single ) ) {
+				continue;
+			}
+			$composed = self::compose_from_single_tool_result( $question, $validated_intent, $single );
+			if ( is_string( $composed ) && $composed !== '' ) {
+				return $composed;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @param array $single One entry from results_for_prompt (tool, arguments, result).
+	 * @return string|null
+	 */
+	private static function compose_from_single_tool_result( $question, array $validated_intent, array $single ) {
 			$res    = $single['result'] ?? null;
 			$args   = $single['arguments'] ?? array();
 
@@ -123,6 +140,16 @@ class Dataviz_AI_Answer_Composer {
 					$period_text = ' ' . __( 'for the requested period', 'dataviz-ai-woocommerce' );
 				}
 				return sprintf( __( 'There are no orders%s.', 'dataviz-ai-woocommerce' ), $period_text );
+			}
+
+			// Orders list: deterministic count + rows (matches DB; avoids LLM inventing totals).
+			$is_orders_list = isset( $validated_intent['entity'], $validated_intent['operation'] )
+				&& $validated_intent['entity'] === 'orders'
+				&& $validated_intent['operation'] === 'list';
+			if ( $is_orders_list && is_array( $res ) && isset( $res['orders'] ) && is_array( $res['orders'] ) && ! empty( $res['orders'] ) && ! isset( $res['error'] ) ) {
+				$shown = count( $res['orders'] );
+				$total = isset( $res['total_matching'] ) ? max( $shown, (int) $res['total_matching'] ) : $shown;
+				return self::compose_orders_list_answer( $res['orders'], $shown, $total );
 			}
 
 			// Top customers (customer statistics) short-circuit.
@@ -326,6 +353,12 @@ class Dataviz_AI_Answer_Composer {
 					$status_label = str_ireplace( array( 'on-hold', 'onhold', 'on hold' ), 'On-hold', $status_label );
 
 					$count = $total_orders ?? 0;
+					if ( empty( $status_filter ) && $asks_specific_status && ! empty( $res['status_breakdown'] ) && is_array( $res['status_breakdown'] ) && isset( $status_match[1] ) ) {
+						$from_breakdown = self::count_for_status_in_breakdown( $res['status_breakdown'], $status_match[1] );
+						if ( null !== $from_breakdown ) {
+							$count = $from_breakdown;
+						}
+					}
 					if ( 0 === $count ) {
 						return sprintf(
 							__( 'There are currently no %s orders.', 'dataviz-ai-woocommerce' ),
@@ -342,7 +375,16 @@ class Dataviz_AI_Answer_Composer {
 						$count,
 						strtolower( $status_label )
 					);
-					if ( $total_revenue > 0 ) {
+					$rev_for_status = null;
+					if ( empty( $status_filter ) && $asks_specific_status && ! empty( $res['status_breakdown'] ) && isset( $status_match[1] ) ) {
+						$rev_for_status = self::revenue_for_status_in_breakdown( $res['status_breakdown'], $status_match[1] );
+					}
+					if ( null !== $rev_for_status && $rev_for_status > 0 ) {
+						$answer .= ' ' . sprintf(
+							__( 'Their total value is %s.', 'dataviz-ai-woocommerce' ),
+							self::format_currency( $rev_for_status )
+						);
+					} elseif ( $total_revenue > 0 && ! empty( $status_filter ) ) {
 						$answer .= ' ' . sprintf(
 							__( 'Their total value is %s.', 'dataviz-ai-woocommerce' ),
 							self::format_currency( $total_revenue )
@@ -401,12 +443,30 @@ class Dataviz_AI_Answer_Composer {
 				);
 
 				if ( null !== $total_orders ) {
-					if ( $total_orders === 0 ) {
-						$answer .= ' ' . __( 'There are no orders in this period.', 'dataviz-ai-woocommerce' );
-					} elseif ( 1 === $total_orders ) {
-						$answer .= ' ' . __( 'There is 1 order in this period.', 'dataviz-ai-woocommerce' );
-					} else {
-						$answer .= ' ' . sprintf( __( 'There are %d orders in this period.', 'dataviz-ai-woocommerce' ), $total_orders );
+					$used_status_line = false;
+					if ( empty( $status_filter ) && $asks_specific_status && ! empty( $res['status_breakdown'] ) && isset( $status_match[1] ) ) {
+						$bd_c = self::count_for_status_in_breakdown( $res['status_breakdown'], $status_match[1] );
+						if ( null !== $bd_c ) {
+							$used_status_line = true;
+							$lbl              = strtolower( ucfirst( $status_match[1] ) );
+							$lbl              = str_ireplace( array( 'on-hold', 'onhold' ), 'on-hold', $lbl );
+							if ( 0 === $bd_c ) {
+								$answer .= ' ' . sprintf( __( 'There are no %s orders in this period.', 'dataviz-ai-woocommerce' ), $lbl );
+							} elseif ( 1 === $bd_c ) {
+								$answer .= ' ' . sprintf( __( 'There is 1 %s order in this period.', 'dataviz-ai-woocommerce' ), $lbl );
+							} else {
+								$answer .= ' ' . sprintf( __( 'There are %1$d %2$s orders in this period.', 'dataviz-ai-woocommerce' ), $bd_c, $lbl );
+							}
+						}
+					}
+					if ( ! $used_status_line ) {
+						if ( $total_orders === 0 ) {
+							$answer .= ' ' . __( 'There are no orders in this period.', 'dataviz-ai-woocommerce' );
+						} elseif ( 1 === $total_orders ) {
+							$answer .= ' ' . __( 'There is 1 order in this period.', 'dataviz-ai-woocommerce' );
+						} else {
+							$answer .= ' ' . sprintf( __( 'There are %d orders in this period.', 'dataviz-ai-woocommerce' ), $total_orders );
+						}
 					}
 				}
 
@@ -430,9 +490,99 @@ class Dataviz_AI_Answer_Composer {
 
 				return $answer;
 			}
-		}
 
 		return null;
+	}
+
+	private static function normalize_order_status_slug( $raw ) {
+		$raw = strtolower( trim( preg_replace( '/^wc[-]/', '', (string) $raw ) ) );
+		$raw = str_replace( array( ' ', '_' ), '-', $raw );
+		$map = array(
+			'on-hold' => 'on-hold',
+			'onhold'  => 'on-hold',
+			'canceled' => 'cancelled',
+		);
+		return isset( $map[ $raw ] ) ? $map[ $raw ] : $raw;
+	}
+
+	/**
+	 * @param array  $breakdown Rows with keys status, count.
+	 * @param string $status_word From question regex, e.g. "pending".
+	 * @return int|null
+	 */
+	private static function count_for_status_in_breakdown( array $breakdown, $status_word ) {
+		$want = self::normalize_order_status_slug( $status_word );
+		foreach ( $breakdown as $row ) {
+			if ( ! is_array( $row ) || ! isset( $row['status'], $row['count'] ) ) {
+				continue;
+			}
+			if ( self::normalize_order_status_slug( $row['status'] ) === $want ) {
+				return (int) $row['count'];
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @param array  $breakdown Rows with keys status, revenue.
+	 * @param string $status_word From question.
+	 * @return float|null
+	 */
+	private static function revenue_for_status_in_breakdown( array $breakdown, $status_word ) {
+		$want = self::normalize_order_status_slug( $status_word );
+		foreach ( $breakdown as $row ) {
+			if ( ! is_array( $row ) || ! isset( $row['status'] ) ) {
+				continue;
+			}
+			if ( self::normalize_order_status_slug( $row['status'] ) === $want ) {
+				return isset( $row['revenue'] ) ? (float) $row['revenue'] : 0.0;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @param array $orders Formatted order rows from tool.
+	 * @param int   $shown  Count returned (page size).
+	 * @param int   $total  Total matching query.
+	 * @return string
+	 */
+	private static function compose_orders_list_answer( array $orders, $shown, $total ) {
+		$lines = array();
+		foreach ( $orders as $idx => $o ) {
+			if ( ! is_array( $o ) ) {
+				continue;
+			}
+			$id     = isset( $o['id'] ) ? (int) $o['id'] : 0;
+			$total_amt = isset( $o['total'] ) ? (float) $o['total'] : 0.0;
+			$st = isset( $o['status'] ) ? (string) $o['status'] : '';
+			$date   = isset( $o['date'] ) ? (string) $o['date'] : '';
+			$date_short = $date !== '' ? preg_replace( '/T.*/', '', $date ) : '';
+			$lines[]    = sprintf(
+				'%d. %s — %s — %s — %s',
+				(int) ( $idx + 1 ),
+				sprintf( /* translators: %d order ID */ __( 'Order #%d', 'dataviz-ai-woocommerce' ), $id ),
+				self::format_currency( $total_amt ),
+				$st !== '' ? $st : '—',
+				$date_short !== '' ? $date_short : '—'
+			);
+		}
+		$header = '';
+		if ( $total > $shown ) {
+			$header = sprintf(
+				/* translators: 1: number shown, 2: total matching */
+				__( 'Showing %1$d of %2$d orders (newest first):', 'dataviz-ai-woocommerce' ),
+				$shown,
+				$total
+			);
+		} else {
+			$header = sprintf(
+				/* translators: %d order count */
+				_n( '%d order:', '%d orders:', $total, 'dataviz-ai-woocommerce' ),
+				$total
+			);
+		}
+		return $header . "\n" . implode( "\n", $lines );
 	}
 
 	private static function format_currency( $amount ) {
