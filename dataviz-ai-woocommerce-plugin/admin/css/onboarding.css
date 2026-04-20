@@ -65,6 +65,46 @@
 	text-align: center;
 }
 
+.dataviz-ai-onboarding-screenshots {
+	margin: 0 0 20px;
+}
+
+.dataviz-ai-onboarding-screenshots-title {
+	margin: 0 0 12px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.dataviz-ai-onboarding-screenshots-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
+	gap: 12px;
+}
+
+.dataviz-ai-onboarding-screenshot-card {
+	margin: 0;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.dataviz-ai-onboarding-screenshot-card img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.dataviz-ai-onboarding-screenshot-card figcaption {
+	padding: 8px 10px;
+	font-size: 12px;
+	line-height: 1.4;
+	color: #50575e;
+	border-top: 1px solid #f0f0f1;
+	background: #f6f7f7;
+}
+
 .dataviz-ai-onboarding-features ul {
 	list-style: none;
 	padding: 0;

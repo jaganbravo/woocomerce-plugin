@@ -310,14 +310,7 @@ class Dataviz_AI_Onboarding {
 				<h2><?php esc_html_e( 'Welcome to Dataviz AI for WooCommerce!', 'dataviz-ai-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
-				<?php
-				$screenshot_url = content_url( 'uploads/dataviz-ai-screenshot.png' );
-				if ( file_exists( WP_CONTENT_DIR . '/uploads/dataviz-ai-screenshot.png' ) ) :
-					?>
-					<p class="dataviz-ai-onboarding-screenshot">
-						<img src="<?php echo esc_url( $screenshot_url ); ?>" alt="<?php esc_attr_e( 'Dataviz AI plugin interface', 'dataviz-ai-woocommerce' ); ?>" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 1em;" />
-					</p>
-				<?php endif; ?>
+				<?php $this->render_onboarding_screenshots(); ?>
 				<p class="dataviz-ai-onboarding-intro">
 					<?php esc_html_e( 'Transform your store data into actionable insights with AI-powered analytics.', 'dataviz-ai-woocommerce' ); ?>
 				</p>
@@ -506,6 +499,75 @@ class Dataviz_AI_Onboarding {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Render onboarding screenshots gallery when available.
+	 *
+	 * @return void
+	 */
+	protected function render_onboarding_screenshots() {
+		$screenshots = $this->get_onboarding_screenshots();
+
+		if ( empty( $screenshots ) ) {
+			return;
+		}
+		?>
+		<div class="dataviz-ai-onboarding-screenshots">
+			<p class="dataviz-ai-onboarding-screenshots-title">
+				<?php esc_html_e( 'Preview the onboarding experience', 'dataviz-ai-woocommerce' ); ?>
+			</p>
+			<div class="dataviz-ai-onboarding-screenshots-grid">
+				<?php foreach ( $screenshots as $screenshot ) : ?>
+					<figure class="dataviz-ai-onboarding-screenshot-card">
+						<img src="<?php echo esc_url( $screenshot['url'] ); ?>" alt="<?php echo esc_attr( $screenshot['alt'] ); ?>" loading="lazy" />
+						<figcaption><?php echo esc_html( $screenshot['label'] ); ?></figcaption>
+					</figure>
+				<?php endforeach; ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Discover onboarding screenshots from uploads.
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	protected function get_onboarding_screenshots() {
+		$uploads = wp_upload_dir();
+		if ( empty( $uploads['basedir'] ) || empty( $uploads['baseurl'] ) ) {
+			return array();
+		}
+
+		$base_dir = trailingslashit( $uploads['basedir'] );
+		$base_url = trailingslashit( $uploads['baseurl'] );
+		$files    = array(
+			'dataviz-ai-screenshot-1.png' => __( 'Dashboard overview', 'dataviz-ai-woocommerce' ),
+			'dataviz-ai-screenshot-2.png' => __( 'Chat and insights', 'dataviz-ai-woocommerce' ),
+			'dataviz-ai-screenshot-3.png' => __( 'Charts and analysis', 'dataviz-ai-woocommerce' ),
+			'dataviz-ai-screenshot.png'   => __( 'Plugin interface', 'dataviz-ai-woocommerce' ),
+		);
+
+		$screenshots = array();
+		foreach ( $files as $file => $label ) {
+			$file_path = $base_dir . $file;
+			if ( ! file_exists( $file_path ) ) {
+				continue;
+			}
+
+			$screenshots[] = array(
+				'url'   => $base_url . $file,
+				'alt'   => sprintf(
+					/* translators: %s: screenshot label. */
+					__( 'Dataviz AI onboarding screenshot: %s', 'dataviz-ai-woocommerce' ),
+					$label
+				),
+				'label' => $label,
+			);
+		}
+
+		return $screenshots;
 	}
 
 	/**
