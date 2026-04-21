@@ -105,6 +105,22 @@
 	background: #f6f7f7;
 }
 
+/* Single screenshot on steps 2–5 */
+.dataviz-ai-onboarding-step-screenshot {
+	margin: 0 0 20px;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.dataviz-ai-onboarding-step-screenshot img {
+	display: block;
+	width: 100%;
+	height: auto;
+	vertical-align: middle;
+}
+
 .dataviz-ai-onboarding-features ul {
 	list-style: none;
 	padding: 0;

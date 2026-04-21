@@ -348,6 +348,7 @@ class Dataviz_AI_Onboarding {
 				<h2><?php esc_html_e( 'API Configuration', 'dataviz-ai-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
+				<?php $this->render_onboarding_step_screenshot( 2 ); ?>
 				<?php if ( $has_api_key ) : ?>
 					<div class="dataviz-ai-onboarding-success">
 						<p><?php esc_html_e( 'Great! Your API key is configured and ready to use.', 'dataviz-ai-woocommerce' ); ?></p>
@@ -394,6 +395,7 @@ class Dataviz_AI_Onboarding {
 				<h2><?php esc_html_e( 'Settings Overview', 'dataviz-ai-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
+				<?php $this->render_onboarding_step_screenshot( 3 ); ?>
 				<p><?php esc_html_e( 'Your plugin is configured with the following settings:', 'dataviz-ai-woocommerce' ); ?></p>
 				<div class="dataviz-ai-onboarding-settings">
 					<ul>
@@ -433,6 +435,7 @@ class Dataviz_AI_Onboarding {
 				<h2><?php esc_html_e( 'Try Your First Question!', 'dataviz-ai-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
+				<?php $this->render_onboarding_step_screenshot( 4 ); ?>
 				<p><?php esc_html_e( 'The AI assistant is ready to help you understand your store data.', 'dataviz-ai-woocommerce' ); ?></p>
 				<p><strong><?php esc_html_e( 'Try asking:', 'dataviz-ai-woocommerce' ); ?></strong></p>
 				<div class="dataviz-ai-onboarding-examples">
@@ -470,6 +473,7 @@ class Dataviz_AI_Onboarding {
 				<h2><?php esc_html_e( 'Discover Features', 'dataviz-ai-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
+				<?php $this->render_onboarding_step_screenshot( 5 ); ?>
 				<div class="dataviz-ai-onboarding-features-list">
 					<div class="dataviz-ai-onboarding-feature">
 						<strong>📊 <?php esc_html_e( 'Charts & Visualizations', 'dataviz-ai-woocommerce' ); ?></strong>
@@ -530,34 +534,67 @@ class Dataviz_AI_Onboarding {
 	}
 
 	/**
-	 * Discover onboarding screenshots from uploads.
+	 * Bundled onboarding screenshot files (under admin/img/onboarding/).
+	 *
+	 * @return array<string, string> Filename => label.
+	 */
+	protected function get_bundled_onboarding_screenshot_map() {
+		return array(
+			'step-1-welcome.svg'   => __( 'Welcome', 'dataviz-ai-woocommerce' ),
+			'step-2-api.svg'       => __( 'API configuration', 'dataviz-ai-woocommerce' ),
+			'step-3-settings.svg'  => __( 'Settings overview', 'dataviz-ai-woocommerce' ),
+			'step-4-chat.svg'      => __( 'Chat with your business', 'dataviz-ai-woocommerce' ),
+			'step-5-features.svg'  => __( 'Feature discovery', 'dataviz-ai-woocommerce' ),
+		);
+	}
+
+	/**
+	 * Resolve screenshot URL (uploads override plugin file when same basename exists).
+	 *
+	 * @param string $file Relative filename (e.g. step-1-welcome.svg).
+	 * @return array{0:string,1:string}|null Tuple of absolute file path and public URL, or null if missing.
+	 */
+	protected function resolve_onboarding_screenshot( $file ) {
+		$file = basename( $file );
+		if ( '' === $file || 'index.php' === $file ) {
+			return null;
+		}
+
+		$plugin_path = trailingslashit( DATAVIZ_AI_WC_PLUGIN_DIR ) . 'admin/img/onboarding/' . $file;
+		$plugin_url  = trailingslashit( DATAVIZ_AI_WC_PLUGIN_URL ) . 'admin/img/onboarding/' . $file;
+
+		$uploads = wp_upload_dir();
+		if ( ! empty( $uploads['basedir'] ) && ! empty( $uploads['baseurl'] ) ) {
+			$upload_path = trailingslashit( $uploads['basedir'] ) . $file;
+			$upload_url  = trailingslashit( $uploads['baseurl'] ) . $file;
+			if ( file_exists( $upload_path ) ) {
+				return array( $upload_path, $upload_url );
+			}
+		}
+
+		if ( file_exists( $plugin_path ) ) {
+			return array( $plugin_path, $plugin_url );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Collect all onboarding screenshots for the welcome gallery.
 	 *
 	 * @return array<int, array<string, string>>
 	 */
 	protected function get_onboarding_screenshots() {
-		$uploads = wp_upload_dir();
-		if ( empty( $uploads['basedir'] ) || empty( $uploads['baseurl'] ) ) {
-			return array();
-		}
-
-		$base_dir = trailingslashit( $uploads['basedir'] );
-		$base_url = trailingslashit( $uploads['baseurl'] );
-		$files    = array(
-			'dataviz-ai-screenshot-1.png' => __( 'Dashboard overview', 'dataviz-ai-woocommerce' ),
-			'dataviz-ai-screenshot-2.png' => __( 'Chat and insights', 'dataviz-ai-woocommerce' ),
-			'dataviz-ai-screenshot-3.png' => __( 'Charts and analysis', 'dataviz-ai-woocommerce' ),
-			'dataviz-ai-screenshot.png'   => __( 'Plugin interface', 'dataviz-ai-woocommerce' ),
-		);
-
 		$screenshots = array();
-		foreach ( $files as $file => $label ) {
-			$file_path = $base_dir . $file;
-			if ( ! file_exists( $file_path ) ) {
+		foreach ( $this->get_bundled_onboarding_screenshot_map() as $file => $label ) {
+			$resolved = $this->resolve_onboarding_screenshot( $file );
+			if ( null === $resolved ) {
 				continue;
 			}
-
+			list( , $url ) = $resolved;
+			$url           = add_query_arg( 'ver', rawurlencode( (string) $this->version ), $url );
 			$screenshots[] = array(
-				'url'   => $base_url . $file,
+				'url'   => $url,
 				'alt'   => sprintf(
 					/* translators: %s: screenshot label. */
 					__( 'Dataviz AI onboarding screenshot: %s', 'dataviz-ai-woocommerce' ),
@@ -567,7 +604,76 @@ class Dataviz_AI_Onboarding {
 			);
 		}
 
+		// Optional extra PNGs in uploads (legacy / marketing captures).
+		$uploads = wp_upload_dir();
+		if ( ! empty( $uploads['basedir'] ) && ! empty( $uploads['baseurl'] ) ) {
+			$extras = array(
+				'dataviz-ai-screenshot-1.png' => __( 'Store dashboard', 'dataviz-ai-woocommerce' ),
+				'dataviz-ai-screenshot-2.png' => __( 'Insights', 'dataviz-ai-woocommerce' ),
+				'dataviz-ai-screenshot-3.png' => __( 'Charts', 'dataviz-ai-woocommerce' ),
+				'dataviz-ai-screenshot.png'   => __( 'Plugin interface', 'dataviz-ai-woocommerce' ),
+			);
+			foreach ( $extras as $file => $label ) {
+				$path = trailingslashit( $uploads['basedir'] ) . $file;
+				if ( ! file_exists( $path ) ) {
+					continue;
+				}
+				$mtime         = filemtime( $path );
+				$ver           = false !== $mtime ? (string) $mtime : (string) $this->version;
+				$url           = add_query_arg( 'ver', rawurlencode( $ver ), trailingslashit( $uploads['baseurl'] ) . $file );
+				$screenshots[] = array(
+					'url'   => $url,
+					'alt'   => sprintf(
+						/* translators: %s: screenshot label. */
+						__( 'Dataviz AI onboarding screenshot: %s', 'dataviz-ai-woocommerce' ),
+						$label
+					),
+					'label' => $label,
+				);
+			}
+		}
+
 		return $screenshots;
+	}
+
+	/**
+	 * Render a single contextual screenshot for wizard steps 2–5.
+	 *
+	 * @param int $step Step index 2–5.
+	 * @return void
+	 */
+	protected function render_onboarding_step_screenshot( $step ) {
+		$map = array(
+			2 => 'step-2-api.svg',
+			3 => 'step-3-settings.svg',
+			4 => 'step-4-chat.svg',
+			5 => 'step-5-features.svg',
+		);
+		if ( empty( $map[ $step ] ) ) {
+			return;
+		}
+		$labels = $this->get_bundled_onboarding_screenshot_map();
+		$file   = $map[ $step ];
+		if ( empty( $labels[ $file ] ) ) {
+			return;
+		}
+		$resolved = $this->resolve_onboarding_screenshot( $file );
+		if ( null === $resolved ) {
+			return;
+		}
+		list( , $url ) = $resolved;
+		$url = add_query_arg( 'ver', rawurlencode( (string) $this->version ), $url );
+		$label = $labels[ $file ];
+		$alt   = sprintf(
+			/* translators: %s: screenshot label. */
+			__( 'Dataviz AI onboarding screenshot: %s', 'dataviz-ai-woocommerce' ),
+			$label
+		);
+		?>
+		<div class="dataviz-ai-onboarding-step-screenshot">
+			<img src="<?php echo esc_url( $url ); ?>" alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" width="640" height="360" />
+		</div>
+		<?php
 	}
 
 	/**

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-labelledby="t3">
+  <title id="t3">Dataviz AI  Settings overview</title>
+  <rect width="640" height="360" fill="#f6f7f7"/>
+  <rect width="640" height="44" fill="#1d2327"/>
+  <text x="16" y="29" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="15" font-weight="600">Dataviz AI  Settings</text>
+  <rect x="24" y="68" width="592" height="268" rx="6" fill="#fff" stroke="#dcdcde"/>
+  <text x="48" y="112" fill="#1d2327" font-family="system-ui,Segoe UI,sans-serif" font-size="18" font-weight="600">Settings Overview</text>
+  <rect x="48" y="132" width="544" height="1" fill="#dcdcde"/>
+  <text x="48" y="158" fill="#50575e" font-family="system-ui,Segoe UI,sans-serif" font-size="13">API Endpoint</text>
+  <text x="200" y="158" fill="#1d2327" font-family="system-ui,Segoe UI,sans-serif" font-size="13" font-weight="600">Default (OpenAI)</text>
+  <rect x="48" y="176" width="544" height="1" fill="#f0f0f1"/>
+  <text x="48" y="202" fill="#50575e" font-family="system-ui,Segoe UI,sans-serif" font-size="13">Features</text>
+  <text x="200" y="202" fill="#1d2327" font-family="system-ui,Segoe UI,sans-serif" font-size="13">Chat, charts, history</text>
+  <rect x="48" y="240" width="120" height="36" rx="4" fill="#2271b1"/>
+  <text x="72" y="264" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="13" font-weight="600">Continue</text>
+</svg>
