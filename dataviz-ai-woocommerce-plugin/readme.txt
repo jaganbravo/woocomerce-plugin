@@ -1,5 +1,4 @@
 === Dataviz AI for WooCommerce ===
-Contributors: datavizai
 Tags: woocommerce, analytics, artificial intelligence, chat, reports, email
 Requires at least: 6.0
 Tested up to: 6.7
@@ -22,16 +21,22 @@ Ask questions about your WooCommerce store in plain English. Get answers, charts
 * **Scheduled email digests** — automated summaries (revenue, top categories, low stock, etc.) on a schedule you choose, with an HTML preview in admin.
 * **Support & feature requests** — capture failed or unsupported questions for review in a unified admin list.
 
+= Documentation =
+
+* **WordPress.org plugin page** — Shows this **readme** (Description, Installation, FAQ). Most users never need to open other files.
+* **After install** — Optional deep guides ship inside the plugin ZIP under the `docs/` folder (same path on your server: `wp-content/plugins/…/dataviz-ai-woocommerce-plugin/docs/`). For example, `API-KEY-MANAGEMENT.md` explains API key precedence, roles, and security in one place. Open with a text editor, hosting file manager, or SFTP. (GitHub or another public repo may also host the same files for easy reading in the browser.)
+* You do **not** need to read every `.md` file to use the plugin — start with **Installation** and **FAQ** below.
+
 = Requirements =
 
 * WordPress 6.0 or newer
 * WooCommerce active
 * PHP 8.0 or newer
-* An OpenAI-compatible API key (via environment variable, `wp-config.php` constant, or `config.php` as documented)
+* An OpenAI-compatible API key, configured in one of the ways listed under **Installation** and **Where do I set the API key?** (see `docs/API-KEY-MANAGEMENT.md` for the full order of precedence).
 
 = Privacy & data =
 
-Store data is processed on your server to run WooCommerce queries. Requests to the AI provider include your question and retrieved aggregates or limited result sets — not your full database. Configure API keys securely; do not commit `config.php` to version control.
+Store data is processed on your server to run WooCommerce queries. Requests to the AI provider include your question and retrieved aggregates or limited result sets — not your full database. If you use OpenAI, read their current policies: https://openai.com/policies/ (including the Privacy Policy). Configure API keys securely; do not commit `config.php` to version control.
 
 == Installation ==
 
@@ -49,7 +54,7 @@ No. WooCommerce must be installed and active.
 
 = Where do I set the API key? =
 
-Use environment variables (`OPENAI_API_KEY`, `DATAVIZ_AI_API_KEY`, optional `DATAVIZ_AI_API_BASE_URL`), or the optional `config.php` file in the plugin directory (not included in the repo — copy from the sample if provided). See `docs/` for details.
+**Precedence (first match wins):** (1) **Environment** — `OPENAI_API_KEY` or `DATAVIZ_AI_API_KEY` (optional `DATAVIZ_AI_API_BASE_URL`). (2) **Constant** — `define( 'DATAVIZ_AI_API_KEY', '...' );` in `wp-config.php` *or* `config.php` (from `config.php.example`). (3) **Database** — only if your installed version provides a **Settings** screen; ignored when (1) or (2) is set. Full walkthrough: `docs/API-KEY-MANAGEMENT.md` inside the plugin package (path on server: `wp-content/plugins/…/docs/`).
 
 = Why don’t I receive digest emails? =
 
