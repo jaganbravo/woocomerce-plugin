@@ -38,12 +38,16 @@ Ask questions about your WooCommerce store in plain English. Get answers, charts
 
 Store data is processed on your server to run WooCommerce queries. Requests to the AI provider include your question and retrieved aggregates or limited result sets — not your full database. If you use OpenAI, read their current policies: https://openai.com/policies/ (including the Privacy Policy). Configure API keys securely; do not commit `config.php` to version control.
 
+= External scripts =
+
+* **Chart.js** (MIT License) is enqueued in the WordPress **admin** on the Dataviz AI chat screen to draw charts. It is loaded from the **jsDelivr** CDN: `https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js` (**Chart.js 4.4.4**). It is not loaded on the public storefront by default. Project site: https://www.chartjs.org/
+
 == Installation ==
 
 1. Upload the plugin files to `/wp-content/plugins/dataviz-ai-woocommerce-plugin/`, or install the ZIP via **Plugins → Add New → Upload Plugin**.
 2. Activate the plugin through the **Plugins** menu in WordPress.
 3. Ensure **WooCommerce** is installed and active.
-4. Configure your API key (see plugin documentation under `docs/` or environment variables `OPENAI_API_KEY` / `DATAVIZ_AI_API_KEY`).
+4. **Configure your API key** — same precedence as the FAQ below (env → `DATAVIZ_AI_API_KEY` in `wp-config.php` / `config.php` → optional future Settings/DB). Details: `docs/API-KEY-MANAGEMENT.md`.
 5. Open **Dataviz AI** from the admin menu and start chatting.
 
 == Frequently Asked Questions ==

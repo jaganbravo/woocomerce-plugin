@@ -1,5 +1,7 @@
 # WordPress.org submission — step-by-step
 
+This file lives in **`developerDocs/`** (maintainer-only). It is not included in the plugin release ZIP (see `.distignore`). Customer-oriented guides such as `docs/API-KEY-MANAGEMENT.md` stay in **`docs/`**.
+
 Use this checklist before uploading to the plugin directory or requesting review. Order matters: fix **blockers** first.
 
 ---
@@ -34,7 +36,7 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 - [x] Match **API key instructions** in `readme.txt` to real behavior (env vars, `config.php`, `wp-config.php` constants — **Settings/DB** documented only as *when a future build provides it*; see `docs/API-KEY-MANAGEMENT.md`).
 - [x] In **Privacy / data**, state clearly that questions and **aggregates or limited result sets** may be sent to the AI provider; link to the provider’s privacy policy if required.
-- [ ] Document **external scripts**: Chart.js loaded from CDN (URL, version) — or bundle Chart.js in the plugin and update the readme to say “bundled”.
+- [x] Document **external scripts**: Chart.js loaded from CDN (URL, version) — or bundle Chart.js in the plugin and update the readme to say “bundled”.
 
 ---
 
