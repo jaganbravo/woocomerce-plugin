@@ -42,7 +42,7 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 ## Phase 4 — Hardening & directory hygiene
 
-- [ ] Add empty **`index.php`** files in `includes/`, `admin/`, `admin/css/`, `admin/js/`, `public/`, etc., to reduce directory listing risk on misconfigured servers (WordPress convention).
+- [x] Add empty **`index.php`** files (silence is golden) in directories that ship code or assets: plugin root, `includes/`, `admin/`, `admin/css/`, `admin/js/`, `admin/partials/`, `admin/views/`, `public/`, `public/css/`, `public/js/`, `public/views/`, `docs/`, `languages/` — reduces directory listing risk on misconfigured servers (WordPress convention).
 - [x] **Debug AJAX:** `dataviz_ai_debug_intent` is **off** unless you add to `wp-config.php`: `define( 'DATAVIZ_AI_DEBUG_INTENT', true );`
 
 ---
