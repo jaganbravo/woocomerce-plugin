@@ -75,7 +75,7 @@ class Dataviz_AI_Loader {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->version = defined( 'DATAVIZ_AI_WC_VERSION' ) ? DATAVIZ_AI_WC_VERSION : '0.1.0';
+		$this->version = defined( 'DATAVIZ_AI_WC_VERSION' ) ? DATAVIZ_AI_WC_VERSION : '1.0.0';
 		$this->init_components();
 	}
 

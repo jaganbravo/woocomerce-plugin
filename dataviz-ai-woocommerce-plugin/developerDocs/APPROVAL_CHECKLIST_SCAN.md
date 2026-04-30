@@ -1,5 +1,7 @@
 # WooCommerce / WordPress plugin approval checklist — Dataviz AI scan
 
+*Maintainer-only. Lives in `developerDocs/`; excluded from the release ZIP. End-user documentation is under `docs/`.*
+
 This document records a **static code review** against common WordPress.org, WooCommerce, and marketplace-style expectations. Re-run checks after major changes.
 
 **Scan date:** 2026-03-30  
