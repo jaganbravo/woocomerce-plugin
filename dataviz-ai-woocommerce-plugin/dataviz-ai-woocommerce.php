@@ -163,3 +163,195 @@ function dataviz_ai_wc_cleanup_chat_history() {
 
 add_action( 'plugins_loaded', 'dataviz_ai_wc_init', 20 );
 
+/**
+ * Register personal data exporters.
+ *
+ * @param array $exporters Existing exporters.
+ * @return array
+ */
+function dataviz_ai_wc_register_personal_data_exporters( $exporters ) {
+	$exporters['dataviz-ai-chat-history'] = array(
+		'exporter_friendly_name' => __( 'Dataviz AI Chat History', 'dataviz-ai-woocommerce' ),
+		'callback'               => 'dataviz_ai_wc_chat_history_exporter',
+	);
+	$exporters['dataviz-ai-support-requests'] = array(
+		'exporter_friendly_name' => __( 'Dataviz AI Support Requests', 'dataviz-ai-woocommerce' ),
+		'callback'               => 'dataviz_ai_wc_support_requests_exporter',
+	);
+	return $exporters;
+}
+add_filter( 'wp_privacy_personal_data_exporters', 'dataviz_ai_wc_register_personal_data_exporters' );
+
+/**
+ * Register personal data erasers.
+ *
+ * @param array $erasers Existing erasers.
+ * @return array
+ */
+function dataviz_ai_wc_register_personal_data_erasers( $erasers ) {
+	$erasers['dataviz-ai-chat-history'] = array(
+		'eraser_friendly_name' => __( 'Dataviz AI Chat History', 'dataviz-ai-woocommerce' ),
+		'callback'             => 'dataviz_ai_wc_chat_history_eraser',
+	);
+	$erasers['dataviz-ai-support-requests'] = array(
+		'eraser_friendly_name' => __( 'Dataviz AI Support Requests', 'dataviz-ai-woocommerce' ),
+		'callback'             => 'dataviz_ai_wc_support_requests_eraser',
+	);
+	return $erasers;
+}
+add_filter( 'wp_privacy_personal_data_erasers', 'dataviz_ai_wc_register_personal_data_erasers' );
+
+/**
+ * Export chat history for a user email.
+ *
+ * @param string $email_address Email address.
+ * @param int    $page          Pagination page.
+ * @return array
+ */
+function dataviz_ai_wc_chat_history_exporter( $email_address, $page = 1 ) {
+	global $wpdb;
+	$user = get_user_by( 'email', $email_address );
+	if ( ! $user ) {
+		return array( 'data' => array(), 'done' => true );
+	}
+
+	$table = $wpdb->prefix . 'dataviz_ai_chat_history';
+	$rows  = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT id, session_id, message_type, message_content, created_at FROM {$table} WHERE user_id = %d ORDER BY created_at ASC",
+			$user->ID
+		),
+		ARRAY_A
+	);
+
+	$data = array();
+	foreach ( $rows as $row ) {
+		$data[] = array(
+			'group_id'    => 'dataviz_ai_chat_history',
+			'group_label' => __( 'Dataviz AI Chat History', 'dataviz-ai-woocommerce' ),
+			'item_id'     => 'dataviz-ai-chat-history-' . (int) $row['id'],
+			'data'        => array(
+				array( 'name' => __( 'Session ID', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['session_id'] ),
+				array( 'name' => __( 'Message Type', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['message_type'] ),
+				array( 'name' => __( 'Message', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['message_content'] ),
+				array( 'name' => __( 'Created At', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['created_at'] ),
+			),
+		);
+	}
+
+	return array( 'data' => $data, 'done' => true );
+}
+
+/**
+ * Export support requests for a user email.
+ *
+ * @param string $email_address Email address.
+ * @param int    $page          Pagination page.
+ * @return array
+ */
+function dataviz_ai_wc_support_requests_exporter( $email_address, $page = 1 ) {
+	global $wpdb;
+	$table = $wpdb->prefix . 'dataviz_ai_support_requests';
+	$rows  = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT id, type, question, entity_type, description, status, created_at FROM {$table} WHERE user_email = %s ORDER BY created_at ASC",
+			$email_address
+		),
+		ARRAY_A
+	);
+
+	$data = array();
+	foreach ( $rows as $row ) {
+		$data[] = array(
+			'group_id'    => 'dataviz_ai_support_requests',
+			'group_label' => __( 'Dataviz AI Support Requests', 'dataviz-ai-woocommerce' ),
+			'item_id'     => 'dataviz-ai-support-request-' . (int) $row['id'],
+			'data'        => array(
+				array( 'name' => __( 'Type', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['type'] ),
+				array( 'name' => __( 'Question', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['question'] ),
+				array( 'name' => __( 'Entity Type', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['entity_type'] ),
+				array( 'name' => __( 'Description', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['description'] ),
+				array( 'name' => __( 'Status', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['status'] ),
+				array( 'name' => __( 'Created At', 'dataviz-ai-woocommerce' ), 'value' => (string) $row['created_at'] ),
+			),
+		);
+	}
+
+	return array( 'data' => $data, 'done' => true );
+}
+
+/**
+ * Erase chat history for a user email.
+ *
+ * @param string $email_address Email address.
+ * @param int    $page          Pagination page.
+ * @return array
+ */
+function dataviz_ai_wc_chat_history_eraser( $email_address, $page = 1 ) {
+	global $wpdb;
+	$user = get_user_by( 'email', $email_address );
+	if ( ! $user ) {
+		return array(
+			'items_removed'  => false,
+			'items_retained' => false,
+			'messages'       => array(),
+			'done'           => true,
+		);
+	}
+
+	$table   = $wpdb->prefix . 'dataviz_ai_chat_history';
+	$deleted = $wpdb->query(
+		$wpdb->prepare( "DELETE FROM {$table} WHERE user_id = %d", $user->ID )
+	);
+
+	return array(
+		'items_removed'  => $deleted > 0,
+		'items_retained' => false,
+		'messages'       => array(),
+		'done'           => true,
+	);
+}
+
+/**
+ * Erase support requests for a user email.
+ *
+ * @param string $email_address Email address.
+ * @param int    $page          Pagination page.
+ * @return array
+ */
+function dataviz_ai_wc_support_requests_eraser( $email_address, $page = 1 ) {
+	global $wpdb;
+	$table   = $wpdb->prefix . 'dataviz_ai_support_requests';
+	$deleted = $wpdb->query(
+		$wpdb->prepare( "DELETE FROM {$table} WHERE user_email = %s", $email_address )
+	);
+
+	return array(
+		'items_removed'  => $deleted > 0,
+		'items_retained' => false,
+		'messages'       => array(),
+		'done'           => true,
+	);
+}
+
+/**
+ * Add privacy policy helper text.
+ *
+ * @return void
+ */
+function dataviz_ai_wc_add_privacy_policy_content() {
+	if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
+		return;
+	}
+
+	$content  = '<p>' . esc_html__( 'Dataviz AI for WooCommerce stores chat history and support request data so administrators can review AI interactions and improve analytics workflows.', 'dataviz-ai-woocommerce' ) . '</p>';
+	$content .= '<p>' . esc_html__( 'When generating answers, prompts and selected store aggregates may be sent to your configured AI provider (for example, OpenAI). Review provider terms and privacy policies before enabling production use.', 'dataviz-ai-woocommerce' ) . '</p>';
+	$content .= '<p>' . esc_html__( 'The plugin integrates with WordPress personal data export and erasure tools for plugin-owned chat and support request records.', 'dataviz-ai-woocommerce' ) . '</p>';
+
+	wp_add_privacy_policy_content(
+		__( 'Dataviz AI for WooCommerce', 'dataviz-ai-woocommerce' ),
+		wp_kses_post( wpautop( $content, false ) )
+	);
+}
+add_action( 'admin_init', 'dataviz_ai_wc_add_privacy_policy_content' );
+

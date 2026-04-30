@@ -17,6 +17,8 @@ global $wpdb;
 // Drop custom tables.
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}dataviz_ai_chat_history" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}dataviz_ai_feature_requests" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}dataviz_ai_support_requests" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}dataviz_ai_email_digests" );
 
 // Remove plugin options.
 delete_option( 'dataviz_ai_wc_settings' );
@@ -37,3 +39,4 @@ $wpdb->query(
 
 // Clear scheduled events.
 wp_clear_scheduled_hook( 'dataviz_ai_cleanup_chat_history' );
+wp_clear_scheduled_hook( 'dataviz_ai_process_email_digests' );
