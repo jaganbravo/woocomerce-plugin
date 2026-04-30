@@ -179,15 +179,47 @@
 		const $loading = $( '<div class="dataviz-ai-message dataviz-ai-message--ai dataviz-ai-message--loading"></div>' );
 		const $content = $( '<div class="dataviz-ai-message-content"></div>' );
 		const $dots = $( '<div class="dataviz-ai-message-loading-dots"></div>' );
+		const $status = $( '<div class="dataviz-ai-message-loading-status" aria-live="polite">Starting your query...</div>' );
 		
 		$dots.append( '<span></span><span></span><span></span>' );
 		$content.append( $dots );
+		$content.append( $status );
 		$loading.append( $content );
 		$messages.append( $loading );
 		
 		scrollToBottom();
 		
 		return $loading;
+	}
+
+	function createLongWaitStatusUpdater( $loadingMessage ) {
+		if ( ! $loadingMessage || ! $loadingMessage.length ) {
+			return { stop: function() {} };
+		}
+
+		const startedAt = Date.now();
+		const $status = $loadingMessage.find( '.dataviz-ai-message-loading-status' );
+		const tick = function() {
+			const elapsed = Math.floor( ( Date.now() - startedAt ) / 1000 );
+			if ( elapsed >= 20 ) {
+				$status.text( 'Still working... This can take up to a minute for larger stores.' );
+			} else if ( elapsed >= 12 ) {
+				$status.text( 'Still loading your answer... querying WooCommerce data.' );
+			} else if ( elapsed >= 6 ) {
+				$status.text( 'Working on it... this is taking a bit longer than usual.' );
+			} else {
+				$status.text( 'Starting your query...' );
+			}
+		};
+
+		tick();
+		const intervalId = window.setInterval( tick, 1000 );
+
+		return {
+			stop: function() {
+				window.clearInterval( intervalId );
+			},
+		};
 	}
 
 	// Remove loading indicator
@@ -421,8 +453,18 @@
 			$stopButton.addClass( 'show' ).show();
 		}
 
-		// Remove loading indicator and create streaming message
-		removeLoadingMessage( showLoadingMessage() );
+		// Keep a visible loading state while waiting for stream chunks.
+		const $loadingMessage = showLoadingMessage();
+		const loadingStatusUpdater = createLongWaitStatusUpdater( $loadingMessage );
+		let loadingRemoved = false;
+		function finalizeLoadingState() {
+			if ( loadingRemoved ) {
+				return;
+			}
+			loadingRemoved = true;
+			loadingStatusUpdater.stop();
+			removeLoadingMessage( $loadingMessage );
+		}
 		
 		// Reset stream stopped flag
 		streamStopped = false;
@@ -482,6 +524,7 @@
 							// Stream complete
 							currentStreamReader = null;
 							currentStreamController = null;
+							finalizeLoadingState();
 							
 							if ( ! streamStopped && fullResponse.trim() ) {
 								conversationHistory.push( { role: 'assistant', content: fullResponse } );
@@ -508,6 +551,7 @@
 								try {
 									const data = JSON.parse( dataStr );
 									if ( data.done === true ) {
+										finalizeLoadingState();
 										if ( data.tool_data ) {
 											streamToolData = data.tool_data;
 										}
@@ -526,6 +570,7 @@
 									}
 
 									if ( data.error ) {
+										finalizeLoadingState();
 										$aiContent.html( '<span style="color: #d63638;">' + data.error + '</span>' );
 										$stopButton.removeClass( 'show' ).hide();
 										$sendButton.show();
@@ -542,6 +587,7 @@
 									}
 
 									if ( data.chunk && ! streamStopped ) {
+										finalizeLoadingState();
 										fullResponse += data.chunk;
 										const formattedText = fullResponse.replace( /\n/g, '<br>' );
 										$aiContent.html( formattedText );
@@ -551,6 +597,7 @@
 									if ( dataStr === '[DONE]' || streamStopped ) {
 										currentStreamReader = null;
 										currentStreamController = null;
+										finalizeLoadingState();
 										if ( ! streamStopped && fullResponse.trim() ) {
 											conversationHistory.push( { role: 'assistant', content: fullResponse } );
 											maybeRenderChart( streamToolData, $aiMessage );
@@ -576,6 +623,7 @@
 				// Ignore abort errors (user stopped the stream)
 				if ( error.name === 'AbortError' || streamStopped ) {
 					streamStopped = true;
+					finalizeLoadingState();
 					if ( fullResponse.trim() ) {
 						// Add "(stopped)" indicator
 						const formattedText = fullResponse.replace( /\n/g, '<br>' ) + '<br><br><em style="color: #646970; font-size: 0.9em;">Response stopped by user.</em>';
@@ -584,6 +632,7 @@
 						$aiContent.html( '<em style="color: #646970;">Response stopped.</em>' );
 					}
 				} else {
+					finalizeLoadingState();
 					const errorMessage = 'An unexpected error occurred. Please try again.';
 					$aiContent.html( '<span style="color: #d63638;">' + errorMessage + '</span>' );
 				}
