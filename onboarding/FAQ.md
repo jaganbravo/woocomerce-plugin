@@ -307,8 +307,8 @@ Both tables are created during plugin activation and removed during uninstallati
 
 **Answer:**
 - Check this FAQ document first
-- Review the plugin documentation in the `documentation/` folder
-- Check the README.md file for setup instructions
+- In the monorepo: `developerDocs/` (architecture, quick start, testing) and `documentation/` (data flow, plugin guide, and other guides)
+- See the repository `README.md` for links
 - Contact the plugin author through the official support channel
 - Review WordPress and WooCommerce forums for related issues
 
@@ -327,21 +327,16 @@ Both tables are created during plugin activation and removed during uninstallati
 
 ### Is there developer documentation?
 
-**Answer:** Yes, check the following documentation files:
-- `ARCHITECTURE.md` - Plugin architecture overview
-- `ARCHITECTURE_DOCUMENTATION.md` - Detailed technical documentation
-- `DATABASE_STRUCTURE.md` - Database schema information
-- `PLUGIN_GUIDE.md` - Development guide
-- Code comments in the plugin files
+**Answer:** Yes, in the repository: `developerDocs/ARCHITECTURE.md`, `developerDocs/ARCHITECTURE_DOCUMENTATION.md`, `developerDocs/DATABASE_STRUCTURE.md`, `documentation/PLUGIN_GUIDE.md`, and code comments in the plugin files.
 
 ---
 
 ## Additional Resources
 
-- **Quick Start Guide**: See `QUICK_START.md`
-- **Plugin Guide**: See `PLUGIN_GUIDE.md`
-- **Architecture Documentation**: See `ARCHITECTURE_DOCUMENTATION.md`
-- **Testing Strategy**: See `TESTING_STRATEGY.md`
+- **Quick start**: `developerDocs/QUICK_START.md`
+- **Plugin guide**: `documentation/PLUGIN_GUIDE.md`
+- **Architecture documentation**: `developerDocs/ARCHITECTURE_DOCUMENTATION.md`
+- **Testing strategy**: `developerDocs/TESTING_STRATEGY.md`
 
 ---
 

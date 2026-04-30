@@ -204,13 +204,66 @@
 
 .dataviz-ai-admin .dataviz-ai-chat-input-wrapper {
 	display: flex;
-	align-items: flex-end;
-	gap: 0.75rem;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.5rem;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 24px;
 	padding: 0.5rem 0.5rem 0.5rem 1rem;
 	transition: border-color 0.2s;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-input-row {
+	display: flex;
+	align-items: flex-end;
+	gap: 0.75rem;
+	width: 100%;
+	min-width: 0;
+}
+
+.dataviz-ai-admin .dataviz-ai-suggested-prompts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	padding: 0.25rem 0 0.15rem;
+	margin: 0;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.dataviz-ai-admin .dataviz-ai-suggested-prompts[hidden] {
+	display: none !important;
+}
+
+.dataviz-ai-admin .dataviz-ai-suggested-chip {
+	display: inline-flex;
+	align-items: center;
+	max-width: 100%;
+	padding: 0.35rem 0.65rem;
+	font-size: 12px;
+	line-height: 1.35;
+	color: #1d2327;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 999px;
+	cursor: pointer;
+	text-align: left;
+	transition: background 0.15s, border-color 0.15s;
+	font-family: inherit;
+}
+
+.dataviz-ai-admin .dataviz-ai-suggested-chip:hover {
+	background: #f0f0f1;
+	border-color: #c3c4c7;
+}
+
+.dataviz-ai-admin .dataviz-ai-suggested-chip:focus {
+	outline: none;
+}
+
+.dataviz-ai-admin .dataviz-ai-suggested-chip:focus-visible {
+	box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2271b1;
 }
 
 .dataviz-ai-admin .dataviz-ai-chat-input-wrapper:focus-within {

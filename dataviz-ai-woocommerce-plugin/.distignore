@@ -1,0 +1,11 @@
+# Files excluded from release ZIP (see bin/build-release.sh)
+developerDocs
+.git
+.gitignore
+.DS_Store
+*.log
+config.php
+node_modules
+tests
+../docker
+../../docker

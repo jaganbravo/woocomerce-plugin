@@ -1,15 +1,17 @@
 <?php
 /**
  * Plugin Name: Dataviz AI for WooCommerce
- * Plugin URI: https://example.com
- * Description: Sample AI-assisted analytics plugin scaffold for WooCommerce stores.
- * Version: 0.1.0
- * Author: Your Name
- * Author URI: https://example.com
+ * Plugin URI: https://wordpress.org/plugins/dataviz-ai-woocommerce/
+ * Description: Conversational AI analytics for WooCommerce — ask questions, get answers, charts, and email digests.
+ * Version: 1.0.0
+ * Author: Dataviz AI
+ * Author URI: https://wordpress.org/plugins/dataviz-ai-woocommerce/
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: dataviz-ai-woocommerce
  * Domain Path: /languages
  * Requires at least: 6.0
- * Requires PHP: 8.3
+ * Requires PHP: 8.0
  * WC requires at least: 6.0
  * WC tested up to: 8.5
  *
@@ -20,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DATAVIZ_AI_WC_VERSION', '0.1.0' );
+define( 'DATAVIZ_AI_WC_VERSION', '1.0.0' );
 define( 'DATAVIZ_AI_WC_PLUGIN_FILE', __FILE__ );
 define( 'DATAVIZ_AI_WC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DATAVIZ_AI_WC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

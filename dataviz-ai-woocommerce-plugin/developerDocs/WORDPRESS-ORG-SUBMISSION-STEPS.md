@@ -1,5 +1,7 @@
 # WordPress.org submission — step-by-step
 
+This file lives in **`developerDocs/`** (maintainer-only). It is not included in the plugin release ZIP (see `.distignore`). Customer-oriented guides such as `docs/API-KEY-MANAGEMENT.md` stay in **`docs/`**.
+
 Use this checklist before uploading to the plugin directory or requesting review. Order matters: fix **blockers** first.
 
 ---
@@ -23,24 +25,24 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 ## Phase 2 — Repository & legal metadata
 
-- [ ] Add a **GPLv2 (or later)** file to the plugin root, e.g. `license.txt`, with the standard license text (same as `readme.txt` claims).
-- [ ] Replace **placeholder URLs** in `dataviz-ai-woocommerce.php`: `Plugin URI`, `Author URI` (no `example.com` for final submit).
-- [ ] Set **`Contributors:`** in `readme.txt` to your **real** WordPress.org username(s).
-- [ ] Align **`Stable tag`** in `readme.txt` with the **`Version:`** header in the main plugin file.
+- [x] Add a **GPLv2 (or later)** file to the plugin root, e.g. `license.txt`, with the standard license text (same as `readme.txt` claims).
+- [x] Replace **placeholder URLs** in `dataviz-ai-woocommerce.php`: `Plugin URI`, `Author URI` (no `example.com` for final submit).
+- [ ] Set **`Contributors:`** in `readme.txt` to your **real** WordPress.org username(s) (comma-separated; must match an existing account, e.g. `https://profiles.wordpress.org/*yourname*/`). *Removed a bad placeholder (`datavizai`); add this line when you have registered on WordPress.org. Until then the readme omits the field; keep **`Author URI`** in the main plugin file pointed at a valid URL (currently the plugin’s directory URL — you may change `Author URI` to your profile if you prefer).*
+- [x] Align **`Stable tag`** in `readme.txt` with the **`Version:`** header in the main plugin file.
 
 ---
 
 ## Phase 3 — Readme & honesty
 
-- [ ] Match **API key instructions** in `readme.txt` to real behavior (env vars, `config.php`, `wp-config.php` constants — remove “plugin settings” if there is no settings field).
-- [ ] In **Privacy / data**, state clearly that questions and **aggregates or limited result sets** may be sent to the AI provider; link to the provider’s privacy policy if required.
-- [ ] Document **external scripts**: Chart.js loaded from CDN (URL, version) — or bundle Chart.js in the plugin and update the readme to say “bundled”.
+- [x] Match **API key instructions** in `readme.txt` to real behavior (env vars, `config.php`, `wp-config.php` constants — **Settings/DB** documented only as *when a future build provides it*; see `docs/API-KEY-MANAGEMENT.md`).
+- [x] In **Privacy / data**, state clearly that questions and **aggregates or limited result sets** may be sent to the AI provider; link to the provider’s privacy policy if required.
+- [x] Document **external scripts**: Chart.js loaded from CDN (URL, version) — or bundle Chart.js in the plugin and update the readme to say “bundled”.
 
 ---
 
 ## Phase 4 — Hardening & directory hygiene
 
-- [ ] Add empty **`index.php`** files in `includes/`, `admin/`, `admin/css/`, `admin/js/`, `public/`, etc., to reduce directory listing risk on misconfigured servers (WordPress convention).
+- [x] Add empty **`index.php`** files (silence is golden) in directories that ship code or assets: plugin root, `includes/`, `admin/`, `admin/css/`, `admin/js/`, `admin/partials/`, `admin/views/`, `public/`, `public/css/`, `public/js/`, `public/views/`, `docs/`, `languages/` — reduces directory listing risk on misconfigured servers (WordPress convention).
 - [x] **Debug AJAX:** `dataviz_ai_debug_intent` is **off** unless you add to `wp-config.php`: `define( 'DATAVIZ_AI_DEBUG_INTENT', true );`
 
 ---

@@ -67,6 +67,74 @@
 		} );
 	}
 
+	/**
+	 * Vetted starter questions: show chips when the textarea is focused/clicked (empty + enabled).
+	 *
+	 * @param {JQuery} $form Chat form.
+	 * @param {JQuery} $input Question textarea.
+	 * @return {void}
+	 */
+	function setupSuggestedPrompts( $form, $input ) {
+		if ( typeof DatavizAIAdmin === 'undefined' || ! DatavizAIAdmin.hasApiKey || ! Array.isArray( DatavizAIAdmin.suggestedQuestions ) || DatavizAIAdmin.suggestedQuestions.length === 0 ) {
+			return;
+		}
+		const $panel = $( '#dataviz-ai-suggested-prompts' );
+		if ( ! $panel.length ) {
+			return;
+		}
+		DatavizAIAdmin.suggestedQuestions.forEach( function( text ) {
+			if ( typeof text !== 'string' || ! $.trim( text ) ) {
+				return;
+			}
+			const $btn = $( '<button type="button" class="dataviz-ai-suggested-chip"></button>' );
+			$btn.text( text ).attr( 'aria-label', text ).attr( 'data-prompt', text );
+			$panel.append( $btn );
+		} );
+		function hideSuggested() {
+			$panel.prop( 'hidden', true );
+		}
+		function showSuggestedIfEligible() {
+			if ( $input.prop( 'disabled' ) ) {
+				hideSuggested();
+				return;
+			}
+			const v = $input.val();
+			if ( typeof v === 'string' && $.trim( v ) !== '' ) {
+				hideSuggested();
+				return;
+			}
+			$panel.prop( 'hidden', false );
+		}
+		$input.on( 'focusin', showSuggestedIfEligible );
+		$input.on( 'click', showSuggestedIfEligible );
+		$input.on( 'input', function() {
+			if ( $.trim( $input.val() ) !== '' ) {
+				hideSuggested();
+			} else {
+				showSuggestedIfEligible();
+			}
+		} );
+		$input.on( 'blur', function() {
+			window.setTimeout( function() {
+				const active = document.activeElement;
+				if ( $panel[0] && active && ( $panel[0] === active || $.contains( $panel[0], active ) ) ) {
+					return;
+				}
+				hideSuggested();
+			}, 180 );
+		} );
+		$panel.on( 'mousedown', 'button', function( e ) {
+			e.preventDefault();
+		} );
+		$panel.on( 'click', 'button', function() {
+			const q = $( this ).attr( 'data-prompt' ) || $( this ).text();
+			$input.val( q );
+			autoResizeTextarea( $input );
+			hideSuggested();
+			$form.trigger( 'submit' );
+		} );
+	}
+
 	// Add message to chat
 	function addMessage( text, type, forceScroll = true, toolData = null ) {
 		const $messages = $( '#dataviz-ai-chat-messages' );
@@ -281,6 +349,8 @@
 
 		// Setup scroll monitoring to detect user scroll
 		setupScrollMonitoring();
+
+		setupSuggestedPrompts( $form, $input );
 
 		// Enable/disable send button based on API key availability
 		if ( typeof DatavizAIAdmin !== 'undefined' ) {

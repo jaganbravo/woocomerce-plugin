@@ -122,12 +122,15 @@ woocomerce-plugin/
 │           └── plugins/
 │               └── dataviz-ai-woocommerce-plugin/  # Plugin (copied here)
 │
-└── Documentation/
-    ├── ARCHITECTURE.md                # High-level architecture
-    ├── DATA_FLOW.md                   # Detailed data & intent flow
-    ├── PLUGIN_GUIDE.md                # Plugin development guide
-    ├── QUICK_START.md                 # Quick start checklist
-    └── README.md                      # Project overview
+├── developerDocs/                    # Monorepo planning, architecture, launch scope (this tree)
+│   ├── ARCHITECTURE.md                # High-level architecture (this file)
+│   ├── QUICK_START.md
+│   └── …                              # See developerDocs/README.md
+│
+└── documentation/                    # Supplementary guides (data flow, demo scripts, access)
+    ├── DATA_FLOW.md
+    ├── PLUGIN_GUIDE.md
+    └── …
 ```
 
 ## 🔄 Data Flow
