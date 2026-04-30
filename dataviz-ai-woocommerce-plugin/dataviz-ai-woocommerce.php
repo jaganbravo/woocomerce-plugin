@@ -1,17 +1,17 @@
 <?php
 /**
  * Plugin Name: Dataviz AI for WooCommerce
- * Plugin URI: https://wordpress.org/plugins/dataviz-ai-woocommerce/
+ * Plugin URI: https://dataviz.ai/products/dataviz-ai-woocommerce
  * Description: Conversational AI analytics for WooCommerce — ask questions, get answers, charts, and email digests.
  * Version: 1.0.0
  * Author: Dataviz AI
- * Author URI: https://wordpress.org/plugins/dataviz-ai-woocommerce/
+ * Author URI: https://dataviz.ai
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: dataviz-ai-woocommerce
  * Domain Path: /languages
  * Requires at least: 6.0
- * Requires PHP: 8.0
+ * Requires PHP: 8.3
  * WC requires at least: 6.0
  * WC tested up to: 8.5
  *
