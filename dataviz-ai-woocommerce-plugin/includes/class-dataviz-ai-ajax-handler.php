@@ -104,7 +104,10 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		$ai_response = isset( $response['answer'] ) ? $response['answer'] : wp_json_encode( $response );
-		$this->chat_history->save_message( 'ai', $ai_response, $this->session_id, array( 'provider' => $response['provider'] ?? 'unknown' ) );
+		$message_id  = $this->chat_history->save_message( 'ai', $ai_response, $this->session_id, array( 'provider' => $response['provider'] ?? 'unknown' ) );
+		if ( is_numeric( $message_id ) ) {
+			$response['message_id'] = (int) $message_id;
+		}
 
 		wp_send_json_success( $response );
 	}
@@ -304,6 +307,39 @@ class Dataviz_AI_AJAX_Handler {
 		}
 
 		wp_send_json_success( $parsed );
+	}
+
+	// ------------------------------------------------------------------
+	// Chat message feedback (thumbs)
+	// ------------------------------------------------------------------
+
+	/**
+	 * Store thumbs up/down for an AI message row.
+	 *
+	 * @return void
+	 */
+	public function handle_chat_feedback_request() {
+		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+		}
+
+		$message_id = isset( $_POST['message_id'] ) ? (int) $_POST['message_id'] : 0;
+		$vote       = isset( $_POST['vote'] ) ? sanitize_text_field( wp_unslash( $_POST['vote'] ) ) : '';
+		$reason     = isset( $_POST['reason'] ) ? sanitize_text_field( wp_unslash( $_POST['reason'] ) ) : '';
+		$note       = isset( $_POST['note'] ) ? wp_unslash( $_POST['note'] ) : '';
+
+		$this->chat_history->ensure_feedback_schema();
+		$result = $this->chat_history->update_feedback( $message_id, $vote, $reason, $note );
+
+		if ( is_wp_error( $result ) ) {
+			$code = $result->get_error_code();
+			$status = ( 'dataviz_ai_feedback_not_found' === $code ) ? 404 : 400;
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), $status );
+		}
+
+		wp_send_json_success( array( 'saved' => true ) );
 	}
 
 	// ------------------------------------------------------------------

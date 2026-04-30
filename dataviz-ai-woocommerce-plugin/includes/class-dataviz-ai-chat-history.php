@@ -64,6 +64,10 @@ class Dataviz_AI_Chat_History {
 			message_type varchar(20) NOT NULL DEFAULT 'user',
 			message_content longtext NOT NULL,
 			metadata longtext DEFAULT NULL,
+			feedback_vote varchar(10) DEFAULT NULL,
+			feedback_reason varchar(64) DEFAULT NULL,
+			feedback_note text DEFAULT NULL,
+			feedback_at datetime DEFAULT NULL,
 			created_at datetime DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			KEY user_id (user_id),
@@ -74,6 +78,83 @@ class Dataviz_AI_Chat_History {
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql );
+	}
+
+	/**
+	 * Ensure feedback columns exist (dbDelta often omits ALTER on existing tables).
+	 *
+	 * @return void
+	 */
+	public function ensure_feedback_schema() {
+		global $wpdb;
+
+		$table = $this->get_table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted prefix.
+		if ( $table !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+			$this->create_table();
+			return;
+		}
+
+		$this->create_table();
+		$this->add_feedback_columns_if_missing();
+	}
+
+	/**
+	 * Add feedback columns with ALTER TABLE when dbDelta did not add them.
+	 *
+	 * @return void
+	 */
+	private function add_feedback_columns_if_missing() {
+		static $complete = false;
+		if ( $complete ) {
+			return;
+		}
+
+		global $wpdb;
+		$table = $this->get_table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted prefix.
+		$fields = $wpdb->get_col( "DESC `{$table}`", 0 );
+		if ( ! is_array( $fields ) ) {
+			return;
+		}
+
+		$have = array_fill_keys( array_map( 'strtolower', $fields ), true );
+
+		if ( ! empty( $have['feedback_vote'] ) && ! empty( $have['feedback_reason'] ) && ! empty( $have['feedback_note'] ) && ! empty( $have['feedback_at'] ) ) {
+			$complete = true;
+			return;
+		}
+
+		if ( empty( $have['feedback_vote'] ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `feedback_vote` varchar(10) NULL" );
+		}
+		if ( empty( $have['feedback_reason'] ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `feedback_reason` varchar(64) NULL" );
+		}
+		if ( empty( $have['feedback_note'] ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `feedback_note` text NULL" );
+		}
+		if ( empty( $have['feedback_at'] ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `feedback_at` datetime NULL" );
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted prefix.
+		$fields_after = $wpdb->get_col( "DESC `{$table}`", 0 );
+		$have_after   = is_array( $fields_after ) ? array_fill_keys( array_map( 'strtolower', $fields_after ), true ) : array();
+
+		if ( ! empty( $have_after['feedback_vote'] ) && ! empty( $have_after['feedback_reason'] ) && ! empty( $have_after['feedback_note'] ) && ! empty( $have_after['feedback_at'] ) ) {
+			$complete = true;
+		}
+
+		if ( $wpdb->last_error && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( '[Dataviz AI] add_feedback_columns_if_missing: ' . $wpdb->last_error );
+		}
 	}
 
 	/**
@@ -153,6 +234,96 @@ class Dataviz_AI_Chat_History {
 	}
 
 	/**
+	 * Allowed feedback reason slugs (optional for down-votes).
+	 *
+	 * @return string[]
+	 */
+	public static function get_allowed_feedback_reasons() {
+		return array( 'inaccurate', 'not_helpful', 'other' );
+	}
+
+	/**
+	 * Update thumbs feedback for an AI message (current user must own the row).
+	 *
+	 * @param int         $message_id Message row ID.
+	 * @param string      $vote       'up' or 'down'.
+	 * @param string|null $reason     Optional slug from get_allowed_feedback_reasons().
+	 * @param string|null $note       Optional short note (max length enforced).
+	 * @return true|WP_Error
+	 */
+	public function update_feedback( $message_id, $vote, $reason = null, $note = null ) {
+		global $wpdb;
+
+		$message_id = (int) $message_id;
+		if ( $message_id < 1 ) {
+			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid message.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$vote = strtolower( (string) $vote );
+		if ( ! in_array( $vote, array( 'up', 'down' ), true ) ) {
+			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid feedback vote.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$user_id = get_current_user_id();
+		if ( $user_id < 1 ) {
+			return new WP_Error( 'dataviz_ai_feedback_auth', __( 'You must be logged in to send feedback.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$reason = is_string( $reason ) ? strtolower( trim( $reason ) ) : '';
+		if ( $reason !== '' && ! in_array( $reason, self::get_allowed_feedback_reasons(), true ) ) {
+			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid feedback reason.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$note_clean = '';
+		if ( is_string( $note ) && $note !== '' ) {
+			$note_clean = wp_strip_all_tags( $note );
+			if ( strlen( $note_clean ) > 500 ) {
+				$note_clean = substr( $note_clean, 0, 500 );
+			}
+		}
+
+		$reason_db = ( $vote === 'down' && $reason !== '' ) ? $reason : null;
+		$note_db   = ( $note_clean !== '' ) ? $note_clean : null;
+
+		if ( $vote === 'up' ) {
+			$reason_db = null;
+			$note_db   = null;
+		}
+
+		$this->ensure_feedback_schema();
+		$this->add_feedback_columns_if_missing();
+
+		$updated = $wpdb->update(
+			$this->get_table_name(),
+			array(
+				'feedback_vote'   => $vote,
+				'feedback_reason' => $reason_db,
+				'feedback_note'   => $note_db,
+				'feedback_at'     => current_time( 'mysql' ),
+			),
+			array(
+				'id'           => $message_id,
+				'user_id'      => $user_id,
+				'message_type' => 'ai',
+			),
+			array( '%s', '%s', '%s', '%s' ),
+			array( '%d', '%d', '%s' )
+		);
+
+		if ( false === $updated ) {
+			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG && $wpdb->last_error ) {
+				error_log( '[Dataviz AI] update_feedback SQL error: ' . $wpdb->last_error );
+			}
+			return new WP_Error( 'dataviz_ai_feedback_db', __( 'Could not save feedback.', 'dataviz-ai-woocommerce' ) );
+		}
+		if ( 0 === $updated ) {
+			return new WP_Error( 'dataviz_ai_feedback_not_found', __( 'Message not found or not eligible for feedback.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Get or create a session ID for the current user.
 	 *
 	 * @return string
@@ -186,7 +357,8 @@ class Dataviz_AI_Chat_History {
 
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, message_type, message_content, metadata, created_at 
+				"SELECT id, message_type, message_content, metadata, created_at,
+				feedback_vote, feedback_reason, feedback_note, feedback_at
 				FROM {$table_name} 
 				WHERE session_id = %s AND user_id = %d AND created_at >= %s
 				ORDER BY created_at ASC 
@@ -225,7 +397,8 @@ class Dataviz_AI_Chat_History {
 
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, session_id, message_type, message_content, metadata, created_at 
+				"SELECT id, session_id, message_type, message_content, metadata, created_at,
+				feedback_vote, feedback_reason, feedback_note, feedback_at
 				FROM {$table_name} 
 				WHERE user_id = %d AND created_at >= %s
 				ORDER BY created_at ASC 

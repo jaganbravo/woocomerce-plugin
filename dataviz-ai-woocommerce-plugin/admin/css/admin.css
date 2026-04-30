@@ -120,6 +120,107 @@
 
 .dataviz-ai-admin .dataviz-ai-message--ai {
 	justify-content: flex-start;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.35rem;
+}
+
+.dataviz-ai-admin .dataviz-ai-message-feedback {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	max-width: 75%;
+	margin-top: 0.15rem;
+	padding-left: 0.125rem;
+}
+
+.dataviz-ai-admin .dataviz-ai-message-feedback-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.dataviz-ai-admin .dataviz-ai-feedback-btn {
+	margin: 0;
+	padding: 0.2rem 0.55rem;
+	font-size: 12px;
+	line-height: 1.4;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+	color: #1d2327;
+	cursor: pointer;
+}
+
+.dataviz-ai-admin .dataviz-ai-feedback-btn:hover {
+	border-color: #2271b1;
+	color: #2271b1;
+}
+
+.dataviz-ai-admin .dataviz-ai-feedback-btn:focus {
+	outline: none;
+	box-shadow: 0 0 0 2px #2271b1;
+}
+
+.dataviz-ai-admin .dataviz-ai-feedback-btn:focus:not(:focus-visible) {
+	box-shadow: none;
+}
+
+.dataviz-ai-admin .dataviz-ai-feedback-btn:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px #2271b1;
+}
+
+.dataviz-ai-admin .dataviz-ai-feedback-btn.is-selected {
+	border-color: #2271b1;
+	background: #f0f6fc;
+	color: #2271b1;
+}
+
+.dataviz-ai-admin .dataviz-ai-message-feedback-status {
+	font-size: 12px;
+	color: #646970;
+}
+
+.dataviz-ai-admin .dataviz-ai-message-feedback-down {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 0.5rem 0.65rem;
+	background: #fafafa;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	font-size: 12px;
+}
+
+.dataviz-ai-admin .dataviz-ai-message-feedback-down[hidden] {
+	display: none !important;
+}
+
+.dataviz-ai-admin .dataviz-ai-message-feedback-reason-label,
+.dataviz-ai-admin .dataviz-ai-message-feedback-note-label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.15rem;
+	color: #1d2327;
+}
+
+.dataviz-ai-admin .dataviz-ai-message-feedback-reason,
+.dataviz-ai-admin .dataviz-ai-message-feedback-note {
+	max-width: 100%;
+	width: 100%;
+	font-size: 12px;
+}
+
+.dataviz-ai-admin .dataviz-ai-message-feedback-note {
+	resize: vertical;
+	min-height: 2.5rem;
+}
+
+.dataviz-ai-admin .dataviz-ai-feedback-submit-down.button-small {
+	margin-top: 0.15rem;
+	align-self: flex-start;
 }
 
 .dataviz-ai-admin .dataviz-ai-message-content {

@@ -118,8 +118,8 @@ class Dataviz_AI_Query_Orchestrator {
 			);
 			$resp = $this->build_intent_not_found_response( $question, $pipeline_result['error_reason'] );
 			$this->stream_handler->send_chunk( $resp['answer'] );
-			$this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
-			$this->stream_handler->send_end();
+			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
+			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
 			return;
 		}
 
@@ -132,8 +132,8 @@ class Dataviz_AI_Query_Orchestrator {
 			);
 			$resp = $this->build_intent_not_found_response( $question, 'Execution engine produced no tool calls.' );
 			$this->stream_handler->send_chunk( $resp['answer'] );
-			$this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
-			$this->stream_handler->send_end();
+			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
+			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
 			return;
 		}
 
@@ -161,8 +161,8 @@ class Dataviz_AI_Query_Orchestrator {
 		$direct = Dataviz_AI_Answer_Composer::maybe_compose( $question, $validated_intent, $exec['results_for_prompt'] );
 		if ( is_string( $direct ) && $direct !== '' ) {
 			$this->stream_handler->send_chunk( $direct );
-			$this->chat_history->save_message( 'ai', $direct, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
-			$this->stream_handler->send_end();
+			$mid = $this->chat_history->save_message( 'ai', $direct, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
+			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
 			return;
 		}
 
@@ -177,12 +177,14 @@ class Dataviz_AI_Query_Orchestrator {
 		}
 
 		$content = $this->stream_handler->get_content();
+		$mid     = null;
 		if ( ! empty( $content ) ) {
-			$this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			$saved = $this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			$mid   = is_numeric( $saved ) ? (int) $saved : null;
 		}
 
 		$tool_for_done = ! empty( $exec['frontend_data'] ) ? $exec['frontend_data'] : null;
-		$this->stream_handler->send_end( $tool_for_done );
+		$this->stream_handler->send_end( $tool_for_done, $mid );
 	}
 
 	/**
@@ -370,13 +372,12 @@ class Dataviz_AI_Query_Orchestrator {
 		}
 
 		$content = $this->stream_handler->get_content();
+		$mid     = null;
 		if ( ! empty( $content ) ) {
-			$this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			$saved = $this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			$mid   = is_numeric( $saved ) ? (int) $saved : null;
 		}
-		$this->stream_handler->send_end();
-	}
-
-	protected function chat_response( $question ) {
+		$this->stream_handler->send_end( null, $mid );
 		$messages = $this->build_chat_messages( $question );
 		$response = $this->api_client->send_openai_chat( $messages );
 		if ( is_wp_error( $response ) ) {
@@ -406,7 +407,8 @@ class Dataviz_AI_Query_Orchestrator {
 		}
 
 		$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'dataviz-ai-woocommerce' );
-		$this->stream_handler->stream_text( $answer );
+		$mid    = $this->chat_history->save_message( 'ai', (string) $answer, $this->session_id, array( 'provider' => 'custom_backend', 'streaming' => true ) );
+		$this->stream_handler->stream_text( (string) $answer, null, is_numeric( $mid ) ? (int) $mid : null );
 	}
 
 	protected function handle_custom_backend( $question ) {
@@ -499,10 +501,12 @@ class Dataviz_AI_Query_Orchestrator {
 		}
 
 		$content = $this->stream_handler->get_content();
+		$mid     = null;
 		if ( ! empty( $content ) ) {
-			$this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			$saved = $this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
+			$mid   = is_numeric( $saved ) ? (int) $saved : null;
 		}
-		$this->stream_handler->send_end();
+		$this->stream_handler->send_end( null, $mid );
 		return true;
 	}
 
