@@ -248,15 +248,31 @@ class Dataviz_AI_Admin {
 				$this->plugin_name . '-admin',
 				'DatavizAIAdmin',
 				array(
-					'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
-					'nonce'           => wp_create_nonce( 'dataviz_ai_admin' ),
-					'hasApiKey'       => ! empty( $api_key ),
-					'orderChartData'  => $order_chart_data,
-					'productChartData' => $product_chart_data,
-					'userSessionId'   => $user_session_id, // Server-side session ID (persists across logins)
+					'ajaxUrl'             => admin_url( 'admin-ajax.php' ),
+					'nonce'               => wp_create_nonce( 'dataviz_ai_admin' ),
+					'hasApiKey'           => ! empty( $api_key ),
+					'orderChartData'      => $order_chart_data,
+					'productChartData'    => $product_chart_data,
+					'userSessionId'       => $user_session_id, // Server-side session ID (persists across logins)
+					'suggestedQuestions'  => $this->get_suggested_chat_prompts(),
 				)
 			);
 		}
+	}
+
+	/**
+	 * Vetted starter prompts for the admin chat (localized).
+	 *
+	 * @return string[]
+	 */
+	protected function get_suggested_chat_prompts() {
+		return array(
+			__( 'What was my total revenue this month?', 'dataviz-ai-woocommerce' ),
+			__( 'How many pending orders do I have?', 'dataviz-ai-woocommerce' ),
+			__( 'Show me my top 10 best-selling products.', 'dataviz-ai-woocommerce' ),
+			__( 'Which products are low on stock?', 'dataviz-ai-woocommerce' ),
+			__( 'How many coupons were used last month?', 'dataviz-ai-woocommerce' ),
+		);
 	}
 
 	/**
@@ -294,33 +310,36 @@ class Dataviz_AI_Admin {
 					
 					<form method="post" class="dataviz-ai-chat-form" data-action="analyze">
 						<div class="dataviz-ai-chat-input-wrapper">
-							<textarea 
-								id="dataviz-ai-question" 
-								name="question" 
-								rows="1" 
-								class="dataviz-ai-chat-input" 
-								placeholder="<?php esc_attr_e( 'Message AI assistant...', 'dataviz-ai-woocommerce' ); ?>"
-								aria-label="<?php esc_attr_e( 'Type your message', 'dataviz-ai-woocommerce' ); ?>"
-							></textarea>
-							<button 
-								type="button" 
-								class="dataviz-ai-chat-stop" 
-								aria-label="<?php esc_attr_e( 'Stop generating', 'dataviz-ai-woocommerce' ); ?>"
-							>
-								<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-									<rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor"/>
-								</svg>
-							</button>
-							<button 
-								type="submit" 
-								class="dataviz-ai-chat-send" 
-								aria-label="<?php esc_attr_e( 'Send message', 'dataviz-ai-woocommerce' ); ?>"
-								<?php disabled( ! $api_key ); ?>
-							>
-								<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-									<path d="M.5 1.163A1 1 0 0 1 1.97.28l12.868 6.837a1 1 0 0 1 0 1.766L1.969 15.72A1 1 0 0 1 .5 14.836V10.33a1 1 0 0 1 .816-.983L8.5 8 1.316 6.653A1 1 0 0 1 .5 5.67V1.163Z" fill="currentColor"/>
-								</svg>
-							</button>
+							<div class="dataviz-ai-chat-input-row">
+								<textarea 
+									id="dataviz-ai-question" 
+									name="question" 
+									rows="1" 
+									class="dataviz-ai-chat-input" 
+									placeholder="<?php esc_attr_e( 'Message AI assistant...', 'dataviz-ai-woocommerce' ); ?>"
+									aria-label="<?php esc_attr_e( 'Type your message', 'dataviz-ai-woocommerce' ); ?>"
+								></textarea>
+								<button 
+									type="button" 
+									class="dataviz-ai-chat-stop" 
+									aria-label="<?php esc_attr_e( 'Stop generating', 'dataviz-ai-woocommerce' ); ?>"
+								>
+									<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+										<rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor"/>
+									</svg>
+								</button>
+								<button 
+									type="submit" 
+									class="dataviz-ai-chat-send" 
+									aria-label="<?php esc_attr_e( 'Send message', 'dataviz-ai-woocommerce' ); ?>"
+									<?php disabled( ! $api_key ); ?>
+								>
+									<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+										<path d="M.5 1.163A1 1 0 0 1 1.97.28l12.868 6.837a1 1 0 0 1 0 1.766L1.969 15.72A1 1 0 0 1 .5 14.836V10.33a1 1 0 0 1 .816-.983L8.5 8 1.316 6.653A1 1 0 0 1 .5 5.67V1.163Z" fill="currentColor"/>
+									</svg>
+								</button>
+							</div>
+							<div class="dataviz-ai-suggested-prompts" id="dataviz-ai-suggested-prompts" hidden></div>
 						</div>
 					</form>
 				</section>
