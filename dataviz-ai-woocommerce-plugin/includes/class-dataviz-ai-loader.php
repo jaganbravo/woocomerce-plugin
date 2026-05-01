@@ -23,9 +23,11 @@ require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-stream-handle
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-tool-executor.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chart-descriptor.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-pipeline.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-intent-query-summary.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-query-orchestrator.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-support-requests.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-support-requests-admin.php';
+require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-feedback-admin.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-email-digests.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-mailer.php';
 require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-digest-generator.php';
@@ -150,10 +152,12 @@ class Dataviz_AI_Loader {
 	protected function define_admin_hooks() {
 		add_action( 'admin_menu', array( $this->admin, 'register_menu_page' ) );
 		add_action( 'admin_menu', array( 'Dataviz_AI_Support_Requests_Admin', 'register_submenu' ) );
+		add_action( 'admin_menu', array( 'Dataviz_AI_Chat_Feedback_Admin', 'register_submenu' ) );
 		add_action( 'admin_menu', array( $this->digest_admin, 'register_submenu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_assets' ) );
 		add_action( 'admin_notices', array( $this->admin, 'hide_woocommerce_incompatibility_notice' ), 999 );
 		add_action( 'admin_enqueue_scripts', array( 'Dataviz_AI_Support_Requests_Admin', 'enqueue_assets' ) );
+		add_action( 'admin_enqueue_scripts', array( 'Dataviz_AI_Chat_Feedback_Admin', 'enqueue_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $this->digest_admin, 'enqueue_assets' ) );
 		$this->onboarding->init();
 	}
@@ -169,6 +173,8 @@ class Dataviz_AI_Loader {
 		add_action( 'wp_ajax_dataviz_ai_chat', array( $this->ajax, 'handle_chat_request' ) );
 
 		add_action( 'wp_ajax_dataviz_ai_get_history', array( $this->ajax, 'handle_get_history_request' ) );
+
+		add_action( 'wp_ajax_dataviz_ai_chat_feedback', array( $this->ajax, 'handle_chat_feedback_request' ) );
 
 		add_action( 'wp_ajax_dataviz_ai_submit_feature_request', array( $this->ajax, 'handle_submit_feature_request' ) );
 

@@ -141,6 +141,12 @@ function dataviz_ai_wc_init() {
 
 	load_plugin_textdomain( 'dataviz-ai-woocommerce', false, dirname( DATAVIZ_AI_WC_PLUGIN_BASENAME ) . '/languages' );
 
+	// Ensure chat history feedback columns exist (runs dbDelta when columns are missing).
+	if ( is_admin() ) {
+		require_once DATAVIZ_AI_WC_PLUGIN_DIR . 'includes/class-dataviz-ai-chat-history.php';
+		( new Dataviz_AI_Chat_History() )->ensure_feedback_schema();
+	}
+
 	// Register cleanup hook.
 	add_action( 'dataviz_ai_cleanup_chat_history', 'dataviz_ai_wc_cleanup_chat_history' );
 

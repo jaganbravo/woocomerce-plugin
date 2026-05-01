@@ -135,8 +135,8 @@
 		} );
 	}
 
-	// Add message to chat
-	function addMessage( text, type, forceScroll = true, toolData = null ) {
+	// Add message to chat. Optional feedbackMeta for AI rows: { messageId, vote, reason, note }.
+	function addMessage( text, type, forceScroll = true, toolData = null, feedbackMeta = null ) {
 		const $messages = $( '#dataviz-ai-chat-messages' );
 		const $welcome = $messages.find( '.dataviz-ai-chat-welcome' );
 		
@@ -160,9 +160,147 @@
 			maybeRenderChart( toolData, $message );
 		}
 
+		if ( type === 'ai' && feedbackMeta && feedbackMeta.messageId ) {
+			appendFeedbackRow( $message, feedbackMeta.messageId, {
+				vote: feedbackMeta.vote || '',
+				reason: feedbackMeta.reason || '',
+				note: feedbackMeta.note || '',
+			} );
+		}
+
 		scrollToBottom( forceScroll );
 		
 		return $message;
+	}
+
+	function submitChatFeedback( messageId, vote, reason, note ) {
+		return $.ajax( {
+			url: DatavizAIAdmin.ajaxUrl,
+			method: 'POST',
+			data: {
+				action: 'dataviz_ai_chat_feedback',
+				nonce: DatavizAIAdmin.nonce,
+				message_id: messageId,
+				vote: vote,
+				reason: reason || '',
+				note: note || '',
+			},
+		} );
+	}
+
+	function appendFeedbackRow( $aiMessage, messageId, state ) {
+		if ( ! messageId || $aiMessage.find( '.dataviz-ai-message-feedback' ).length ) {
+			return;
+		}
+		const fb = ( typeof DatavizAIAdmin.feedbackI18n === 'object' && DatavizAIAdmin.feedbackI18n ) ? DatavizAIAdmin.feedbackI18n : {};
+		const $bar = $( '<div class="dataviz-ai-message-feedback" role="group" />' );
+		const $actions = $( '<div class="dataviz-ai-message-feedback-actions" />' );
+		const $btnUp = $( '<button type="button" class="dataviz-ai-feedback-btn dataviz-ai-feedback-btn--up" />' ).text( fb.helpfulLabel || 'Helpful' );
+		const $btnDown = $( '<button type="button" class="dataviz-ai-feedback-btn dataviz-ai-feedback-btn--down" />' ).text( fb.notHelpfulLabel || 'Not helpful' );
+		$btnUp.attr( 'aria-label', fb.helpfulLabel || 'Helpful' );
+		$btnDown.attr( 'aria-label', fb.notHelpfulLabel || 'Not helpful' );
+		const $status = $( '<span class="dataviz-ai-message-feedback-status" aria-live="polite" />' );
+
+		const $downPanel = $( '<div class="dataviz-ai-message-feedback-down" hidden />' );
+		const $reasonLabel = $( '<label class="dataviz-ai-message-feedback-reason-label" />' ).text( fb.reasonLabel || '' );
+		const $reason = $( '<select class="dataviz-ai-message-feedback-reason" />' );
+		$reason.append( $( '<option value="" />' ).text( '—' ) );
+		if ( Array.isArray( fb.reasons ) ) {
+			fb.reasons.forEach( function( r ) {
+				$reason.append( $( '<option />' ).val( r.value ).text( r.label ) );
+			} );
+		}
+		const $noteLabel = $( '<label class="dataviz-ai-message-feedback-note-label" />' ).text( fb.optionalNote || '' );
+		const $note = $( '<textarea class="dataviz-ai-message-feedback-note" rows="2" />' );
+		const $submitDown = $( '<button type="button" class="button button-small dataviz-ai-feedback-submit-down" />' ).text( fb.submit || 'Submit' );
+
+		$downPanel.append( $reasonLabel, $reason, $noteLabel, $note, $submitDown );
+		$actions.append( $btnUp, $btnDown, $status );
+		$bar.append( $actions, $downPanel );
+		$aiMessage.append( $bar );
+
+		function setVoteUi( vote ) {
+			$btnUp.attr( 'aria-pressed', vote === 'up' ? 'true' : 'false' );
+			$btnDown.attr( 'aria-pressed', vote === 'down' ? 'true' : 'false' );
+			$btnUp.toggleClass( 'is-selected', vote === 'up' );
+			$btnDown.toggleClass( 'is-selected', vote === 'down' );
+		}
+
+		function showThanks() {
+			$status.text( fb.thanks || '' );
+			$downPanel.prop( 'hidden', true );
+		}
+
+		if ( state.vote === 'up' || state.vote === 'down' ) {
+			setVoteUi( state.vote );
+			if ( state.vote === 'down' && state.reason ) {
+				$reason.val( state.reason );
+			}
+			if ( state.vote === 'down' && state.note ) {
+				$note.val( state.note );
+			}
+			showThanks();
+		}
+
+		function lockDuring( p ) {
+			$btnUp.prop( 'disabled', true );
+			$btnDown.prop( 'disabled', true );
+			$submitDown.prop( 'disabled', true );
+			return p.always( function() {
+				$btnUp.prop( 'disabled', false );
+				$btnDown.prop( 'disabled', false );
+				$submitDown.prop( 'disabled', false );
+			} );
+		}
+
+		$btnUp.on( 'click', function() {
+			setVoteUi( 'up' );
+			$status.text( fb.saving || '…' );
+			lockDuring( submitChatFeedback( messageId, 'up', '', '' ) ).done( function( res ) {
+				if ( res && res.success ) {
+					setVoteUi( 'up' );
+					showThanks();
+				} else {
+					const msg = ( res && res.data && res.data.message ) ? res.data.message : ( fb.errorGeneric || '' );
+					$status.text( msg );
+					setVoteUi( '' );
+				}
+			} ).fail( function( xhr ) {
+				const msg = xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message
+					? xhr.responseJSON.data.message
+					: ( fb.errorGeneric || '' );
+				$status.text( msg );
+				setVoteUi( '' );
+			} );
+		} );
+
+		$btnDown.on( 'click', function() {
+			if ( $downPanel.prop( 'hidden' ) ) {
+				$downPanel.prop( 'hidden', false );
+			}
+			$btnDown.attr( 'aria-pressed', 'true' );
+			$btnDown.addClass( 'is-selected' );
+		} );
+
+		$submitDown.on( 'click', function() {
+			let reason = $.trim( $reason.val() || '' );
+			if ( ! reason ) {
+				reason = 'other';
+			}
+			const note = $.trim( $note.val() || '' );
+			$status.text( fb.saving || '…' );
+			lockDuring( submitChatFeedback( messageId, 'down', reason, note ) ).done( function( res ) {
+				if ( res && res.success ) {
+					setVoteUi( 'down' );
+					showThanks();
+				} else {
+					$status.text( ( res && res.data && res.data.message ) ? res.data.message : ( fb.errorGeneric || '' ) );
+				}
+			} ).fail( function( xhr ) {
+				const msg = xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message ? xhr.responseJSON.data.message : ( fb.errorGeneric || '' );
+				$status.text( msg );
+			} );
+		} );
 	}
 
 	// Show loading indicator
@@ -513,6 +651,12 @@
 										}
 										currentStreamReader = null;
 										currentStreamController = null;
+										if ( data.message_id ) {
+											const mid = parseInt( data.message_id, 10 );
+											if ( mid > 0 ) {
+												appendFeedbackRow( $aiMessage, mid, {} );
+											}
+										}
 										if ( ! streamStopped && fullResponse.trim() ) {
 											conversationHistory.push( { role: 'assistant', content: fullResponse } );
 											maybeRenderChart( streamToolData, $aiMessage );
@@ -694,8 +838,19 @@
 							const messageContent = msg.message_content || '';
 							
 							if ( messageContent.trim() ) {
-								// Add message without forcing scroll (we'll scroll at the end)
-								addMessage( messageContent, messageType, false );
+								let feedbackMeta = null;
+								if ( messageType === 'ai' && msg.id ) {
+									const mid = parseInt( msg.id, 10 );
+									if ( mid > 0 ) {
+										feedbackMeta = {
+											messageId: mid,
+											vote: msg.feedback_vote || '',
+											reason: msg.feedback_reason || '',
+											note: msg.feedback_note || '',
+										};
+									}
+								}
+								addMessage( messageContent, messageType, false, null, feedbackMeta );
 							}
 						} );
 
