@@ -324,6 +324,171 @@ class Dataviz_AI_Chat_History {
 	}
 
 	/**
+	 * Admin: fetch one AI row by ID (any user).
+	 *
+	 * @param int $id Message row ID.
+	 * @return array|null
+	 */
+	public function get_feedback_entry_by_id( $id ) {
+		global $wpdb;
+		$table = $this->get_table_name();
+		$row   = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM `{$table}` WHERE id = %d AND message_type = %s",
+			absint( $id ),
+			'ai'
+		), ARRAY_A );
+
+		return $row ?: null;
+	}
+
+	/**
+	 * Admin: paginated AI messages with thumbs feedback (all users).
+	 *
+	 * @param array $args Keys: limit, offset, search.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_feedback_entries_admin( array $args = array() ) {
+		global $wpdb;
+
+		$table  = $this->get_table_name();
+		$limit  = max( 1, min( 100, absint( $args['limit'] ?? 20 ) ) );
+		$offset = absint( $args['offset'] ?? 0 );
+		$search = isset( $args['search'] ) ? sanitize_text_field( $args['search'] ) : '';
+
+		$sql  = "SELECT id, user_id, session_id, message_content, feedback_vote, feedback_reason, feedback_note, feedback_at, created_at FROM `{$table}` WHERE message_type = %s AND feedback_vote IN (%s, %s)";
+		$prep = array( 'ai', 'up', 'down' );
+
+		if ( $search !== '' ) {
+			$like = '%' . $wpdb->esc_like( $search ) . '%';
+			$sql .= ' AND (message_content LIKE %s OR feedback_note LIKE %s OR CAST(user_id AS CHAR) LIKE %s)';
+			$prep[] = $like;
+			$prep[] = $like;
+			$prep[] = $like;
+		}
+
+		$sql .= ' ORDER BY feedback_at DESC LIMIT %d OFFSET %d';
+		$prep[] = $limit;
+		$prep[] = $offset;
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- assembled above with placeholders only.
+		return $wpdb->get_results( $wpdb->prepare( $sql, $prep ), ARRAY_A ) ?: array();
+	}
+
+	/**
+	 * Admin: count rows with feedback (for pagination).
+	 *
+	 * @param string $search Optional search string.
+	 * @return int
+	 */
+	public function count_feedback_entries_admin( $search = '' ) {
+		global $wpdb;
+
+		$table = $this->get_table_name();
+		$sql   = "SELECT COUNT(*) FROM `{$table}` WHERE message_type = %s AND feedback_vote IN (%s, %s)";
+		$prep  = array( 'ai', 'up', 'down' );
+
+		if ( $search !== '' ) {
+			$like = '%' . $wpdb->esc_like( sanitize_text_field( $search ) ) . '%';
+			$sql .= ' AND (message_content LIKE %s OR feedback_note LIKE %s OR CAST(user_id AS CHAR) LIKE %s)';
+			$prep[] = $like;
+			$prep[] = $like;
+			$prep[] = $like;
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $prep ) );
+	}
+
+	/**
+	 * Email one chat feedback row to the plugin vendor inbox (wp_mail).
+	 *
+	 * @param int $message_id Chat history row ID (AI message).
+	 * @return true|WP_Error
+	 */
+	public function email_feedback_to_vendor( $message_id ) {
+		$to = Dataviz_AI_Support_Requests::get_vendor_support_email();
+		if ( ! is_email( $to ) ) {
+			return new WP_Error(
+				'dataviz_cf_email_no_vendor',
+				__( 'Set a vendor support email under Dataviz AI → Support & Requests first.', 'dataviz-ai-woocommerce' )
+			);
+		}
+
+		$row = $this->get_feedback_entry_by_id( $message_id );
+		if ( ! $row ) {
+			return new WP_Error( 'dataviz_cf_not_found', __( 'Message not found.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$vote = $row['feedback_vote'] ?? '';
+		if ( ! in_array( $vote, array( 'up', 'down' ), true ) ) {
+			return new WP_Error( 'dataviz_cf_no_feedback', __( 'This message has no feedback to send.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		/* translators: 1: site name, 2: message row ID */
+		$subject = sprintf( __( '[%1$s] Dataviz AI chat feedback (message #%2$d)', 'dataviz-ai-woocommerce' ), $site_name, absint( $message_id ) );
+
+		$body = $this->build_feedback_vendor_email_body( $row );
+
+		$sent = wp_mail(
+			$to,
+			$subject,
+			$body,
+			array( 'Content-Type: text/plain; charset=UTF-8' )
+		);
+
+		if ( ! $sent ) {
+			return new WP_Error(
+				'dataviz_cf_email_failed',
+				__( 'WordPress could not send email. Check your site mail configuration.', 'dataviz-ai-woocommerce' )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Plain-text body for vendor notification of chat feedback.
+	 *
+	 * @param array $row Full row from get_feedback_entry_by_id().
+	 * @return string
+	 */
+	private function build_feedback_vendor_email_body( array $row ) {
+		$lines   = array();
+		$lines[] = __( 'A store administrator forwarded this Dataviz AI admin chat thumbs feedback.', 'dataviz-ai-woocommerce' );
+		$lines[] = '';
+		$lines[] = __( 'Site', 'dataviz-ai-woocommerce' ) . ': ' . home_url();
+		$lines[] = __( 'Message ID', 'dataviz-ai-woocommerce' ) . ': #' . absint( $row['id'] ?? 0 );
+		$lines[] = __( 'Session', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['session_id'] ?? '' );
+		$uid     = absint( $row['user_id'] ?? 0 );
+		$lines[] = __( 'User ID', 'dataviz-ai-woocommerce' ) . ': ' . $uid;
+		$user    = $uid > 0 ? get_userdata( $uid ) : false;
+		if ( $user ) {
+			$lines[] = __( 'User', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $user->display_name );
+			$lines[] = __( 'User email', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_email( $user->user_email );
+		}
+		$lines[] = '';
+		$lines[] = __( 'Vote', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_vote'] ?? '' );
+		if ( ! empty( $row['feedback_reason'] ) ) {
+			$lines[] = __( 'Reason', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_reason'] ?? '' );
+		}
+		if ( ! empty( $row['feedback_note'] ) ) {
+			$lines[] = __( 'Note', 'dataviz-ai-woocommerce' ) . ': ' . wp_strip_all_tags( (string) $row['feedback_note'] );
+		}
+		$lines[] = __( 'Feedback time', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_at'] ?? '' );
+		$lines[] = __( 'Message time', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['created_at'] ?? '' );
+		$lines[] = '';
+		$lines[] = __( 'Assistant reply', 'dataviz-ai-woocommerce' ) . ':';
+		$content = wp_strip_all_tags( (string) ( $row['message_content'] ?? '' ) );
+		if ( strlen( $content ) > 8000 ) {
+			$content = substr( $content, 0, 8000 ) . '…';
+		}
+		$lines[] = $content;
+
+		return implode( "\n", $lines );
+	}
+
+	/**
 	 * Get or create a session ID for the current user.
 	 *
 	 * @return string
