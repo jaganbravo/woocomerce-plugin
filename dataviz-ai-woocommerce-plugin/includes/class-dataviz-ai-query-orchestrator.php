@@ -116,7 +116,11 @@ class Dataviz_AI_Query_Orchestrator {
 				$pipeline_result['error_reason'],
 				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
 			);
-			$resp = $this->build_intent_not_found_response( $question, $pipeline_result['error_reason'] );
+			$resp = $this->build_intent_not_found_response(
+				$question,
+				$pipeline_result['error_reason'],
+				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array()
+			);
 			$this->stream_handler->send_chunk( $resp['answer'] );
 			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
 			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
@@ -130,7 +134,11 @@ class Dataviz_AI_Query_Orchestrator {
 				'Execution engine produced no tool calls.',
 				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
 			);
-			$resp = $this->build_intent_not_found_response( $question, 'Execution engine produced no tool calls.' );
+			$resp = $this->build_intent_not_found_response(
+				$question,
+				'Execution engine produced no tool calls.',
+				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array()
+			);
 			$this->stream_handler->send_chunk( $resp['answer'] );
 			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
 			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
@@ -152,6 +160,11 @@ class Dataviz_AI_Query_Orchestrator {
 
 		$exec = $this->tool_executor->execute_all( $pipeline_result['tool_calls'], $validated_intent );
 
+		$interpreted = Dataviz_AI_Intent_Query_Summary::from_intent( $validated_intent );
+		if ( $interpreted !== '' ) {
+			$this->stream_handler->send_chunk( $interpreted . "\n\n" );
+		}
+
 		// Send chart data to frontend early.
 		if ( ! empty( $exec['frontend_data'] ) ) {
 			$this->stream_handler->send_chunk( '', array( 'tool_data' => $exec['frontend_data'] ) );
@@ -161,7 +174,8 @@ class Dataviz_AI_Query_Orchestrator {
 		$direct = Dataviz_AI_Answer_Composer::maybe_compose( $question, $validated_intent, $exec['results_for_prompt'] );
 		if ( is_string( $direct ) && $direct !== '' ) {
 			$this->stream_handler->send_chunk( $direct );
-			$mid = $this->chat_history->save_message( 'ai', $direct, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
+			$full = ( $interpreted !== '' ? $interpreted . "\n\n" : '' ) . $direct;
+			$mid = $this->chat_history->save_message( 'ai', $full, $this->session_id, array( 'provider' => 'openai', 'streaming' => true, 'direct_response' => true ) );
 			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
 			return;
 		}
@@ -177,6 +191,7 @@ class Dataviz_AI_Query_Orchestrator {
 		}
 
 		$content = $this->stream_handler->get_content();
+		$content = ( $interpreted !== '' ? $interpreted . "\n\n" : '' ) . $content;
 		$mid     = null;
 		if ( ! empty( $content ) ) {
 			$saved = $this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
@@ -215,7 +230,13 @@ class Dataviz_AI_Query_Orchestrator {
 				) );
 				$first = $result['results_for_prompt'][0]['result'] ?? array();
 				if ( isset( $first['message'] ) && is_string( $first['message'] ) ) {
-					return array( 'answer' => $first['message'], 'provider' => 'system' );
+					$pre = Dataviz_AI_Intent_Query_Summary::feature_request_confirmation_preamble();
+					$msg = $first['message'];
+
+					return array(
+						'answer'   => ( $pre !== '' ? $pre . "\n\n" : '' ) . $msg,
+						'provider' => 'system',
+					);
 				}
 				return array( 'answer' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-woocommerce' ), 'provider' => 'system' );
 			}
@@ -244,7 +265,11 @@ class Dataviz_AI_Query_Orchestrator {
 				$pipeline_result['error_reason'],
 				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
 			);
-			return $this->build_intent_not_found_response( $question, $pipeline_result['error_reason'] );
+			return $this->build_intent_not_found_response(
+				$question,
+				$pipeline_result['error_reason'],
+				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array()
+			);
 		}
 
 		if ( empty( $pipeline_result['tool_calls'] ) ) {
@@ -253,7 +278,11 @@ class Dataviz_AI_Query_Orchestrator {
 				'Execution engine produced no tool calls.',
 				isset( $pipeline_result['intent'] ) ? wp_json_encode( $pipeline_result['intent'] ) : null
 			);
-			return $this->build_intent_not_found_response( $question, 'Execution engine produced no tool calls.' );
+			return $this->build_intent_not_found_response(
+				$question,
+				'Execution engine produced no tool calls.',
+				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array()
+			);
 		}
 
 		// Store feature request in unified support table (with question context).
@@ -275,7 +304,9 @@ class Dataviz_AI_Query_Orchestrator {
 		// Deterministic answer.
 		$direct = Dataviz_AI_Answer_Composer::maybe_compose( $question, $validated_intent, $exec['results_for_prompt'] );
 		if ( is_string( $direct ) && $direct !== '' ) {
-			return array( 'answer' => $direct, 'provider' => 'openai', 'operations_used' => $exec['operations_used'], 'tool_data' => $tool_data );
+			$interp = Dataviz_AI_Intent_Query_Summary::from_intent( $validated_intent );
+			$answer = ( $interp !== '' ? $interp . "\n\n" : '' ) . $direct;
+			return array( 'answer' => $answer, 'provider' => 'openai', 'operations_used' => $exec['operations_used'], 'tool_data' => $tool_data );
 		}
 
 		// LLM summarization.
@@ -289,6 +320,11 @@ class Dataviz_AI_Query_Orchestrator {
 		$answer = $response['choices'][0]['message']['content'] ?? '';
 		if ( $answer === '' ) {
 			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$interp = Dataviz_AI_Intent_Query_Summary::from_intent( $validated_intent );
+		if ( $interp !== '' ) {
+			$answer = $interp . "\n\n" . $answer;
 		}
 
 		return array( 'answer' => $answer, 'provider' => 'openai', 'operations_used' => $exec['operations_used'], 'tool_data' => $tool_data );
@@ -361,9 +397,40 @@ class Dataviz_AI_Query_Orchestrator {
 		);
 	}
 
+	/**
+	 * Non-streaming conversational answer (no WooCommerce data).
+	 *
+	 * @param string $question User question.
+	 * @return array|WP_Error
+	 */
+	protected function chat_response( $question ) {
+		$messages = $this->build_chat_messages( $question );
+		$response = $this->api_client->send_openai_chat( $messages );
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$answer = $response['choices'][0]['message']['content'] ?? '';
+		if ( $answer === '' ) {
+			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		$pre = Dataviz_AI_Intent_Query_Summary::conversational_preamble();
+		if ( $pre !== '' ) {
+			$answer = $pre . "\n\n" . $answer;
+		}
+
+		return array( 'answer' => $answer, 'provider' => 'openai' );
+	}
+
 	protected function stream_chat_response( $question ) {
 		$messages = $this->build_chat_messages( $question );
+		$preamble = Dataviz_AI_Intent_Query_Summary::conversational_preamble();
 		$this->stream_handler->reset_content();
+		if ( $preamble !== '' ) {
+			$this->stream_handler->send_chunk( $preamble . "\n\n" );
+		}
 		$result = $this->stream_handler->stream_llm_response( $messages );
 
 		if ( is_wp_error( $result ) ) {
@@ -371,20 +438,13 @@ class Dataviz_AI_Query_Orchestrator {
 			return;
 		}
 
-		$content = $this->stream_handler->get_content();
+		$content = ( $preamble !== '' ? $preamble . "\n\n" : '' ) . $this->stream_handler->get_content();
 		$mid     = null;
 		if ( ! empty( $content ) ) {
 			$saved = $this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
 			$mid   = is_numeric( $saved ) ? (int) $saved : null;
 		}
 		$this->stream_handler->send_end( null, $mid );
-		$messages = $this->build_chat_messages( $question );
-		$response = $this->api_client->send_openai_chat( $messages );
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-		$answer = $response['choices'][0]['message']['content'] ?? '';
-		return array( 'answer' => $answer, 'provider' => 'openai' );
 	}
 
 	protected function handle_custom_backend_stream( $question ) {
@@ -407,8 +467,10 @@ class Dataviz_AI_Query_Orchestrator {
 		}
 
 		$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'dataviz-ai-woocommerce' );
-		$mid    = $this->chat_history->save_message( 'ai', (string) $answer, $this->session_id, array( 'provider' => 'custom_backend', 'streaming' => true ) );
-		$this->stream_handler->stream_text( (string) $answer, null, is_numeric( $mid ) ? (int) $mid : null );
+		$pre    = Dataviz_AI_Intent_Query_Summary::custom_backend_preamble();
+		$full   = ( $pre !== '' ? $pre . "\n\n" : '' ) . (string) $answer;
+		$mid    = $this->chat_history->save_message( 'ai', $full, $this->session_id, array( 'provider' => 'custom_backend', 'streaming' => true ) );
+		$this->stream_handler->stream_text( $full, null, is_numeric( $mid ) ? (int) $mid : null );
 	}
 
 	protected function handle_custom_backend( $question ) {
@@ -424,7 +486,16 @@ class Dataviz_AI_Query_Orchestrator {
 			'customers' => $customers,
 		);
 
-		return $this->api_client->post( 'api/woocommerce/ask', $payload );
+		$response = $this->api_client->post( 'api/woocommerce/ask', $payload );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		$pre = Dataviz_AI_Intent_Query_Summary::custom_backend_preamble();
+		if ( is_array( $response ) && isset( $response['answer'] ) && is_string( $response['answer'] ) && $pre !== '' ) {
+			$response['answer'] = $pre . "\n\n" . $response['answer'];
+		}
+
+		return $response;
 	}
 
 	/**
@@ -494,13 +565,17 @@ class Dataviz_AI_Query_Orchestrator {
 		);
 
 		$this->stream_handler->reset_content();
+		$pre = Dataviz_AI_Intent_Query_Summary::feature_request_confirmation_preamble();
+		if ( $pre !== '' ) {
+			$this->stream_handler->send_chunk( $pre . "\n\n" );
+		}
 		$result = $this->stream_handler->stream_llm_response( $messages );
 		if ( is_wp_error( $result ) ) {
 			$this->stream_handler->send_error( $result->get_error_message() );
 			return true;
 		}
 
-		$content = $this->stream_handler->get_content();
+		$content = ( $pre !== '' ? $pre . "\n\n" : '' ) . $this->stream_handler->get_content();
 		$mid     = null;
 		if ( ! empty( $content ) ) {
 			$saved = $this->chat_history->save_message( 'ai', $content, $this->session_id, array( 'provider' => 'openai', 'streaming' => true ) );
@@ -554,7 +629,7 @@ class Dataviz_AI_Query_Orchestrator {
 		return '';
 	}
 
-	protected function build_intent_not_found_response( $question, $reason = '' ) {
+	protected function build_intent_not_found_response( $question, $reason = '', array $intent_snapshot = array() ) {
 		$entity_type = 'intent_not_found';
 		$description = "User question:\n" . (string) $question;
 		if ( is_string( $reason ) && $reason !== '' ) {
@@ -569,6 +644,12 @@ class Dataviz_AI_Query_Orchestrator {
 		$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-woocommerce' );
 		$prompt  = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-woocommerce' );
 
-		return array( 'answer' => trim( $message . "\n\n" . $prompt ), 'provider' => 'system' );
+		$answer = trim( $message . "\n\n" . $prompt );
+		$line   = Dataviz_AI_Intent_Query_Summary::from_intent( $intent_snapshot );
+		if ( $line !== '' ) {
+			$answer = $line . "\n\n" . $answer;
+		}
+
+		return array( 'answer' => $answer, 'provider' => 'system' );
 	}
 }
