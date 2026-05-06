@@ -81,7 +81,7 @@ class Dataviz_AI_Intent_Validator {
 			$operation = 'list';
 		}
 
-		$confidence = isset( $intent['confidence'] ) ? strtolower( (string) $intent['confidence'] ) : 'low';
+		$confidence = isset( $intent['confidence'] ) ? strtolower( (string) $intent['confidence'] ) : 'medium';
 		if ( ! in_array( $confidence, array( 'low', 'medium', 'high' ), true ) ) {
 			$confidence = 'low';
 		}

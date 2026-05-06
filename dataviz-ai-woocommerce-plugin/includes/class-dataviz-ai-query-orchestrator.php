@@ -119,7 +119,10 @@ class Dataviz_AI_Query_Orchestrator {
 			$resp = $this->build_intent_not_found_response(
 				$question,
 				$pipeline_result['error_reason'],
-				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array()
+				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array(),
+				array(
+					'low_confidence' => ! empty( $pipeline_result['low_confidence'] ),
+				)
 			);
 			$this->stream_handler->send_chunk( $resp['answer'] );
 			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
@@ -137,7 +140,10 @@ class Dataviz_AI_Query_Orchestrator {
 			$resp = $this->build_intent_not_found_response(
 				$question,
 				'Execution engine produced no tool calls.',
-				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array()
+				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array(),
+				array(
+					'low_confidence' => false,
+				)
 			);
 			$this->stream_handler->send_chunk( $resp['answer'] );
 			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
@@ -268,7 +274,10 @@ class Dataviz_AI_Query_Orchestrator {
 			return $this->build_intent_not_found_response(
 				$question,
 				$pipeline_result['error_reason'],
-				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array()
+				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array(),
+				array(
+					'low_confidence' => ! empty( $pipeline_result['low_confidence'] ),
+				)
 			);
 		}
 
@@ -281,7 +290,10 @@ class Dataviz_AI_Query_Orchestrator {
 			return $this->build_intent_not_found_response(
 				$question,
 				'Execution engine produced no tool calls.',
-				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array()
+				is_array( $pipeline_result['intent'] ?? null ) ? $pipeline_result['intent'] : array(),
+				array(
+					'low_confidence' => false,
+				)
 			);
 		}
 
@@ -629,7 +641,9 @@ class Dataviz_AI_Query_Orchestrator {
 		return '';
 	}
 
-	protected function build_intent_not_found_response( $question, $reason = '', array $intent_snapshot = array() ) {
+	protected function build_intent_not_found_response( $question, $reason = '', array $intent_snapshot = array(), array $options = array() ) {
+		$low_confidence = ! empty( $options['low_confidence'] );
+
 		$entity_type = 'intent_not_found';
 		$description = "User question:\n" . (string) $question;
 		if ( is_string( $reason ) && $reason !== '' ) {
@@ -641,11 +655,25 @@ class Dataviz_AI_Query_Orchestrator {
 		$desc_key = 'dataviz_ai_pending_request_desc_' . md5( $this->session_id );
 		set_transient( $desc_key, $description, HOUR_IN_SECONDS );
 
-		$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-woocommerce' );
-		$prompt  = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-woocommerce' );
+		if ( $low_confidence ) {
+			$message = __( 'I am not confident I understood your question, so I did not run a WooCommerce data query. Rephrasing often helps.', 'dataviz-ai-woocommerce' );
+		} else {
+			$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-woocommerce' );
+		}
+		$prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-woocommerce' );
 
-		$answer = trim( $message . "\n\n" . $prompt );
-		$line   = Dataviz_AI_Intent_Query_Summary::from_intent( $intent_snapshot );
+		$answer = $message;
+
+		$suggestions = Dataviz_AI_Question_Suggestions::get_lines( $intent_snapshot );
+		$examples    = Dataviz_AI_Question_Suggestions::format_for_chat( $suggestions );
+		if ( $examples !== '' ) {
+			$answer .= "\n\n" . __( 'Examples you can try:', 'dataviz-ai-woocommerce' ) . "\n" . $examples;
+		}
+
+		$answer .= "\n\n" . $prompt;
+		$answer  = trim( $answer );
+
+		$line = Dataviz_AI_Intent_Query_Summary::from_intent( $intent_snapshot );
 		if ( $line !== '' ) {
 			$answer = $line . "\n\n" . $answer;
 		}
