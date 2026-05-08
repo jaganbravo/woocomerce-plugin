@@ -38,6 +38,8 @@ Ask questions about your WooCommerce store in plain English. Get answers, charts
 
 Store data is processed on your server to run WooCommerce queries. Requests to the AI provider include your question and retrieved aggregates or limited result sets — not your full database. If you use OpenAI, read their current policies: https://openai.com/policies/ (including the Privacy Policy). Configure API keys securely; do not commit `config.php` to version control.
 
+Optional thumbs up/down feedback on admin chat assistant messages may be stored locally in your WordPress database (with your user account) to help improve the plugin.
+
 = External scripts =
 
 * **Chart.js** (MIT License) is enqueued in the WordPress **admin** on the Dataviz AI chat screen to draw charts. It is loaded from the **jsDelivr** CDN: `https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js` (**Chart.js 4.4.4**). It is not loaded on the public storefront by default. Project site: https://www.chartjs.org/

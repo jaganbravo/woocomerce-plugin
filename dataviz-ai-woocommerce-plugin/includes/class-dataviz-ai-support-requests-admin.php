@@ -90,6 +90,15 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 		);
 
 		if ( $item['status'] === 'pending' ) {
+			$email_vendor_url = wp_nonce_url(
+				add_query_arg( array( 'action' => 'email_vendor', 'request_id' => $item['id'] ) ),
+				'dataviz_sr_action'
+			);
+			$actions['email_vendor'] = sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( $email_vendor_url ),
+				esc_html__( 'Email to vendor', 'dataviz-ai-woocommerce' )
+			);
 			$resolve_url = wp_nonce_url(
 				add_query_arg( array( 'action' => 'resolve', 'request_id' => $item['id'] ) ),
 				'dataviz_sr_action'
@@ -138,9 +147,10 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 
 	protected function get_bulk_actions() {
 		return array(
-			'bulk_resolve'  => __( 'Mark Resolved', 'dataviz-ai-woocommerce' ),
-			'bulk_wont_fix' => __( "Mark Won't Fix", 'dataviz-ai-woocommerce' ),
-			'bulk_reopen'   => __( 'Re-open', 'dataviz-ai-woocommerce' ),
+			'bulk_email_vendor' => __( 'Email to vendor', 'dataviz-ai-woocommerce' ),
+			'bulk_resolve'      => __( 'Mark Resolved', 'dataviz-ai-woocommerce' ),
+			'bulk_wont_fix'     => __( "Mark Won't Fix", 'dataviz-ai-woocommerce' ),
+			'bulk_reopen'       => __( 'Re-open', 'dataviz-ai-woocommerce' ),
 		);
 	}
 
@@ -216,6 +226,50 @@ class Dataviz_AI_Support_Requests_Admin {
 
 	const MENU_SLUG = 'dataviz-ai-support-requests';
 
+	/**
+	 * Human-readable message for wp_mail error codes.
+	 *
+	 * @param string $code Error code from WP_Error.
+	 * @return string
+	 */
+	protected static function vendor_email_error_message( $code ) {
+		$messages = array(
+			'dataviz_sr_email_no_vendor'   => __( 'Add a vendor support email in the box below before sending.', 'dataviz-ai-woocommerce' ),
+			'dataviz_sr_not_found'         => __( 'Request not found.', 'dataviz-ai-woocommerce' ),
+			'dataviz_sr_email_not_pending' => __( 'Only pending requests can be emailed to the vendor.', 'dataviz-ai-woocommerce' ),
+			'dataviz_sr_email_failed'      => __( 'WordPress could not send email. Check your site mail configuration.', 'dataviz-ai-woocommerce' ),
+		);
+
+		return $messages[ $code ] ?? __( 'Could not send email.', 'dataviz-ai-woocommerce' );
+	}
+
+	/**
+	 * Save vendor inbox address (POST).
+	 *
+	 * @return void
+	 */
+	public static function process_vendor_email_save() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( empty( $_POST['dataviz_sr_vendor_email_submit'] ) || empty( $_POST['_wpnonce_vendor_email'] ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce_vendor_email'] ) ), 'dataviz_sr_vendor_email' ) ) {
+			return;
+		}
+
+		$email = isset( $_POST['dataviz_vendor_support_email'] ) ? sanitize_email( wp_unslash( $_POST['dataviz_vendor_support_email'] ) ) : '';
+		update_option( Dataviz_AI_Support_Requests::VENDOR_EMAIL_OPTION, $email );
+
+		$redirect = wp_get_referer();
+		if ( ! $redirect ) {
+			$redirect = admin_url( 'admin.php?page=' . self::MENU_SLUG );
+		}
+		wp_safe_redirect( add_query_arg( 'sr_vendor_saved', '1', $redirect ) );
+		exit;
+	}
+
 	public static function register_submenu() {
 		add_submenu_page(
 			'dataviz-ai-woocommerce',
@@ -249,6 +303,21 @@ class Dataviz_AI_Support_Requests_Admin {
 			$action = sanitize_key( $_GET['action'] );
 			$id     = absint( $_GET['request_id'] );
 
+			if ( 'email_vendor' === $action ) {
+				$result = Dataviz_AI_Support_Requests::email_request_to_vendor( $id );
+				$redirect = wp_get_referer();
+				if ( ! $redirect ) {
+					$redirect = admin_url( 'admin.php?page=' . self::MENU_SLUG );
+				}
+				$redirect = remove_query_arg( array( 'action', 'request_id', '_wpnonce', 'sr_emailed', 'sr_email_err' ), $redirect );
+				if ( is_wp_error( $result ) ) {
+					wp_safe_redirect( add_query_arg( 'sr_email_err', $result->get_error_code(), $redirect ) );
+				} else {
+					wp_safe_redirect( add_query_arg( 'sr_emailed', '1', $redirect ) );
+				}
+				exit;
+			}
+
 			$status_map = array(
 				'resolve'  => Dataviz_AI_Support_Requests::STATUS_RESOLVED,
 				'wont_fix' => Dataviz_AI_Support_Requests::STATUS_WONT_FIX,
@@ -276,6 +345,33 @@ class Dataviz_AI_Support_Requests_Admin {
 			$ids = isset( $_POST['request_ids'] ) ? array_map( 'absint', (array) $_POST['request_ids'] ) : array();
 
 			if ( $bulk_action && ! empty( $ids ) ) {
+				if ( 'bulk_email_vendor' === $bulk_action ) {
+					$emailed = 0;
+					$failed  = 0;
+					foreach ( $ids as $req_id ) {
+						$result = Dataviz_AI_Support_Requests::email_request_to_vendor( (int) $req_id );
+						if ( is_wp_error( $result ) ) {
+							++$failed;
+						} else {
+							++$emailed;
+						}
+					}
+					$redirect = wp_get_referer();
+					if ( ! $redirect ) {
+						$redirect = admin_url( 'admin.php?page=' . self::MENU_SLUG );
+					}
+					$redirect = remove_query_arg( array( 'action', 'action2', 'sr_bulk_emailed', 'sr_bulk_failed' ), $redirect );
+					$redirect = add_query_arg(
+						array(
+							'sr_bulk_emailed' => (string) $emailed,
+							'sr_bulk_failed'  => (string) $failed,
+						),
+						$redirect
+					);
+					wp_safe_redirect( $redirect );
+					exit;
+				}
+
 				$status_map = array(
 					'bulk_resolve'  => Dataviz_AI_Support_Requests::STATUS_RESOLVED,
 					'bulk_wont_fix' => Dataviz_AI_Support_Requests::STATUS_WONT_FIX,
@@ -293,6 +389,7 @@ class Dataviz_AI_Support_Requests_Admin {
 	}
 
 	public static function render_page() {
+		self::process_vendor_email_save();
 		self::process_actions();
 
 		$table = new Dataviz_AI_Support_Requests_Table();
@@ -301,6 +398,7 @@ class Dataviz_AI_Support_Requests_Admin {
 		$total_pending  = Dataviz_AI_Support_Requests::count( 'all', 'pending' );
 		$total_features = Dataviz_AI_Support_Requests::count( 'feature_request' );
 		$total_failed   = Dataviz_AI_Support_Requests::count( 'failed_question' );
+		$vendor_email   = Dataviz_AI_Support_Requests::get_vendor_support_email();
 		?>
 		<div class="wrap dataviz-sr-wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Support & Requests', 'dataviz-ai-woocommerce' ); ?></h1>
@@ -311,6 +409,56 @@ class Dataviz_AI_Support_Requests_Admin {
 					<p><?php esc_html_e( 'Request(s) updated successfully.', 'dataviz-ai-woocommerce' ); ?></p>
 				</div>
 			<?php endif; ?>
+
+			<?php if ( isset( $_GET['sr_vendor_saved'] ) ) : ?>
+				<div class="notice notice-success is-dismissible">
+					<p><?php esc_html_e( 'Vendor support email saved.', 'dataviz-ai-woocommerce' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['sr_emailed'] ) ) : ?>
+				<div class="notice notice-success is-dismissible">
+					<p><?php esc_html_e( 'Request was emailed to the vendor address.', 'dataviz-ai-woocommerce' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $_GET['sr_email_err'] ) ) : ?>
+				<div class="notice notice-error is-dismissible">
+					<p><?php echo esc_html( self::vendor_email_error_message( sanitize_key( wp_unslash( $_GET['sr_email_err'] ) ) ) ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['sr_bulk_emailed'] ) || isset( $_GET['sr_bulk_failed'] ) ) : ?>
+				<?php
+				$bulk_ok = isset( $_GET['sr_bulk_emailed'] ) ? absint( $_GET['sr_bulk_emailed'] ) : 0;
+				$bulk_bad = isset( $_GET['sr_bulk_failed'] ) ? absint( $_GET['sr_bulk_failed'] ) : 0;
+				?>
+				<div class="notice <?php echo $bulk_bad ? 'notice-warning' : 'notice-success'; ?> is-dismissible">
+					<p>
+						<?php
+						printf(
+							/* translators: 1: number of emails sent, 2: number of failures */
+							esc_html__( 'Email to vendor: %1$d sent, %2$d failed (only pending rows are sent).', 'dataviz-ai-woocommerce' ),
+							$bulk_ok,
+							$bulk_bad
+						);
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<div class="dataviz-sr-vendor-email card" style="max-width: 720px; margin: 1rem 0 1.5rem; padding: 1rem 1.25rem;">
+				<h2 style="margin-top: 0;"><?php esc_html_e( 'Vendor support inbox', 'dataviz-ai-woocommerce' ); ?></h2>
+				<p class="description">
+					<?php esc_html_e( 'When store staff use “Email to vendor” on a pending request, WordPress sends the details to this address (for example your plugin support team). It includes the question, site URL, and admin context. Use an SMTP or mail plugin if outbound email is unreliable.', 'dataviz-ai-woocommerce' ); ?>
+				</p>
+				<form method="post" action="">
+					<?php wp_nonce_field( 'dataviz_sr_vendor_email', '_wpnonce_vendor_email' ); ?>
+					<label for="dataviz_vendor_support_email"><strong><?php esc_html_e( 'Email address', 'dataviz-ai-woocommerce' ); ?></strong></label>
+					<input type="email" class="regular-text" id="dataviz_vendor_support_email" name="dataviz_vendor_support_email" value="<?php echo esc_attr( $vendor_email ); ?>" placeholder="support@example.com" style="margin: 0.35rem 0 0.75rem; display: block;" />
+					<button type="submit" name="dataviz_sr_vendor_email_submit" class="button button-primary" value="1"><?php esc_html_e( 'Save email', 'dataviz-ai-woocommerce' ); ?></button>
+				</form>
+			</div>
 
 			<div class="dataviz-sr-summary">
 				<div class="dataviz-sr-summary__card">

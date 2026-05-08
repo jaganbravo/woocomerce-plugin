@@ -20,6 +20,7 @@ $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}dataviz_ai_feature_requests" 
 
 // Remove plugin options.
 delete_option( 'dataviz_ai_wc_settings' );
+delete_option( 'dataviz_ai_vendor_support_email' );
 
 // Remove user meta for all users.
 $wpdb->query(

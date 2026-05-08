@@ -109,12 +109,21 @@ class Dataviz_AI_Stream_Handler {
 	/**
 	 * Send stream end marker.
 	 *
-	 * @param array|null $tool_data Optional tool data to include for frontend chart rendering.
+	 * @param array|null $tool_data   Optional tool data for frontend chart rendering.
+	 * @param int|null   $message_id  Optional chat_history row ID for feedback UI.
 	 * @return void
 	 */
-	public function send_end( $tool_data = null ) {
-		if ( ! empty( $tool_data ) && is_array( $tool_data ) ) {
-			echo "data: " . wp_json_encode( array( 'done' => true, 'tool_data' => $tool_data ) ) . "\n\n";
+	public function send_end( $tool_data = null, $message_id = null ) {
+		$message_id = ( null !== $message_id ) ? (int) $message_id : null;
+		if ( ( null !== $message_id && $message_id > 0 ) || ( ! empty( $tool_data ) && is_array( $tool_data ) ) ) {
+			$payload = array( 'done' => true );
+			if ( null !== $message_id && $message_id > 0 ) {
+				$payload['message_id'] = $message_id;
+			}
+			if ( ! empty( $tool_data ) && is_array( $tool_data ) ) {
+				$payload['tool_data'] = $tool_data;
+			}
+			echo 'data: ' . wp_json_encode( $payload ) . "\n\n";
 		} else {
 			echo "data: [DONE]\n\n";
 		}
@@ -128,17 +137,19 @@ class Dataviz_AI_Stream_Handler {
 	/**
 	 * Stream text word by word (fallback for non-streaming APIs).
 	 *
-	 * @param string $text Text to stream.
+	 * @param string     $text        Plain text to stream.
+	 * @param array|null $tool_data   Optional tool data.
+	 * @param int|null   $message_id  Saved AI message ID (optional).
 	 * @return void
 	 */
-	public function stream_text( $text ) {
+	public function stream_text( $text, $tool_data = null, $message_id = null ) {
 		$words = explode( ' ', $text );
 		foreach ( $words as $index => $word ) {
-			$chunk = $word . ( $index < count( $words ) - 1 ? ' ' : '' );
+			$chunk = $word . ( $index < ( count( $words ) - 1 ) ? ' ' : '' );
 			$this->send_chunk( $chunk );
 			usleep( 30000 );
 		}
-		$this->send_end();
+		$this->send_end( $tool_data, $message_id );
 	}
 
 	/**

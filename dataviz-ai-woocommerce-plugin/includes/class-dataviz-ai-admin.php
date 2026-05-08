@@ -255,6 +255,7 @@ class Dataviz_AI_Admin {
 					'productChartData'    => $product_chart_data,
 					'userSessionId'       => $user_session_id, // Server-side session ID (persists across logins)
 					'suggestedQuestions'  => $this->get_suggested_chat_prompts(),
+					'feedbackI18n'         => $this->get_chat_feedback_i18n(),
 				)
 			);
 		}
@@ -272,6 +273,38 @@ class Dataviz_AI_Admin {
 			__( 'Show me my top 10 best-selling products.', 'dataviz-ai-woocommerce' ),
 			__( 'Which products are low on stock?', 'dataviz-ai-woocommerce' ),
 			__( 'How many coupons were used last month?', 'dataviz-ai-woocommerce' ),
+		);
+	}
+
+	/**
+	 * Strings for per-message feedback UI (admin chat).
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_chat_feedback_i18n() {
+		return array(
+			'helpfulLabel'    => __( 'Helpful', 'dataviz-ai-woocommerce' ),
+			'notHelpfulLabel' => __( 'Not helpful', 'dataviz-ai-woocommerce' ),
+			'thanks'          => __( 'Thanks for your feedback.', 'dataviz-ai-woocommerce' ),
+			'reasonLabel'     => __( 'What went wrong?', 'dataviz-ai-woocommerce' ),
+			'submit'          => __( 'Submit feedback', 'dataviz-ai-woocommerce' ),
+			'optionalNote'    => __( 'Optional details', 'dataviz-ai-woocommerce' ),
+			'saving'          => __( 'Saving…', 'dataviz-ai-woocommerce' ),
+			'errorGeneric'    => __( 'Could not save feedback. Try again.', 'dataviz-ai-woocommerce' ),
+			'reasons'         => array(
+				array(
+					'value' => 'inaccurate',
+					'label' => __( 'Inaccurate or wrong numbers', 'dataviz-ai-woocommerce' ),
+				),
+				array(
+					'value' => 'not_helpful',
+					'label' => __( 'Not helpful', 'dataviz-ai-woocommerce' ),
+				),
+				array(
+					'value' => 'other',
+					'label' => __( 'Other', 'dataviz-ai-woocommerce' ),
+				),
+			),
 		);
 	}
 

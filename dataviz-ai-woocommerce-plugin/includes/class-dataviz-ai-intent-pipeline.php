@@ -38,6 +38,7 @@ class Dataviz_AI_Intent_Pipeline {
 	 *     @type string|null $feature_entity   Entity keyword for feature request context.
 	 *     @type WP_Error|null $error          Non-null when the pipeline failed entirely.
 	 *     @type string|null $error_reason     Reason string for intent-not-found responses.
+	 *     @type bool        $low_confidence     True when a data question parsed as low confidence (no tool run).
 	 * }
 	 */
 	public function process( $question ) {
@@ -49,6 +50,7 @@ class Dataviz_AI_Intent_Pipeline {
 			'feature_entity'  => null,
 			'error'           => null,
 			'error_reason'    => null,
+			'low_confidence'  => false,
 		);
 
 		// Guard: comparison questions (unsupported).
@@ -99,11 +101,21 @@ class Dataviz_AI_Intent_Pipeline {
 		// Step 3: Normalize (dates + intent) via Intent_Normalizer.
 		$validated = Dataviz_AI_Intent_Normalizer::normalize( $question, $validated );
 
+		// Low confidence: do not run tools; let the UI suggest clearer phrasings.
+		if ( isset( $validated['confidence'] ) && $validated['confidence'] === 'low' ) {
+			$result['low_confidence']  = true;
+			$result['error_reason']   = __( 'Parsed intent confidence is low; no WooCommerce data query was run.', 'dataviz-ai-woocommerce' );
+			$result['intent']        = $validated;
+			$result['tool_calls']     = array();
+			return $result;
+		}
+
 		// Step 4: Build tool calls via Execution Engine.
 		$tool_calls = Dataviz_AI_Execution_Engine::build_tool_calls( $validated );
 
 		if ( empty( $tool_calls ) ) {
 			$result['error_reason'] = 'Execution engine produced no tool calls.';
+			$result['intent']       = $validated;
 			return $result;
 		}
 

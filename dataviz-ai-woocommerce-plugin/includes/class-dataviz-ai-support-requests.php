@@ -19,6 +19,11 @@ class Dataviz_AI_Support_Requests {
 	const STATUS_WONT_FIX = 'wont_fix';
 
 	/**
+	 * Option name: inbox where pending requests are forwarded (plugin vendor).
+	 */
+	public const VENDOR_EMAIL_OPTION = 'dataviz_ai_vendor_support_email';
+
+	/**
 	 * @return string Full table name with prefix.
 	 */
 	public static function table_name() {
@@ -342,5 +347,113 @@ class Dataviz_AI_Support_Requests {
 			}
 		}
 		return $updated;
+	}
+
+	/**
+	 * Email address that receives forwarded support requests (filterable).
+	 *
+	 * @return string
+	 */
+	public static function get_vendor_support_email() {
+		$raw = get_option( self::VENDOR_EMAIL_OPTION, '' );
+		$email = is_string( $raw ) ? sanitize_email( $raw ) : '';
+
+		return (string) apply_filters( 'dataviz_ai_vendor_support_email', $email );
+	}
+
+	/**
+	 * Send one pending request to the vendor inbox via wp_mail.
+	 *
+	 * @param int $id Request row ID.
+	 * @return true|WP_Error
+	 */
+	public static function email_request_to_vendor( $id ) {
+		$to = self::get_vendor_support_email();
+		if ( ! is_email( $to ) ) {
+			return new WP_Error(
+				'dataviz_sr_email_no_vendor',
+				__( 'Set a vendor support email on the Support & Requests page before sending.', 'dataviz-ai-woocommerce' )
+			);
+		}
+
+		$row = self::get( $id );
+		if ( ! $row ) {
+			return new WP_Error( 'dataviz_sr_not_found', __( 'Request not found.', 'dataviz-ai-woocommerce' ) );
+		}
+
+		if ( self::STATUS_PENDING !== ( $row['status'] ?? '' ) ) {
+			return new WP_Error(
+				'dataviz_sr_email_not_pending',
+				__( 'Only pending requests can be emailed to the vendor.', 'dataviz-ai-woocommerce' )
+			);
+		}
+
+		$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		/* translators: 1: site name, 2: numeric request ID */
+		$subject = sprintf( __( '[%1$s] Dataviz AI pending request #%2$d', 'dataviz-ai-woocommerce' ), $site_name, (int) $id );
+
+		$body = self::build_vendor_email_body( $row );
+
+		$sent = wp_mail(
+			$to,
+			$subject,
+			$body,
+			array( 'Content-Type: text/plain; charset=UTF-8' )
+		);
+
+		if ( ! $sent ) {
+			return new WP_Error(
+				'dataviz_sr_email_failed',
+				__( 'WordPress could not send email. Check your site mail configuration (SMTP plugin, host mail, etc.).', 'dataviz-ai-woocommerce' )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Plain-text body for vendor notification.
+	 *
+	 * @param array $row Row from self::get().
+	 * @return string
+	 */
+	private static function build_vendor_email_body( array $row ) {
+		$lines   = array();
+		$lines[] = __( 'A store administrator forwarded this Dataviz AI support request from their WordPress admin.', 'dataviz-ai-woocommerce' );
+		$lines[] = '';
+		$lines[] = __( 'Site', 'dataviz-ai-woocommerce' ) . ': ' . home_url();
+		$lines[] = __( 'Request ID', 'dataviz-ai-woocommerce' ) . ': #' . absint( $row['id'] ?? 0 );
+		$lines[] = __( 'Type', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['type'] ?? '' );
+		$lines[] = __( 'Status', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['status'] ?? '' );
+		$lines[] = __( 'Votes', 'dataviz-ai-woocommerce' ) . ': ' . absint( $row['vote_count'] ?? 0 );
+		$lines[] = __( 'Created', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['created_at'] ?? '' );
+		$lines[] = '';
+		$lines[] = __( 'User', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['user_name'] ?? '' );
+		if ( ! empty( $row['user_email'] ) ) {
+			$lines[] = __( 'User email', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_email( $row['user_email'] );
+		}
+		$lines[] = __( 'User ID', 'dataviz-ai-woocommerce' ) . ': ' . absint( $row['user_id'] ?? 0 );
+		$lines[] = '';
+		$lines[] = __( 'Question', 'dataviz-ai-woocommerce' ) . ':';
+		$lines[] = wp_strip_all_tags( (string) ( $row['question'] ?? '' ) );
+		$lines[] = '';
+		$lines[] = __( 'Entity', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['entity_type'] ?? '' );
+		if ( ! empty( $row['error_reason'] ) ) {
+			$lines[] = '';
+			$lines[] = __( 'Error / reason', 'dataviz-ai-woocommerce' ) . ':';
+			$lines[] = wp_strip_all_tags( (string) $row['error_reason'] );
+		}
+		if ( ! empty( $row['description'] ) ) {
+			$lines[] = '';
+			$lines[] = __( 'Description', 'dataviz-ai-woocommerce' ) . ':';
+			$lines[] = wp_strip_all_tags( (string) $row['description'] );
+		}
+		if ( ! empty( $row['raw_intent'] ) ) {
+			$lines[] = '';
+			$lines[] = __( 'Raw intent (JSON)', 'dataviz-ai-woocommerce' ) . ':';
+			$lines[] = wp_strip_all_tags( (string) $row['raw_intent'] );
+		}
+
+		return implode( "\n", $lines );
 	}
 }
