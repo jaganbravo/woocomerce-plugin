@@ -62,6 +62,49 @@ Launch a working AI-powered analytics plugin that allows WooCommerce store owner
   - Progress feedback for long queries
   - Effort: 1-2 hours
 
+### 2.1 UX Acceptance Checklist (Release Gate)
+**Priority: HIGH**
+
+- [ ] **Fast first value**
+  - New admin can ask a first question and get a useful answer within 3 minutes of setup.
+  - Onboarding and API-key guidance are visible and unambiguous.
+
+- [ ] **Answer trust and clarity**
+  - Responses include concrete values and relevant context (for example, date range/status).
+  - Avoid vague phrasing like "there are currently completed orders."
+
+- [ ] **Guided empty-state experience**
+  - Empty chat shows 3-5 high-value sample prompts.
+  - Prompt chips are one-click and editable before send.
+
+- [ ] **Graceful errors and recovery**
+  - Missing key, network errors, and rate limits show actionable next steps.
+  - No raw stack traces or provider-internal error blobs in UI.
+
+- [ ] **Streaming and controls reliability**
+  - Streaming remains responsive for long answers.
+  - Stop/cancel works reliably and preserves partial response.
+
+- [ ] **Chart usability**
+  - Charts render only when relevant and include readable labels.
+  - If chart data is unavailable, fallback to a clear textual summary.
+
+- [ ] **Access safety**
+  - Only authorized roles can access sensitive analytics endpoints and views.
+  - Non-privileged users get safe denial messages.
+
+- [ ] **Performance baseline**
+  - Typical questions return first streamed tokens quickly (target under 3 seconds on local/staging baseline).
+  - UI remains interactive during long-running requests.
+
+- [ ] **Privacy transparency**
+  - Privacy policy helper text is present and accurate.
+  - Export/erase actions cover chat/support personal data for requested users.
+
+- [ ] **Digest value loop**
+  - Digest scheduling and delivery paths are test-verified.
+  - Failed sends surface actionable diagnostics for admins.
+
 ### 3. Core Features Polish
 **Priority: HIGH**
 

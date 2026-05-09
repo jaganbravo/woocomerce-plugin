@@ -2,7 +2,7 @@
 
 **Planning and architecture** for Dataviz AI live in [`../developerDocs/`](../developerDocs/) (e.g. `ARCHITECTURE.md`, `QUICK_START.md`).
 
-**This folder** keeps additional guides: `DATA_FLOW.md`, `PLUGIN_GUIDE.md`, `ACCESS_HOSTED_PLUGINS.md`, `ALERTS_ARCHITECTURE.md`, `SETUP_WOOCOMMERCE_STORE.md`, `DEMO_VIDEO_SCRIPT.md`, and similar. Duplicates of files that also lived at the repository root were removed; the canonical copy is under `../developerDocs/`.
+**This folder** keeps additional guides: `DATA_FLOW.md`, `PLUGIN_GUIDE.md`, `ACCESS_HOSTED_PLUGINS.md`, `ALERTS_ARCHITECTURE.md`, `SETUP_WOOCOMMERCE_STORE.md`, `DEMO_VIDEO_SCRIPT.md`, `landing-page.html`, and similar. Duplicates of files that also lived at the repository root were removed; the canonical copy is under `../developerDocs/`.
 
 ---
 

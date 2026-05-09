@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-labelledby="t5">
+  <title id="t5">Dataviz AI  Feature discovery</title>
+  <rect width="640" height="360" fill="#f6f7f7"/>
+  <rect width="640" height="44" fill="#1d2327"/>
+  <text x="16" y="29" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="15" font-weight="600">Dataviz AI  Features</text>
+  <rect x="24" y="68" width="280" height="120" rx="6" fill="#fff" stroke="#dcdcde"/>
+  <text x="40" y="100" fill="#1d2327" font-family="system-ui,Segoe UI,sans-serif" font-size="14" font-weight="600">Charts</text>
+  <rect x="40" y="112" width="200" height="8" rx="2" fill="#dcdcde"/>
+  <rect x="40" y="128" width="160" height="8" rx="2" fill="#f0f0f1"/>
+  <rect x="320" y="68" width="296" height="120" rx="6" fill="#fff" stroke="#dcdcde"/>
+  <text x="336" y="100" fill="#1d2327" font-family="system-ui,Segoe UI,sans-serif" font-size="14" font-weight="600">Analysis</text>
+  <rect x="336" y="112" width="220" height="8" rx="2" fill="#dcdcde"/>
+  <rect x="336" y="128" width="180" height="8" rx="2" fill="#f0f0f1"/>
+  <rect x="24" y="204" width="592" height="132" rx="6" fill="#fff" stroke="#dcdcde"/>
+  <text x="40" y="240" fill="#1d2327" font-family="system-ui,Segoe UI,sans-serif" font-size="14" font-weight="600">Discover Features</text>
+  <rect x="40" y="252" width="520" height="8" rx="2" fill="#c3c4c7"/>
+  <rect x="40" y="268" width="480" height="8" rx="2" fill="#dcdcde"/>
+  <rect x="40" y="284" width="440" height="8" rx="2" fill="#dcdcde"/>
+  <rect x="40" y="312" width="140" height="32" rx="4" fill="#2271b1"/>
+  <text x="72" y="333" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="12" font-weight="600">Start Using</text>
+</svg>

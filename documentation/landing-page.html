@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Dataviz AI for WooCommerce</title>
+	<meta name="description" content="Dataviz AI for WooCommerce helps store owners ask plain-English questions and get answers, charts, and digest emails from store data.">
+	<style>
+		:root {
+			--bg: #f6f8fb;
+			--surface: #ffffff;
+			--text: #0f172a;
+			--muted: #475569;
+			--border: #dbe3ef;
+			--primary: #2563eb;
+			--primary-dark: #1e40af;
+			--ok: #047857;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			color: var(--text);
+			background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 280px);
+			line-height: 1.5;
+		}
+
+		.container {
+			width: min(1080px, 92vw);
+			margin: 0 auto;
+		}
+
+		header {
+			padding: 20px 0;
+		}
+
+		.logo {
+			font-weight: 700;
+			letter-spacing: 0.2px;
+		}
+
+		.hero {
+			padding: 28px 0 42px;
+			display: grid;
+			grid-template-columns: 1.2fr 1fr;
+			gap: 24px;
+			align-items: center;
+		}
+
+		.card {
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: 14px;
+			box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+		}
+
+		.hero-copy h1 {
+			margin: 0 0 12px;
+			font-size: clamp(1.75rem, 3vw, 2.5rem);
+			line-height: 1.15;
+		}
+
+		.hero-copy p {
+			margin: 0 0 22px;
+			color: var(--muted);
+			font-size: 1.05rem;
+		}
+
+		.hero-cta {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 12px;
+		}
+
+		.btn {
+			display: inline-block;
+			padding: 11px 16px;
+			border-radius: 10px;
+			text-decoration: none;
+			font-weight: 600;
+			font-size: 0.95rem;
+			border: 1px solid transparent;
+		}
+
+		.btn-primary {
+			background: var(--primary);
+			color: #fff;
+		}
+
+		.btn-primary:hover {
+			background: var(--primary-dark);
+		}
+
+		.btn-secondary {
+			color: var(--text);
+			background: #fff;
+			border-color: var(--border);
+		}
+
+		.hero-panel {
+			padding: 16px;
+		}
+
+		.chat-sample {
+			background: #f8fbff;
+			border: 1px solid #deebff;
+			border-radius: 10px;
+			padding: 14px;
+		}
+
+		.chat-sample strong {
+			display: block;
+			margin-bottom: 4px;
+			font-size: 0.9rem;
+		}
+
+		.chat-sample p {
+			margin: 0;
+			font-size: 0.95rem;
+			color: #1e293b;
+		}
+
+		.checks {
+			list-style: none;
+			padding: 0;
+			margin: 14px 0 0;
+		}
+
+		.checks li {
+			margin: 8px 0;
+			color: var(--muted);
+			font-size: 0.92rem;
+		}
+
+		.checks li::before {
+			content: "✓ ";
+			color: var(--ok);
+			font-weight: 700;
+		}
+
+		.section {
+			padding: 24px 0;
+		}
+
+		.section h2 {
+			font-size: 1.45rem;
+			margin: 0 0 12px;
+		}
+
+		.section > p {
+			margin: 0 0 16px;
+			color: var(--muted);
+		}
+
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 14px;
+		}
+
+		.feature {
+			padding: 16px;
+		}
+
+		.feature h3 {
+			margin: 0 0 8px;
+			font-size: 1rem;
+		}
+
+		.feature p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.92rem;
+		}
+
+		.steps {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 12px;
+		}
+
+		.step {
+			padding: 14px;
+		}
+
+		.step b {
+			display: inline-block;
+			margin-bottom: 6px;
+			color: var(--primary-dark);
+		}
+
+		.cta {
+			padding: 22px;
+			margin: 10px 0 36px;
+			display: flex;
+			justify-content: space-between;
+			gap: 14px;
+			align-items: center;
+		}
+
+		.cta p {
+			margin: 4px 0 0;
+			color: var(--muted);
+		}
+
+		footer {
+			padding: 10px 0 30px;
+			color: #64748b;
+			font-size: 0.88rem;
+		}
+
+		@media (max-width: 900px) {
+			.hero,
+			.grid,
+			.steps {
+				grid-template-columns: 1fr;
+			}
+
+			.cta {
+				flex-direction: column;
+				align-items: flex-start;
+			}
+		}
+	</style>
+</head>
+<body>
+	<header class="container">
+		<div class="logo">Dataviz AI for WooCommerce</div>
+	</header>
+
+	<main class="container">
+		<section class="hero">
+			<div class="hero-copy">
+				<h1>Turn WooCommerce questions into instant business answers</h1>
+				<p>
+					Dataviz AI gives WooCommerce teams a chat-style analytics assistant in WordPress admin.
+					Ask plain-English questions and get reliable answers, charts, and digest emails.
+				</p>
+				<div class="hero-cta">
+					<a class="btn btn-primary" href="https://dataviz.ai/products/dataviz-ai-woocommerce">Get Dataviz AI</a>
+					<a class="btn btn-secondary" href="../dataviz-ai-woocommerce-plugin/readme.txt">View Plugin Readme</a>
+				</div>
+			</div>
+			<aside class="hero-panel card">
+				<div class="chat-sample">
+					<strong>Example question</strong>
+					<p>"How many completed orders did we get this month, and what was total revenue?"</p>
+				</div>
+				<ul class="checks">
+					<li>Built specifically for WooCommerce store data</li>
+					<li>Chart-ready answers when visual output is useful</li>
+					<li>Scheduled digest emails for ongoing visibility</li>
+				</ul>
+			</aside>
+		</section>
+
+		<section class="section">
+			<h2>Why WooCommerce teams use it</h2>
+			<p>Built for operators, marketers, and founders who need quick answers without custom report building.</p>
+			<div class="grid">
+				<article class="feature card">
+					<h3>Natural-language analytics</h3>
+					<p>Ask about orders, products, customers, coupons, refunds, and inventory in plain English.</p>
+				</article>
+				<article class="feature card">
+					<h3>Actionable responses</h3>
+					<p>Answers include clear context and can render charts where data shape supports visualization.</p>
+				</article>
+				<article class="feature card">
+					<h3>Email digests</h3>
+					<p>Schedule recurring summaries so key trends and exceptions reach your team automatically.</p>
+				</article>
+				<article class="feature card">
+					<h3>WooCommerce-native flow</h3>
+					<p>Runs inside WordPress admin with capability checks and plugin-managed data workflows.</p>
+				</article>
+				<article class="feature card">
+					<h3>Support insight loop</h3>
+					<p>Unsupported questions can be captured as support or feature requests for product improvement.</p>
+				</article>
+				<article class="feature card">
+					<h3>Privacy tooling support</h3>
+					<p>Integrates with WordPress personal data export/erase tooling for plugin-owned records.</p>
+				</article>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Get started in 4 steps</h2>
+			<div class="steps">
+				<div class="step card">
+					<b>1. Install plugin</b>
+					<div>Upload and activate in WordPress, with WooCommerce active.</div>
+				</div>
+				<div class="step card">
+					<b>2. Configure API key</b>
+					<div>Set your OpenAI-compatible key via environment or plugin config.</div>
+				</div>
+				<div class="step card">
+					<b>3. Ask questions</b>
+					<div>Open Dataviz AI in admin and start querying store performance.</div>
+				</div>
+				<div class="step card">
+					<b>4. Automate insights</b>
+					<div>Enable email digests for daily, weekly, or monthly summaries.</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="cta card">
+			<div>
+				<h2 style="margin:0;">Ready to launch Dataviz AI for your WooCommerce store?</h2>
+				<p>Use this page as your website landing page base or marketing handoff copy.</p>
+			</div>
+			<a class="btn btn-primary" href="https://dataviz.ai/products/dataviz-ai-woocommerce">Start with Dataviz AI</a>
+		</section>
+	</main>
+
+	<footer class="container">
+		Compatible baseline: WordPress 6.0+, WooCommerce 6.0+, PHP 8.3+.
+	</footer>
+</body>
+</html>
