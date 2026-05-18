@@ -1,11 +1,14 @@
-# Files excluded from release ZIP (see bin/build-release.sh)
-developerDocs
-.git
+# Files excluded from release ZIP (see bin/build-release.sh).
+# Patterns work with rsync --exclude-from (paths relative to plugin root).
+developerDocs/
+.git/
 .gitignore
+.distignore
 .DS_Store
 *.log
 config.php
-node_modules
-tests
-../docker
-../../docker
+node_modules/
+tests/
+bin/
+dist/
+README.md

@@ -32,6 +32,26 @@ class Dataviz_AI_Support_Requests {
 	}
 
 	/**
+	 * Table identifier for SQL (backticks; avoids %i which requires WP 6.2+).
+	 *
+	 * @return string
+	 */
+	private static function sql_table() {
+		return '`' . self::table_name() . '`';
+	}
+
+	/**
+	 * Whitelist ORDER BY column for list queries.
+	 *
+	 * @param string $orderby Requested column.
+	 * @return string
+	 */
+	private static function sanitize_orderby_column( $orderby ) {
+		$allowed = array( 'id', 'type', 'entity_type', 'status', 'vote_count', 'created_at', 'resolved_at' );
+		return in_array( $orderby, $allowed, true ) ? $orderby : 'created_at';
+	}
+
+	/**
 	 * Create the table (safe to call multiple times via dbDelta).
 	 *
 	 * @return void
@@ -108,20 +128,23 @@ class Dataviz_AI_Support_Requests {
 		$user_id     = absint( $args['user_id'] ?? get_current_user_id() );
 
 		// De-duplicate: if same user asked same question (exact match), increment vote.
-		$existing = $wpdb->get_var( $wpdb->prepare(
-			"SELECT id FROM %i WHERE question = %s AND user_id = %d AND status = %s LIMIT 1",
-			self::table_name(),
-			$question,
-			$user_id,
-			self::STATUS_PENDING
-		) );
+		$table    = self::sql_table();
+		$existing = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE question = %s AND user_id = %d AND status = %s LIMIT 1",
+				$question,
+				$user_id,
+				self::STATUS_PENDING
+			)
+		);
 
 		if ( $existing ) {
-			$wpdb->query( $wpdb->prepare(
-				"UPDATE %i SET vote_count = vote_count + 1 WHERE id = %d",
-				self::table_name(),
-				$existing
-			) );
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$table} SET vote_count = vote_count + 1 WHERE id = %d",
+					$existing
+				)
+			);
 			return (int) $existing;
 		}
 
@@ -215,10 +238,8 @@ class Dataviz_AI_Support_Requests {
 		$limit   = absint( $args['limit'] ?? 50 );
 		$offset  = absint( $args['offset'] ?? 0 );
 
-		$allowed_orderby = array( 'id', 'type', 'entity_type', 'status', 'vote_count', 'created_at', 'resolved_at' );
-		if ( ! in_array( $orderby, $allowed_orderby, true ) ) {
-			$orderby = 'created_at';
-		}
+		$orderby_col = self::sanitize_orderby_column( $orderby );
+		$order_dir   = 'ASC' === $order ? 'ASC' : 'DESC';
 
 		$where = array( '1=1' );
 		$values = array();
@@ -240,17 +261,17 @@ class Dataviz_AI_Support_Requests {
 		}
 
 		$where_sql = implode( ' AND ', $where );
-		$table     = self::table_name();
+		$table     = self::sql_table();
+		$values[]  = $limit;
+		$values[]  = $offset;
 
-		$sql = "SELECT * FROM {$table} WHERE {$where_sql} ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
-		$values[] = $limit;
-		$values[] = $offset;
-
-		if ( ! empty( $values ) ) {
-			$sql = $wpdb->prepare( $sql, $values );
-		}
-
-		return $wpdb->get_results( $sql, ARRAY_A ) ?: array();
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE {$where_sql} ORDER BY {$orderby_col} {$order_dir} LIMIT %d OFFSET %d",
+				...$values
+			),
+			ARRAY_A
+		) ?: array();
 	}
 
 	/**
@@ -276,14 +297,18 @@ class Dataviz_AI_Support_Requests {
 		}
 
 		$where_sql = implode( ' AND ', $where );
-		$table     = self::table_name();
-		$sql       = "SELECT COUNT(*) FROM {$table} WHERE {$where_sql}";
+		$table     = self::sql_table();
 
 		if ( ! empty( $values ) ) {
-			$sql = $wpdb->prepare( $sql, $values );
+			return (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$table} WHERE {$where_sql}",
+					...$values
+				)
+			);
 		}
 
-		return (int) $wpdb->get_var( $sql );
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE {$where_sql}" );
 	}
 
 	/**
@@ -294,11 +319,15 @@ class Dataviz_AI_Support_Requests {
 	 */
 	public static function get( $id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare(
-			"SELECT * FROM %i WHERE id = %d",
-			self::table_name(),
-			absint( $id )
-		), ARRAY_A );
+		$table = self::sql_table();
+
+		return $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE id = %d",
+				absint( $id )
+			),
+			ARRAY_A
+		);
 	}
 
 	/**

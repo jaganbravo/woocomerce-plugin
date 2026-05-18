@@ -259,12 +259,16 @@ class Dataviz_AI_Digest_Admin {
 					$send_now_url  = wp_nonce_url( add_query_arg( array( 'page' => 'dataviz-ai-digests', 'digest_action' => 'send_now', 'digest_id' => $d->id ), admin_url( 'admin.php' ) ), 'dataviz_digest_send_now_' . $d->id );
 
 					$schedule_label = '';
+					$send_time      = sprintf( '%02d:00', (int) $d->send_hour );
 					if ( $d->frequency === 'daily' ) {
-						$schedule_label = sprintf( __( 'Daily at %s', 'dataviz-ai-woocommerce' ), sprintf( '%02d:00', $d->send_hour ) );
+						/* translators: %s: send time in 24-hour format, e.g. 09:00 */
+						$schedule_label = sprintf( __( 'Daily at %1$s', 'dataviz-ai-woocommerce' ), $send_time );
 					} elseif ( $d->frequency === 'weekly' ) {
-						$schedule_label = sprintf( __( '%s at %s', 'dataviz-ai-woocommerce' ), $days[ $d->day_of_week % 7 ], sprintf( '%02d:00', $d->send_hour ) );
+						/* translators: 1: weekday name, 2: send time in 24-hour format */
+						$schedule_label = sprintf( __( '%1$s at %2$s', 'dataviz-ai-woocommerce' ), $days[ $d->day_of_week % 7 ], $send_time );
 					} else {
-						$schedule_label = sprintf( __( 'Day %d at %s', 'dataviz-ai-woocommerce' ), $d->day_of_month, sprintf( '%02d:00', $d->send_hour ) );
+						/* translators: 1: day of month (1–31), 2: send time in 24-hour format */
+						$schedule_label = sprintf( __( 'Day %1$d at %2$s', 'dataviz-ai-woocommerce' ), (int) $d->day_of_month, $send_time );
 					}
 
 					$sections_list = is_array( $d->sections ) ? $d->sections : array();

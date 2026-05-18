@@ -50,6 +50,20 @@ These items block a safe public release and will draw plugin-review feedback if 
 ## Phase 5 — Local validation
 
 - [ ] Install the **[Plugin Check](https://wordpress.org/plugins/plugin-check/)** plugin on a staging site with your build; fix all **errors** and review **warnings**.
+
+**Release ZIP (local Docker or any test site):** from the plugin directory, run:
+
+`bash bin/build-release.sh`
+
+The file appears under `dist/` (e.g. `dist/dataviz-ai-woocommerce-1.0.0.zip`). The ZIP root folder is **`dataviz-ai-woocommerce/`** (must match the `Text Domain:` header — do not use a `-plugin` suffix). Upload that ZIP under **Plugins → Add New → Upload**.
+
+**Free cloud sandboxes** (optional; good for a second environment besides Docker):
+
+- **[TasteWP](https://tastewp.com/)** — quick temporary WordPress installs.
+- **[InstaWP](https://instawp.com/)** — disposable sites; templates available.
+- **[WordPress Playground](https://developer.wordpress.org/playground/)** — browser-based WP (limited for WooCommerce + real ZIP workflow, but handy for quick checks).
+
+Always verify WooCommerce + your plugin on whichever environment matches your needs (Docker is enough for Plugin Check if WooCommerce is installed there).
 - [ ] Run **PHP** on your minimum supported version (readme says PHP 8.0).
 - [ ] Activate on a clean site: **WordPress + WooCommerce only**; smoke-test chat, digests preview, uninstall (tables/options cleanup as intended).
 
@@ -65,7 +79,7 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 ## Phase 7 — Build & SVN
 
-- [ ] Run your release script (e.g. `bin/build-release.sh`) and install the ZIP on a fresh site.
+- [ ] Run **`bash bin/build-release.sh`** (from `dataviz-ai-woocommerce-plugin/`), then install the ZIP from **`dist/`** on a fresh site (folder slug **`dataviz-ai-woocommerce`**, not `…-plugin`).
 - [ ] Read **[How to use Subversion](https://developer.wordpress.org/plugins/wordpress-org/how-to-use-subversion/)** for plugins.
 - [ ] Copy `readme.txt` and the main plugin file to **`/trunk`**; tag **`/tags/x.y.z/`** with the same version.
 - [ ] Submit for **review** and respond promptly to feedback.

@@ -60,18 +60,18 @@ class Dataviz_AI_Digest_Generator {
 	 */
 	private function date_range_for_frequency( $frequency ) {
 		$now = current_time( 'timestamp' );
-		$to  = date( 'Y-m-d', $now );
+		$to  = wp_date( 'Y-m-d', $now );
 
 		switch ( $frequency ) {
 			case 'daily':
-				$from = date( 'Y-m-d', $now - DAY_IN_SECONDS );
+				$from = wp_date( 'Y-m-d', $now - DAY_IN_SECONDS );
 				break;
 			case 'monthly':
-				$from = date( 'Y-m-d', strtotime( '-1 month', $now ) );
+				$from = wp_date( 'Y-m-d', strtotime( '-1 month', $now ) );
 				break;
 			case 'weekly':
 			default:
-				$from = date( 'Y-m-d', $now - ( 7 * DAY_IN_SECONDS ) );
+				$from = wp_date( 'Y-m-d', $now - ( 7 * DAY_IN_SECONDS ) );
 				break;
 		}
 

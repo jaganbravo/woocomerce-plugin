@@ -196,16 +196,15 @@ class Dataviz_AI_Admin {
 
 		// Only enqueue scripts for main page.
 		if ( $is_main_page ) {
-			// Enqueue Chart.js library
-		wp_enqueue_script(
-			'dataviz-ai-chartjs',
-			'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
-			array(),
-			'4.4.4',
-			false
-		);
+			wp_enqueue_script(
+				'dataviz-ai-chartjs',
+				DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/vendor/chart.umd.min.js',
+				array(),
+				'4.4.4',
+				false
+			);
 
-		wp_enqueue_script(
+			wp_enqueue_script(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/admin.js',
 			array( 'jquery', 'dataviz-ai-chartjs' ),

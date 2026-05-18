@@ -1,7 +1,7 @@
 === Dataviz AI for WooCommerce ===
 Tags: woocommerce, analytics, artificial intelligence, chat, reports, email
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 8.3
 Stable tag: 1.0.0
 License: GPLv2 or later
@@ -42,7 +42,7 @@ Optional thumbs up/down feedback on admin chat assistant messages may be stored 
 
 = External scripts =
 
-* **Chart.js** (MIT License) is enqueued in the WordPress **admin** on the Dataviz AI chat screen to draw charts. It is loaded from the **jsDelivr** CDN: `https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js` (**Chart.js 4.4.4**). It is not loaded on the public storefront by default. Project site: https://www.chartjs.org/
+* **Chart.js** (MIT License) is bundled in the plugin (`admin/js/vendor/chart.umd.min.js`, **Chart.js 4.4.4**) and enqueued in WordPress **admin** on the Dataviz AI chat screen to draw charts. It is not loaded on the public storefront by default. Project site: https://www.chartjs.org/
 
 == Installation ==
 

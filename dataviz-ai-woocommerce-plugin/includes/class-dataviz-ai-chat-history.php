@@ -518,7 +518,7 @@ class Dataviz_AI_Chat_History {
 
 		$table_name = $this->get_table_name();
 		$user_id    = get_current_user_id();
-		$cutoff_date = date( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
+		$cutoff_date = wp_date( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
 
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
@@ -558,7 +558,7 @@ class Dataviz_AI_Chat_History {
 
 		$table_name = $this->get_table_name();
 		$user_id    = get_current_user_id();
-		$cutoff_date = date( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
+		$cutoff_date = wp_date( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
 
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
@@ -623,7 +623,7 @@ class Dataviz_AI_Chat_History {
 		global $wpdb;
 
 		$table_name = $this->get_table_name();
-		$cutoff_date = date( 'Y-m-d H:i:s', strtotime( "-{$this->retention_days} days" ) );
+		$cutoff_date = wp_date( 'Y-m-d H:i:s', strtotime( "-{$this->retention_days} days" ) );
 
 		$deleted = $wpdb->query(
 			$wpdb->prepare(

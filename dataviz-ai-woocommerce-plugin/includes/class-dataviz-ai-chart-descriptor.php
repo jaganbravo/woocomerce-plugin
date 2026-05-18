@@ -136,7 +136,7 @@ class Dataviz_AI_Chart_Descriptor {
 		switch ( $period ) {
 			case 'month':
 				$ts = strtotime( $raw . '-01' );
-				return $ts ? date( 'M Y', $ts ) : $raw;
+				return $ts ? wp_date( 'M Y', $ts ) : $raw;
 			case 'week':
 				return 'Wk ' . $raw;
 			case 'hour':
@@ -144,7 +144,7 @@ class Dataviz_AI_Chart_Descriptor {
 			case 'day':
 			default:
 				$ts = strtotime( $raw );
-				return $ts ? date( 'M j', $ts ) : $raw;
+				return $ts ? wp_date( 'M j', $ts ) : $raw;
 		}
 	}
 

@@ -224,6 +224,7 @@ class Dataviz_AI_AJAX_Handler {
 		if ( $request_id ) {
 			wp_send_json_success( array(
 				'message'    => sprintf(
+					/* translators: 1: feature/data type name, 2: feature request database ID */
 					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d.', 'dataviz-ai-woocommerce' ),
 					esc_html( $entity_type ),
 					$request_id

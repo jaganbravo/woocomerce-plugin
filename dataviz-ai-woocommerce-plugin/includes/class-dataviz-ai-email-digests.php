@@ -306,7 +306,7 @@ class Dataviz_AI_Email_Digests {
 				$days_map = array( 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' );
 				$day_name = $days_map[ $day_of_week % 7 ];
 				$candidate = strtotime( "next {$day_name} " . sprintf( '%02d:00:00', $send_hour ), $now );
-				$today_is = (int) date( 'w', $now );
+				$today_is = (int) wp_date( 'w', $now );
 				if ( $today_is === ( $day_of_week % 7 ) ) {
 					$today_candidate = strtotime( sprintf( 'today %02d:00:00', $send_hour ), $now );
 					if ( $today_candidate > $now ) {
@@ -318,8 +318,8 @@ class Dataviz_AI_Email_Digests {
 			case self::FREQ_MONTHLY:
 			default:
 				$dom  = max( 1, min( 28, $day_of_month ) );
-				$year  = (int) date( 'Y', $now );
-				$month = (int) date( 'n', $now );
+				$year  = (int) wp_date( 'Y', $now );
+				$month = (int) wp_date( 'n', $now );
 				$candidate = mktime( $send_hour, 0, 0, $month, $dom, $year );
 				if ( $candidate <= $now ) {
 					$candidate = mktime( $send_hour, 0, 0, $month + 1, $dom, $year );
@@ -327,6 +327,6 @@ class Dataviz_AI_Email_Digests {
 				break;
 		}
 
-		return date( 'Y-m-d H:i:s', $candidate );
+		return wp_date( 'Y-m-d H:i:s', $candidate );
 	}
 }

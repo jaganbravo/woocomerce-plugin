@@ -235,7 +235,7 @@ class Dataviz_AI_Intent_Validator {
 
 		// Handle "all_time" / "to_date" / "all" presets (no date filter).
 		if ( in_array( $preset, array( 'all_time', 'to_date', 'all', 'lifetime', 'ever', 'total' ), true ) ) {
-			return array( 'from' => '2000-01-01', 'to' => date( 'Y-m-d', $now ) );
+			return array( 'from' => '2000-01-01', 'to' => wp_date( 'Y-m-d', $now ) );
 		}
 
 		// Normalize English word numbers in dynamic presets (e.g. "last_six_months" → "last_6_months").
@@ -256,8 +256,8 @@ class Dataviz_AI_Intent_Validator {
 			$days = (int) $m[1];
 			$days = max( 1, min( 3650, $days ) );
 			return array(
-				'from' => date( 'Y-m-d', $now - ( $days * DAY_IN_SECONDS ) ),
-				'to'   => date( 'Y-m-d', $now ),
+				'from' => wp_date( 'Y-m-d', $now - ( $days * DAY_IN_SECONDS ) ),
+				'to'   => wp_date( 'Y-m-d', $now ),
 			);
 		}
 
@@ -267,8 +267,8 @@ class Dataviz_AI_Intent_Validator {
 			$months = max( 1, min( 120, $months ) );
 			$from_ts = strtotime( sprintf( '-%d months', $months ), $now );
 			return array(
-				'from' => date( 'Y-m-d', $from_ts ),
-				'to'   => date( 'Y-m-d', $now ),
+				'from' => wp_date( 'Y-m-d', $from_ts ),
+				'to'   => wp_date( 'Y-m-d', $now ),
 			);
 		}
 
@@ -277,26 +277,26 @@ class Dataviz_AI_Intent_Validator {
 			$weeks = (int) $m[1];
 			$weeks = max( 1, min( 520, $weeks ) );
 			return array(
-				'from' => date( 'Y-m-d', $now - ( $weeks * 7 * DAY_IN_SECONDS ) ),
-				'to'   => date( 'Y-m-d', $now ),
+				'from' => wp_date( 'Y-m-d', $now - ( $weeks * 7 * DAY_IN_SECONDS ) ),
+				'to'   => wp_date( 'Y-m-d', $now ),
 			);
 		}
 
 		switch ( $preset ) {
 			case 'today':
-				return array( 'from' => date( 'Y-m-d', $now ), 'to' => date( 'Y-m-d', $now ) );
+				return array( 'from' => wp_date( 'Y-m-d', $now ), 'to' => wp_date( 'Y-m-d', $now ) );
 			case 'yesterday':
 				$y = $now - DAY_IN_SECONDS;
-				return array( 'from' => date( 'Y-m-d', $y ), 'to' => date( 'Y-m-d', $y ) );
+				return array( 'from' => wp_date( 'Y-m-d', $y ), 'to' => wp_date( 'Y-m-d', $y ) );
 			case 'this_week':
 				$week_start = strtotime( 'monday this week', $now );
-				return array( 'from' => date( 'Y-m-d', $week_start ), 'to' => date( 'Y-m-d', $now ) );
+				return array( 'from' => wp_date( 'Y-m-d', $week_start ), 'to' => wp_date( 'Y-m-d', $now ) );
 			case 'last_week':
 				$last_week_start = strtotime( 'monday last week', $now );
 				$last_week_end   = strtotime( 'sunday last week', $now );
-				return array( 'from' => date( 'Y-m-d', $last_week_start ), 'to' => date( 'Y-m-d', $last_week_end ) );
+				return array( 'from' => wp_date( 'Y-m-d', $last_week_start ), 'to' => wp_date( 'Y-m-d', $last_week_end ) );
 			case 'this_month':
-				return array( 'from' => date( 'Y-m-01', $now ), 'to' => date( 'Y-m-d', $now ) );
+				return array( 'from' => wp_date( 'Y-m-01', $now ), 'to' => wp_date( 'Y-m-d', $now ) );
 			case 'last_month':
 				$current_year  = (int) current_time( 'Y' );
 				$current_month = (int) current_time( 'm' );
@@ -309,9 +309,9 @@ class Dataviz_AI_Intent_Validator {
 				}
 				$from = sprintf( '%04d-%02d-01', $last_year, $last_month );
 				$last_day_timestamp = strtotime( $from . ' +1 month -1 day' );
-				return array( 'from' => $from, 'to' => date( 'Y-m-d', $last_day_timestamp ) );
+				return array( 'from' => $from, 'to' => wp_date( 'Y-m-d', $last_day_timestamp ) );
 			case 'this_year':
-				return array( 'from' => date( 'Y-01-01', $now ), 'to' => date( 'Y-m-d', $now ) );
+				return array( 'from' => wp_date( 'Y-01-01', $now ), 'to' => wp_date( 'Y-m-d', $now ) );
 			case 'last_year':
 				$last_year = (int) current_time( 'Y' ) - 1;
 				return array( 'from' => $last_year . '-01-01', 'to' => $last_year . '-12-31' );
@@ -328,7 +328,7 @@ class Dataviz_AI_Intent_Validator {
 				$start_month = ( ( $last_quarter - 1 ) * 3 ) + 1;
 				$from = sprintf( '%04d-%02d-01', $year, $start_month );
 				$last_day_timestamp = strtotime( $from . ' +3 months -1 day' );
-				return array( 'from' => $from, 'to' => date( 'Y-m-d', $last_day_timestamp ) );
+				return array( 'from' => $from, 'to' => wp_date( 'Y-m-d', $last_day_timestamp ) );
 			default:
 				return new WP_Error( 'dataviz_ai_invalid_intent', 'Unknown date preset' );
 		}

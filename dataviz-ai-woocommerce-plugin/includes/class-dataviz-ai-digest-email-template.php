@@ -21,12 +21,12 @@ class Dataviz_AI_Digest_Email_Template {
 	 */
 	public static function render( array $data ) {
 		$meta      = $data['meta'] ?? array();
-		$name      = esc_html( $meta['digest_name'] ?? 'Store Digest' );
-		$from      = esc_html( $meta['date_from'] ?? '' );
-		$to        = esc_html( $meta['date_to'] ?? '' );
-		$freq      = ucfirst( esc_html( $meta['frequency'] ?? 'weekly' ) );
-		$site_name = esc_html( get_bloginfo( 'name' ) );
-		$site_url  = esc_url( home_url() );
+		$name      = $meta['digest_name'] ?? 'Store Digest';
+		$from      = $meta['date_from'] ?? '';
+		$to        = $meta['date_to'] ?? '';
+		$freq      = ucfirst( (string) ( $meta['frequency'] ?? 'weekly' ) );
+		$site_name = get_bloginfo( 'name' );
+		$site_url  = home_url();
 
 		ob_start();
 		?>
@@ -41,8 +41,8 @@ class Dataviz_AI_Digest_Email_Template {
 <!-- Header -->
 <tr>
 <td style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:28px 32px;text-align:center;">
-	<h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:600;"><?php echo $name; ?></h1>
-	<p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px;"><?php echo $site_name; ?> &mdash; <?php echo $freq; ?> report for <?php echo $from; ?> to <?php echo $to; ?></p>
+	<h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:600;"><?php echo esc_html( $name ); ?></h1>
+	<p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px;"><?php echo esc_html( $site_name ); ?> &mdash; <?php echo esc_html( $freq ); ?> report for <?php echo esc_html( $from ); ?> to <?php echo esc_html( $to ); ?></p>
 </td>
 </tr>
 
@@ -81,7 +81,7 @@ class Dataviz_AI_Digest_Email_Template {
 <tr>
 <td style="background:#f9fafb;padding:20px 32px;text-align:center;border-top:1px solid #e5e7eb;">
 	<p style="margin:0;color:#9ca3af;font-size:12px;">
-		Sent by <a href="<?php echo $site_url; ?>" style="color:#6366f1;text-decoration:none;"><?php echo $site_name; ?></a> via Dataviz AI for WooCommerce.
+		Sent by <a href="<?php echo esc_url( $site_url ); ?>" style="color:#6366f1;text-decoration:none;"><?php echo esc_html( $site_name ); ?></a> via Dataviz AI for WooCommerce.
 		<br>You can manage your digest schedules in the WordPress admin.
 	</p>
 </td>
@@ -131,7 +131,7 @@ class Dataviz_AI_Digest_Email_Template {
 		<tr>
 			<td style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo esc_html( ucfirst( $row['status'] ?? '—' ) ); ?></td>
 			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo (int) ( $row['count'] ?? 0 ); ?></td>
-			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo wc_price( $row['revenue'] ?? 0 ); ?></td>
+			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo wp_kses_post( wc_price( $row['revenue'] ?? 0 ) ); ?></td>
 		</tr>
 		<?php endforeach; ?>
 		</table>
@@ -151,7 +151,7 @@ class Dataviz_AI_Digest_Email_Template {
 		<tr>
 			<td style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo esc_html( $row['name'] ?? $row['category'] ?? '—' ); ?></td>
 			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo (int) ( $row['quantity_sold'] ?? $row['order_count'] ?? 0 ); ?></td>
-			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo wc_price( $row['total_revenue'] ?? $row['revenue'] ?? 0 ); ?></td>
+			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo wp_kses_post( wc_price( $row['total_revenue'] ?? $row['revenue'] ?? 0 ) ); ?></td>
 		</tr>
 		<?php endforeach; ?>
 		</table>
@@ -175,7 +175,7 @@ class Dataviz_AI_Digest_Email_Template {
 		<tr>
 			<td style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo esc_html( $c['name'] ?? ( '#' . ( $c['id'] ?? '?' ) ) ); ?></td>
 			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo (int) ( $c['order_count'] ?? 0 ); ?></td>
-			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo wc_price( $c['total_spent'] ?? 0 ); ?></td>
+			<td align="right" style="padding:8px 12px;font-size:14px;border-bottom:1px solid #f3f4f6;"><?php echo wp_kses_post( wc_price( $c['total_spent'] ?? 0 ) ); ?></td>
 		</tr>
 		<?php endforeach; ?>
 		</table>
@@ -235,7 +235,7 @@ class Dataviz_AI_Digest_Email_Template {
 			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;">
 			<tr><td style="padding:12px;text-align:center;">
 				<span style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:4px;"><?php echo esc_html( $label ); ?></span>
-				<span style="display:block;font-size:20px;font-weight:700;color:<?php echo esc_attr( $color ); ?>;"><?php echo $value; ?></span>
+				<span style="display:block;font-size:20px;font-weight:700;color:<?php echo esc_attr( $color ); ?>;"><?php echo wp_kses_post( (string) $value ); ?></span>
 			</td></tr>
 			</table>
 		</td>

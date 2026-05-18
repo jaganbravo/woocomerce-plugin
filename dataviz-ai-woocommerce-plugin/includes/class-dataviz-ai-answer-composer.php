@@ -126,20 +126,26 @@ class Dataviz_AI_Answer_Composer {
 				$period_text = '';
 				if ( isset( $args['filters']['date_from'], $args['filters']['date_to'] ) ) {
 					$period_text = ' ' . sprintf(
-						__( 'in the period from %s to %s', 'dataviz-ai-woocommerce' ),
+						/* translators: 1: start date, 2: end date */
+						__( 'in the period from %1$s to %2$s', 'dataviz-ai-woocommerce' ),
 						$args['filters']['date_from'],
 						$args['filters']['date_to']
 					);
 				} elseif ( isset( $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] ) ) {
 					$period_text = ' ' . sprintf(
-						__( 'in the period from %s to %s', 'dataviz-ai-woocommerce' ),
+						/* translators: 1: start date, 2: end date */
+						__( 'in the period from %1$s to %2$s', 'dataviz-ai-woocommerce' ),
 						$validated_intent['filters']['date_from'],
 						$validated_intent['filters']['date_to']
 					);
 				} else {
 					$period_text = ' ' . __( 'for the requested period', 'dataviz-ai-woocommerce' );
 				}
-				return sprintf( __( 'There are no orders%s.', 'dataviz-ai-woocommerce' ), $period_text );
+				return sprintf(
+					/* translators: %s: optional date-range phrase (may be empty) */
+					__( 'There are no orders%1$s.', 'dataviz-ai-woocommerce' ),
+					$period_text
+				);
 			}
 
 			// Orders list: deterministic count + rows (matches DB; avoids LLM inventing totals).
@@ -160,14 +166,27 @@ class Dataviz_AI_Answer_Composer {
 					if ( isset( $res['date_range']['from'], $res['date_range']['to'] ) && $res['date_range']['from'] && $res['date_range']['to'] ) {
 						$period_text = sprintf(
 							' %s',
-							sprintf( __( 'from %s to %s', 'dataviz-ai-woocommerce' ), $res['date_range']['from'], $res['date_range']['to'] )
+							sprintf(
+								/* translators: 1: start date, 2: end date */
+								__( 'from %1$s to %2$s', 'dataviz-ai-woocommerce' ),
+								$res['date_range']['from'],
+								$res['date_range']['to']
+							)
 						);
 					}
 					$is_how_many = (bool) preg_match( '/\b(how\s+many|count|number\s+of)\b/i', (string) $question );
 					if ( $is_how_many ) {
-						return sprintf( __( '0 customers have placed orders%s.', 'dataviz-ai-woocommerce' ), $period_text );
+						return sprintf(
+							/* translators: %s: optional date-range phrase (may be empty) */
+							__( '0 customers have placed orders%1$s.', 'dataviz-ai-woocommerce' ),
+							$period_text
+						);
 					}
-					return sprintf( __( 'No customers found with orders%s.', 'dataviz-ai-woocommerce' ), $period_text );
+					return sprintf(
+						/* translators: %s: optional date-range phrase (may be empty) */
+						__( 'No customers found with orders%1$s.', 'dataviz-ai-woocommerce' ),
+						$period_text
+					);
 				}
 
 				$lines = array();
@@ -216,7 +235,7 @@ class Dataviz_AI_Answer_Composer {
 					}
 					return sprintf(
 						/* translators: %s: tag name */
-						__( 'I couldn’t find a product tag named "%s".', 'dataviz-ai-woocommerce' ),
+						__( 'I couldn’t find a product tag named "%1$s".', 'dataviz-ai-woocommerce' ),
 						$tag_query
 					);
 				}
@@ -233,12 +252,21 @@ class Dataviz_AI_Answer_Composer {
 				}
 				$period = '';
 				if ( $date_from && $date_to ) {
-					$period = sprintf( __( 'from %1$s to %2$s', 'dataviz-ai-woocommerce' ), $date_from, $date_to );
+					$period = sprintf(
+						/* translators: 1: start date, 2: end date */
+						__( 'from %1$s to %2$s', 'dataviz-ai-woocommerce' ),
+						$date_from,
+						$date_to
+					);
 				}
 
 				if ( empty( $res['coupons'] ) ) {
 					return $period
-						? sprintf( __( 'No coupons were used %s.', 'dataviz-ai-woocommerce' ), $period )
+						? sprintf(
+							/* translators: %s: date-range phrase */
+							__( 'No coupons were used %1$s.', 'dataviz-ai-woocommerce' ),
+							$period
+						)
 						: __( 'No coupons were used in the requested period.', 'dataviz-ai-woocommerce' );
 				}
 
@@ -256,7 +284,11 @@ class Dataviz_AI_Answer_Composer {
 				}
 
 				$header = $period
-					? sprintf( __( 'Coupons used %s:', 'dataviz-ai-woocommerce' ), $period )
+					? sprintf(
+						/* translators: %s: date-range phrase */
+						__( 'Coupons used %1$s:', 'dataviz-ai-woocommerce' ),
+						$period
+					)
 					: __( 'Coupons used in the requested period:', 'dataviz-ai-woocommerce' );
 				return $header . "\n" . implode( "\n", $lines );
 			}
@@ -271,13 +303,26 @@ class Dataviz_AI_Answer_Composer {
 					if ( isset( $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] ) ) {
 						$period_text = sprintf(
 							' %s',
-							sprintf( __( 'from %s to %s', 'dataviz-ai-woocommerce' ), $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] )
+							sprintf(
+								/* translators: 1: start date, 2: end date */
+								__( 'from %1$s to %2$s', 'dataviz-ai-woocommerce' ),
+								$validated_intent['filters']['date_from'],
+								$validated_intent['filters']['date_to']
+							)
 						);
 					}
 					if ( $is_how_many_refunds ) {
-						return sprintf( __( 'There are 0 refunds%s.', 'dataviz-ai-woocommerce' ), $period_text );
+						return sprintf(
+							/* translators: %s: optional date-range phrase (may be empty) */
+							__( 'There are 0 refunds%1$s.', 'dataviz-ai-woocommerce' ),
+							$period_text
+						);
 					}
-					return sprintf( __( 'No refunds found%s.', 'dataviz-ai-woocommerce' ), $period_text );
+					return sprintf(
+						/* translators: %s: optional date-range phrase (may be empty) */
+						__( 'No refunds found%1$s.', 'dataviz-ai-woocommerce' ),
+						$period_text
+					);
 				}
 
 				$count = count( $res );
@@ -294,10 +339,16 @@ class Dataviz_AI_Answer_Composer {
 					if ( isset( $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] ) ) {
 						$period_text = sprintf(
 							' %s',
-							sprintf( __( 'from %s to %s', 'dataviz-ai-woocommerce' ), $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] )
+							sprintf(
+								/* translators: 1: start date, 2: end date */
+								__( 'from %1$s to %2$s', 'dataviz-ai-woocommerce' ),
+								$validated_intent['filters']['date_from'],
+								$validated_intent['filters']['date_to']
+							)
 						);
 					}
 					return sprintf(
+						/* translators: 1: refund count, 2: optional date-range phrase, 3: formatted total amount */
 						__( 'There are %1$d refunds%2$s, totaling %3$s.', 'dataviz-ai-woocommerce' ),
 						$count,
 						$period_text,
@@ -329,7 +380,11 @@ class Dataviz_AI_Answer_Composer {
 					$lines[] = $line;
 				}
 
-				$header = sprintf( __( '%d refunds found:', 'dataviz-ai-woocommerce' ), $count );
+				$header = sprintf(
+					/* translators: %d: number of refunds */
+					__( '%1$d refunds found:', 'dataviz-ai-woocommerce' ),
+					$count
+				);
 				return $header . "\n" . implode( "\n", $lines );
 			}
 
@@ -361,14 +416,16 @@ class Dataviz_AI_Answer_Composer {
 					}
 					if ( 0 === $count ) {
 						return sprintf(
-							__( 'There are currently no %s orders.', 'dataviz-ai-woocommerce' ),
+							/* translators: %s: order status label (e.g. pending) */
+							__( 'There are currently no %1$s orders.', 'dataviz-ai-woocommerce' ),
 							strtolower( $status_label )
 						);
 					}
 					$answer = sprintf(
+						/* translators: 1: order count, 2: order status label */
 						_n(
-							'There is currently %d %s order.',
-							'There are currently %d %s orders.',
+							'There is currently %1$d %2$s order.',
+							'There are currently %1$d %2$s orders.',
 							$count,
 							'dataviz-ai-woocommerce'
 						),
@@ -381,12 +438,14 @@ class Dataviz_AI_Answer_Composer {
 					}
 					if ( null !== $rev_for_status && $rev_for_status > 0 ) {
 						$answer .= ' ' . sprintf(
-							__( 'Their total value is %s.', 'dataviz-ai-woocommerce' ),
+							/* translators: %s: formatted currency amount */
+							__( 'Their total value is %1$s.', 'dataviz-ai-woocommerce' ),
 							self::format_currency( $rev_for_status )
 						);
 					} elseif ( $total_revenue > 0 && ! empty( $status_filter ) ) {
 						$answer .= ' ' . sprintf(
-							__( 'Their total value is %s.', 'dataviz-ai-woocommerce' ),
+							/* translators: %s: formatted currency amount */
+							__( 'Their total value is %1$s.', 'dataviz-ai-woocommerce' ),
 							self::format_currency( $total_revenue )
 						);
 					}
@@ -405,14 +464,16 @@ class Dataviz_AI_Answer_Composer {
 							$dt = $res['date_range']['to'] ?? '';
 							if ( $df && $dt ) {
 								$period_text = ' ' . sprintf(
-									__( 'in the selected period (%s to %s)', 'dataviz-ai-woocommerce' ),
+									/* translators: 1: period start date, 2: period end date */
+									__( 'in the selected period (%1$s to %2$s)', 'dataviz-ai-woocommerce' ),
 									$df,
 									$dt
 								);
 							}
 						}
 						return sprintf(
-							__( 'There are no sales records by product category%s. This can happen when there are no completed orders, or when ordered products are not assigned to categories.', 'dataviz-ai-woocommerce' ),
+							/* translators: %s: optional date-range phrase (may be empty) */
+							__( 'There are no sales records by product category%1$s. This can happen when there are no completed orders, or when ordered products are not assigned to categories.', 'dataviz-ai-woocommerce' ),
 							$period_text
 						);
 					}
@@ -430,14 +491,23 @@ class Dataviz_AI_Answer_Composer {
 						if ( $from_timestamp && $to_timestamp ) {
 							$from_formatted = date_i18n( 'F j', $from_timestamp );
 							$to_formatted   = date_i18n( 'F j, Y', $to_timestamp );
-							$period_text    = sprintf( ' %s', sprintf( __( 'from %s to %s', 'dataviz-ai-woocommerce' ), $from_formatted, $to_formatted ) );
+							$period_text    = sprintf(
+								' %s',
+								sprintf(
+									/* translators: 1: period start date, 2: period end date */
+									__( 'from %1$s to %2$s', 'dataviz-ai-woocommerce' ),
+									$from_formatted,
+									$to_formatted
+								)
+							);
 						}
 					}
 				}
 
 				$amount_str = self::format_currency( $total_revenue );
 				$answer = sprintf(
-					__( 'The total revenue generated%s is %s.', 'dataviz-ai-woocommerce' ),
+					/* translators: 1: optional date-range phrase (may be empty), 2: formatted revenue amount */
+					__( 'The total revenue generated%1$s is %2$s.', 'dataviz-ai-woocommerce' ),
 					$period_text ? ' ' . $period_text : '',
 					$amount_str
 				);
@@ -451,11 +521,24 @@ class Dataviz_AI_Answer_Composer {
 							$lbl              = strtolower( ucfirst( $status_match[1] ) );
 							$lbl              = str_ireplace( array( 'on-hold', 'onhold' ), 'on-hold', $lbl );
 							if ( 0 === $bd_c ) {
-								$answer .= ' ' . sprintf( __( 'There are no %s orders in this period.', 'dataviz-ai-woocommerce' ), $lbl );
+								$answer .= ' ' . sprintf(
+									/* translators: %s: order status label */
+									__( 'There are no %1$s orders in this period.', 'dataviz-ai-woocommerce' ),
+									$lbl
+								);
 							} elseif ( 1 === $bd_c ) {
-								$answer .= ' ' . sprintf( __( 'There is 1 %s order in this period.', 'dataviz-ai-woocommerce' ), $lbl );
+								$answer .= ' ' . sprintf(
+									/* translators: %s: order status label */
+									__( 'There is 1 %1$s order in this period.', 'dataviz-ai-woocommerce' ),
+									$lbl
+								);
 							} else {
-								$answer .= ' ' . sprintf( __( 'There are %1$d %2$s orders in this period.', 'dataviz-ai-woocommerce' ), $bd_c, $lbl );
+								$answer .= ' ' . sprintf(
+									/* translators: 1: order count, 2: order status label */
+									__( 'There are %1$d %2$s orders in this period.', 'dataviz-ai-woocommerce' ),
+									$bd_c,
+									$lbl
+								);
 							}
 						}
 					}
@@ -465,7 +548,11 @@ class Dataviz_AI_Answer_Composer {
 						} elseif ( 1 === $total_orders ) {
 							$answer .= ' ' . __( 'There is 1 order in this period.', 'dataviz-ai-woocommerce' );
 						} else {
-							$answer .= ' ' . sprintf( __( 'There are %d orders in this period.', 'dataviz-ai-woocommerce' ), $total_orders );
+							$answer .= ' ' . sprintf(
+								/* translators: %d: order count */
+								__( 'There are %1$d orders in this period.', 'dataviz-ai-woocommerce' ),
+								$total_orders
+							);
 						}
 					}
 				}
@@ -561,7 +648,7 @@ class Dataviz_AI_Answer_Composer {
 			$lines[]    = sprintf(
 				'%d. %s — %s — %s — %s',
 				(int) ( $idx + 1 ),
-				sprintf( /* translators: %d order ID */ __( 'Order #%d', 'dataviz-ai-woocommerce' ), $id ),
+				sprintf( /* translators: %d: order ID */ __( 'Order #%1$d', 'dataviz-ai-woocommerce' ), $id ),
 				self::format_currency( $total_amt ),
 				$st !== '' ? $st : '—',
 				$date_short !== '' ? $date_short : '—'

@@ -308,14 +308,16 @@ class Dataviz_AI_Chat_Feedback_Admin {
 				$ok  = isset( $_GET['cf_bulk_emailed'] ) ? absint( $_GET['cf_bulk_emailed'] ) : 0;
 				$bad = isset( $_GET['cf_bulk_failed'] ) ? absint( $_GET['cf_bulk_failed'] ) : 0;
 				?>
-				<div class="notice <?php echo $bad ? 'notice-warning' : 'notice-success'; ?> is-dismissible">
+				<div class="notice <?php echo esc_attr( $bad ? 'notice-warning' : 'notice-success' ); ?> is-dismissible">
 					<p>
 						<?php
-						printf(
-							/* translators: 1: emails sent, 2: failures */
-							esc_html__( 'Email to vendor: %1$d sent, %2$d failed.', 'dataviz-ai-woocommerce' ),
-							$ok,
-							$bad
+						echo esc_html(
+							sprintf(
+								/* translators: 1: emails sent, 2: failures */
+								__( 'Email to vendor: %1$d sent, %2$d failed.', 'dataviz-ai-woocommerce' ),
+								$ok,
+								$bad
+							)
 						);
 						?>
 					</p>

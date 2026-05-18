@@ -433,14 +433,16 @@ class Dataviz_AI_Support_Requests_Admin {
 				$bulk_ok = isset( $_GET['sr_bulk_emailed'] ) ? absint( $_GET['sr_bulk_emailed'] ) : 0;
 				$bulk_bad = isset( $_GET['sr_bulk_failed'] ) ? absint( $_GET['sr_bulk_failed'] ) : 0;
 				?>
-				<div class="notice <?php echo $bulk_bad ? 'notice-warning' : 'notice-success'; ?> is-dismissible">
+				<div class="notice <?php echo esc_attr( $bulk_bad ? 'notice-warning' : 'notice-success' ); ?> is-dismissible">
 					<p>
 						<?php
-						printf(
-							/* translators: 1: number of emails sent, 2: number of failures */
-							esc_html__( 'Email to vendor: %1$d sent, %2$d failed (only pending rows are sent).', 'dataviz-ai-woocommerce' ),
-							$bulk_ok,
-							$bulk_bad
+						echo esc_html(
+							sprintf(
+								/* translators: 1: number of emails sent, 2: number of failures */
+								__( 'Email to vendor: %1$d sent, %2$d failed (only pending rows are sent).', 'dataviz-ai-woocommerce' ),
+								$bulk_ok,
+								$bulk_bad
+							)
 						);
 						?>
 					</p>

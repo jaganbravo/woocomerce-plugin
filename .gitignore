@@ -1,3 +1,6 @@
+# Local Docker secrets (Dataviz AI API key, etc.) — see docker/.env.example
+docker/.env
+
 # Ignore Docker WordPress volume and other transient data
 docker/wordpress/
 .DS_Store
@@ -5,4 +8,7 @@ docker/wordpress/
 
 # Ignore plugin configuration file (contains sensitive data)
 dataviz-ai-woocommerce-plugin/config.php
+
+# Release ZIP output (see dataviz-ai-woocommerce-plugin/bin/build-release.sh)
+dataviz-ai-woocommerce-plugin/dist/
 
