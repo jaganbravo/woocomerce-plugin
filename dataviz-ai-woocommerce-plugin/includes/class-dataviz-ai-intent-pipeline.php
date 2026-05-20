@@ -104,7 +104,7 @@ class Dataviz_AI_Intent_Pipeline {
 		// Low confidence: do not run tools; let the UI suggest clearer phrasings.
 		if ( isset( $validated['confidence'] ) && $validated['confidence'] === 'low' ) {
 			$result['low_confidence']  = true;
-			$result['error_reason']   = __( 'Parsed intent confidence is low; no WooCommerce data query was run.', 'dataviz-ai-woocommerce' );
+			$result['error_reason']   = __( 'Parsed intent confidence is low; no WooCommerce data query was run.', 'dataviz-ai-for-woocommerce' );
 			$result['intent']        = $validated;
 			$result['tool_calls']     = array();
 			return $result;

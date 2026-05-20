@@ -131,7 +131,7 @@ Show how easy it is to ask questions and get instant AI-powered insights.
 
 **Text Overlay:**
 - "Free on WordPress.org"
-- "wordpress.org/plugins/dataviz-ai-woocommerce"
+- "wordpress.org/plugins/dataviz-ai-for-woocommerce"
 
 ---
 

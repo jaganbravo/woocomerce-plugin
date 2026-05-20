@@ -287,18 +287,12 @@ class Dataviz_AI_Data_Fetcher {
 		// Merge args with defaults (args take precedence)
 		$query_args = wp_parse_args( $args, $defaults );
 		
-		// Debug logging
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( sprintf( '[Dataviz AI] get_recent_orders called with args: %s', wp_json_encode( $args ) ) );
-			error_log( sprintf( '[Dataviz AI] get_recent_orders query_args: %s', wp_json_encode( $query_args ) ) );
-		}
+		dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] get_recent_orders called with args: %s', wp_json_encode( $args ) ) );
+		dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] get_recent_orders query_args: %s', wp_json_encode( $query_args ) ) );
 
 		$orders = wc_get_orders( $query_args );
 		
-		// Debug logging
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( sprintf( '[Dataviz AI] get_recent_orders returned %d orders', count( $orders ) ) );
-		}
+		dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] get_recent_orders returned %d orders', count( $orders ) ) );
 
 		return $orders;
 	}
@@ -543,10 +537,8 @@ class Dataviz_AI_Data_Fetcher {
 		$filters['limit'] = -1;
 		$orders = $this->get_orders_for_range( $filters );
 
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( sprintf( '[Dataviz AI] get_order_statistics called with args: %s', wp_json_encode( $args ) ) );
-			error_log( sprintf( '[Dataviz AI] Found %d orders', count( $orders ) ) );
-		}
+		dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] get_order_statistics called with args: %s', wp_json_encode( $args ) ) );
+		dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Found %d orders', count( $orders ) ) );
 
 		if ( empty( $orders ) ) {
 			return $empty_response;
@@ -659,10 +651,8 @@ class Dataviz_AI_Data_Fetcher {
 		$filters['limit'] = -1;
 		$orders = $this->get_orders_for_range( $filters );
 
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( sprintf( '[Dataviz AI] get_customer_statistics called with args: %s', wp_json_encode( $args ) ) );
-			error_log( sprintf( '[Dataviz AI] Found %d orders for customer statistics', count( $orders ) ) );
-		}
+		dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] get_customer_statistics called with args: %s', wp_json_encode( $args ) ) );
+		dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Found %d orders for customer statistics', count( $orders ) ) );
 
 		if ( empty( $orders ) ) {
 			return array_merge( $empty_response, array( 'message' => 'No orders found in the specified period.' ) );
@@ -1191,7 +1181,7 @@ class Dataviz_AI_Data_Fetcher {
 		if ( ! function_exists( 'wc_get_products' ) ) {
 			return array(
 				'error'   => true,
-				'message' => __( 'WooCommerce is not available. Please ensure WooCommerce is installed and activated.', 'dataviz-ai-woocommerce' ),
+				'message' => __( 'WooCommerce is not available. Please ensure WooCommerce is installed and activated.', 'dataviz-ai-for-woocommerce' ),
 			);
 		}
 
@@ -1229,7 +1219,7 @@ class Dataviz_AI_Data_Fetcher {
 			'total'    => count( $inventory ),
 			'message'  => sprintf(
 				/* translators: %d: number of products */
-				_n( 'Found %d product with inventory information.', 'Found %d products with inventory information.', count( $inventory ), 'dataviz-ai-woocommerce' ),
+				_n( 'Found %d product with inventory information.', 'Found %d products with inventory information.', count( $inventory ), 'dataviz-ai-for-woocommerce' ),
 				count( $inventory )
 			),
 		);

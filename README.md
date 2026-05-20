@@ -2,7 +2,7 @@
 
 Monorepo for **Dataviz AI for WooCommerce** — conversational AI analytics for WooCommerce: natural-language questions, answers, charts, and email digests. The shippable WordPress plugin lives in:
 
-**[dataviz-ai-woocommerce-plugin/](dataviz-ai-woocommerce-plugin/)**
+**[dataviz-ai-woocommerce-plugin/](dataviz-ai-woocommerce-plugin/)** (git source tree). Release builds install as **`dataviz-ai-for-woocommerce/`** in `wp-content/plugins/` (WordPress.org trademark rule; matches the plugin text domain).
 
 ## Quick links
 

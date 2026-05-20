@@ -55,7 +55,7 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 `bash bin/build-release.sh`
 
-The file appears under `dist/` (e.g. `dist/dataviz-ai-woocommerce-1.0.0.zip`). The ZIP root folder is **`dataviz-ai-woocommerce/`** (must match the `Text Domain:` header — do not use a `-plugin` suffix). Upload that ZIP under **Plugins → Add New → Upload**.
+The file appears under `dist/` (e.g. `dist/dataviz-ai-for-woocommerce-1.0.0.zip`). The ZIP root folder is **`dataviz-ai-for-woocommerce/`** (must match the `Text Domain:` header in the main plugin file). Upload that ZIP under **Plugins → Add New → Upload**.
 
 **Free cloud sandboxes** (optional; good for a second environment besides Docker):
 
@@ -79,7 +79,7 @@ Always verify WooCommerce + your plugin on whichever environment matches your ne
 
 ## Phase 7 — Build & SVN
 
-- [ ] Run **`bash bin/build-release.sh`** (from `dataviz-ai-woocommerce-plugin/`), then install the ZIP from **`dist/`** on a fresh site (folder slug **`dataviz-ai-woocommerce`**, not `…-plugin`).
+- [ ] Run **`bash bin/build-release.sh`** (from `dataviz-ai-woocommerce-plugin/`), then install the ZIP from **`dist/`** on a fresh site (folder slug **`dataviz-ai-for-woocommerce`**, not `…-plugin`).
 - [ ] Read **[How to use Subversion](https://developer.wordpress.org/plugins/wordpress-org/how-to-use-subversion/)** for plugins.
 - [ ] Copy `readme.txt` and the main plugin file to **`/trunk`**; tag **`/tags/x.y.z/`** with the same version.
 - [ ] Submit for **review** and respond promptly to feedback.

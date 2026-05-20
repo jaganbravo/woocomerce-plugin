@@ -72,39 +72,39 @@ class Dataviz_AI_Question_Suggestions {
 		switch ( $entity ) {
 			case 'orders':
 				return array(
-					__( 'What was my total revenue this month?', 'dataviz-ai-woocommerce' ),
-					__( 'How many pending orders do I have?', 'dataviz-ai-woocommerce' ),
-					__( 'Show order totals for last week.', 'dataviz-ai-woocommerce' ),
+					__( 'What was my total revenue this month?', 'dataviz-ai-for-woocommerce' ),
+					__( 'How many pending orders do I have?', 'dataviz-ai-for-woocommerce' ),
+					__( 'Show order totals for last week.', 'dataviz-ai-for-woocommerce' ),
 				);
 			case 'products':
 				return array(
-					__( 'What are my best-selling products?', 'dataviz-ai-woocommerce' ),
-					__( 'List products in a specific category.', 'dataviz-ai-woocommerce' ),
+					__( 'What are my best-selling products?', 'dataviz-ai-for-woocommerce' ),
+					__( 'List products in a specific category.', 'dataviz-ai-for-woocommerce' ),
 				);
 			case 'customers':
 				return array(
-					__( 'Who are my top customers by total spend?', 'dataviz-ai-woocommerce' ),
-					__( 'How many customers placed an order this month?', 'dataviz-ai-woocommerce' ),
+					__( 'Who are my top customers by total spend?', 'dataviz-ai-for-woocommerce' ),
+					__( 'How many customers placed an order this month?', 'dataviz-ai-for-woocommerce' ),
 				);
 			case 'categories':
 				return array(
-					__( 'List all product categories.', 'dataviz-ai-woocommerce' ),
-					__( 'Show sales by product category.', 'dataviz-ai-woocommerce' ),
+					__( 'List all product categories.', 'dataviz-ai-for-woocommerce' ),
+					__( 'Show sales by product category.', 'dataviz-ai-for-woocommerce' ),
 				);
 			case 'stock':
 			case 'inventory':
 				return array(
-					__( 'Which products are out of stock?', 'dataviz-ai-woocommerce' ),
-					__( 'Show low-stock products.', 'dataviz-ai-woocommerce' ),
+					__( 'Which products are out of stock?', 'dataviz-ai-for-woocommerce' ),
+					__( 'Show low-stock products.', 'dataviz-ai-for-woocommerce' ),
 				);
 			case 'coupons':
 				return array(
-					__( 'List active coupons.', 'dataviz-ai-woocommerce' ),
-					__( 'How many times was a coupon used last month?', 'dataviz-ai-woocommerce' ),
+					__( 'List active coupons.', 'dataviz-ai-for-woocommerce' ),
+					__( 'How many times was a coupon used last month?', 'dataviz-ai-for-woocommerce' ),
 				);
 			case 'refunds':
 				return array(
-					__( 'How many refunds were issued this year?', 'dataviz-ai-woocommerce' ),
+					__( 'How many refunds were issued this year?', 'dataviz-ai-for-woocommerce' ),
 				);
 			default:
 				return array();
@@ -116,11 +116,11 @@ class Dataviz_AI_Question_Suggestions {
 	 */
 	protected static function generic_lines() {
 		return array(
-			__( 'What was my total revenue this month?', 'dataviz-ai-woocommerce' ),
-			__( 'How many pending orders do I have?', 'dataviz-ai-woocommerce' ),
-			__( 'What are my best-selling products?', 'dataviz-ai-woocommerce' ),
-			__( 'List my product categories.', 'dataviz-ai-woocommerce' ),
-			__( 'Which products are low on stock?', 'dataviz-ai-woocommerce' ),
+			__( 'What was my total revenue this month?', 'dataviz-ai-for-woocommerce' ),
+			__( 'How many pending orders do I have?', 'dataviz-ai-for-woocommerce' ),
+			__( 'What are my best-selling products?', 'dataviz-ai-for-woocommerce' ),
+			__( 'List my product categories.', 'dataviz-ai-for-woocommerce' ),
+			__( 'Which products are low on stock?', 'dataviz-ai-for-woocommerce' ),
 		);
 	}
 }

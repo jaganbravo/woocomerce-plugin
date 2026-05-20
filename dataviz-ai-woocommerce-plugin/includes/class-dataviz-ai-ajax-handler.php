@@ -80,11 +80,14 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
 		}
 
-		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-woocommerce' );
-		$stream   = isset( $_POST['stream'] ) && filter_var( $_POST['stream'], FILTER_VALIDATE_BOOLEAN );
+		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-for-woocommerce' );
+		$stream = filter_var(
+			isset( $_POST['stream'] ) ? sanitize_text_field( wp_unslash( $_POST['stream'] ) ) : '',
+			FILTER_VALIDATE_BOOLEAN
+		);
 
 		$this->init_session();
 
@@ -125,12 +128,12 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_chat', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
 		}
 
 		$question = isset( $_POST['message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
 		if ( empty( $question ) ) {
-			wp_send_json_error( array( 'message' => __( 'Message cannot be empty.', 'dataviz-ai-woocommerce' ) ), 400 );
+			wp_send_json_error( array( 'message' => __( 'Message cannot be empty.', 'dataviz-ai-for-woocommerce' ) ), 400 );
 		}
 
 		if ( $this->api_client->has_custom_backend() ) {
@@ -156,7 +159,7 @@ class Dataviz_AI_AJAX_Handler {
 
 		$content = isset( $result['choices'][0]['message']['content'] ) ? trim( (string) $result['choices'][0]['message']['content'] ) : '';
 		if ( empty( $content ) ) {
-			wp_send_json_error( array( 'message' => __( 'The AI response was empty. Try again.', 'dataviz-ai-woocommerce' ), 'data' => $result ), 400 );
+			wp_send_json_error( array( 'message' => __( 'The AI response was empty. Try again.', 'dataviz-ai-for-woocommerce' ), 'data' => $result ), 400 );
 		}
 
 		wp_send_json_success( array( 'message' => $content ) );
@@ -175,13 +178,16 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
 		}
 
 		$session_id   = isset( $_GET['session_id'] ) ? sanitize_text_field( wp_unslash( $_GET['session_id'] ) ) : '';
 		$limit        = isset( $_GET['limit'] ) ? min( 200, max( 1, (int) $_GET['limit'] ) ) : 100;
 		$days         = isset( $_GET['days'] ) ? min( 30, max( 1, (int) $_GET['days'] ) ) : 5;
-		$all_sessions = isset( $_GET['all_sessions'] ) && filter_var( $_GET['all_sessions'], FILTER_VALIDATE_BOOLEAN );
+		$all_sessions = filter_var(
+			isset( $_GET['all_sessions'] ) ? sanitize_text_field( wp_unslash( $_GET['all_sessions'] ) ) : '',
+			FILTER_VALIDATE_BOOLEAN
+		);
 
 		if ( $all_sessions || empty( $session_id ) ) {
 			$history = $this->chat_history->get_recent_history( $limit, $days );
@@ -205,7 +211,7 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
 		}
 
 		$entity_type = isset( $_POST['entity_type'] ) ? sanitize_text_field( wp_unslash( $_POST['entity_type'] ) ) : '';
@@ -213,7 +219,7 @@ class Dataviz_AI_AJAX_Handler {
 		$user_id     = get_current_user_id();
 
 		if ( empty( $entity_type ) ) {
-			wp_send_json_error( array( 'message' => __( 'Entity type is required.', 'dataviz-ai-woocommerce' ) ), 400 );
+			wp_send_json_error( array( 'message' => __( 'Entity type is required.', 'dataviz-ai-for-woocommerce' ) ), 400 );
 		}
 
 		$feature_requests = new Dataviz_AI_Feature_Requests();
@@ -225,7 +231,7 @@ class Dataviz_AI_AJAX_Handler {
 			wp_send_json_success( array(
 				'message'    => sprintf(
 					/* translators: 1: feature/data type name, 2: feature request database ID */
-					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d.', 'dataviz-ai-woocommerce' ),
+					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d.', 'dataviz-ai-for-woocommerce' ),
 					esc_html( $entity_type ),
 					$request_id
 				),
@@ -233,7 +239,7 @@ class Dataviz_AI_AJAX_Handler {
 			) );
 		}
 
-		wp_send_json_error( array( 'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-woocommerce' ) ), 500 );
+		wp_send_json_error( array( 'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-for-woocommerce' ) ), 500 );
 	}
 
 	// ------------------------------------------------------------------
@@ -249,7 +255,7 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
 		}
 
 		$inventory_data = $this->data_fetcher->get_all_inventory_products( array( 'limit' => 100 ) );
@@ -273,16 +279,16 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! defined( 'DATAVIZ_AI_DEBUG_INTENT' ) || ! DATAVIZ_AI_DEBUG_INTENT ) {
-			wp_send_json_error( array( 'message' => __( 'Debug intent is disabled.', 'dataviz-ai-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Debug intent is disabled.', 'dataviz-ai-for-woocommerce' ) ), 403 );
 		}
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
 		}
 
 		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : '';
 		if ( $question === '' ) {
-			wp_send_json_error( array( 'message' => __( 'Question is required.', 'dataviz-ai-woocommerce' ) ), 400 );
+			wp_send_json_error( array( 'message' => __( 'Question is required.', 'dataviz-ai-for-woocommerce' ) ), 400 );
 		}
 
 		$is_data_question = Dataviz_AI_Intent_Classifier::question_requires_data( $question );
@@ -323,13 +329,13 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
 		}
 
 		$message_id = isset( $_POST['message_id'] ) ? (int) $_POST['message_id'] : 0;
 		$vote       = isset( $_POST['vote'] ) ? sanitize_text_field( wp_unslash( $_POST['vote'] ) ) : '';
 		$reason     = isset( $_POST['reason'] ) ? sanitize_text_field( wp_unslash( $_POST['reason'] ) ) : '';
-		$note       = isset( $_POST['note'] ) ? wp_unslash( $_POST['note'] ) : '';
+		$note       = isset( $_POST['note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['note'] ) ) : '';
 
 		$this->chat_history->ensure_feedback_schema();
 		$result = $this->chat_history->update_feedback( $message_id, $vote, $reason, $note );
@@ -348,6 +354,7 @@ class Dataviz_AI_AJAX_Handler {
 	// ------------------------------------------------------------------
 
 	protected function init_session() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Caller verifies AJAX nonce (dataviz_ai_admin).
 		$this->session_id = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
 		if ( empty( $this->session_id ) ) {
 			$session_key      = 'dataviz_ai_session_id';
@@ -394,14 +401,14 @@ class Dataviz_AI_AJAX_Handler {
 				'#%1$d — %2$s — %3$s — %4$s items',
 				$order->get_id(),
 				wc_price( $order->get_total() ),
-				$order->get_date_created() ? $order->get_date_created()->date_i18n( 'Y-m-d' ) : __( 'N/A', 'dataviz-ai-woocommerce' ),
+				$order->get_date_created() ? $order->get_date_created()->date_i18n( 'Y-m-d' ) : __( 'N/A', 'dataviz-ai-for-woocommerce' ),
 				count( $order->get_items() )
 			);
 		}
-		$context_block = $orders_summary ? implode( "\n", $orders_summary ) : __( 'No recent orders available.', 'dataviz-ai-woocommerce' );
+		$context_block = $orders_summary ? implode( "\n", $orders_summary ) : __( 'No recent orders available.', 'dataviz-ai-for-woocommerce' );
 
 		return array(
-			array( 'role' => 'system', 'content' => __( 'You are a helpful WooCommerce analytics assistant. Answer clearly and concisely based on the provided store data.', 'dataviz-ai-woocommerce' ) ),
+			array( 'role' => 'system', 'content' => __( 'You are a helpful WooCommerce analytics assistant. Answer clearly and concisely based on the provided store data.', 'dataviz-ai-for-woocommerce' ) ),
 			array( 'role' => 'user', 'content' => sprintf( "%s\n\nRecent orders snapshot:\n%s", $question, $context_block ) ),
 		);
 	}

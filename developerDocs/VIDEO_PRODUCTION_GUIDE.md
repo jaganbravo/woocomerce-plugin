@@ -247,7 +247,7 @@
    - AI-powered insights
    - Easy to use
    
-   Get it free: https://wordpress.org/plugins/dataviz-ai-woocommerce
+   Get it free: https://wordpress.org/plugins/dataviz-ai-for-woocommerce
    
    #WooCommerce #WordPress #AI #Analytics
    ```

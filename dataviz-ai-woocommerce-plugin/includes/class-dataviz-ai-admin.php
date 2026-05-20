@@ -47,7 +47,7 @@ class Dataviz_AI_Admin {
 	 *
 	 * @var string
 	 */
-	protected $menu_slug = 'dataviz-ai-woocommerce';
+	protected $menu_slug = 'dataviz-ai-for-woocommerce';
 
 	/**
 	 * Constructor.
@@ -71,8 +71,8 @@ class Dataviz_AI_Admin {
 	 */
 	public function register_menu_page() {
 		add_menu_page(
-			__( 'Dataviz AI Insights', 'dataviz-ai-woocommerce' ),
-			__( 'Dataviz AI', 'dataviz-ai-woocommerce' ),
+			__( 'Dataviz AI Insights', 'dataviz-ai-for-woocommerce' ),
+			__( 'Dataviz AI', 'dataviz-ai-for-woocommerce' ),
 			'manage_woocommerce',
 			$this->menu_slug,
 			array( $this, 'render_admin_page' ),
@@ -82,8 +82,8 @@ class Dataviz_AI_Admin {
 
 		add_submenu_page(
 			$this->menu_slug,
-			__( 'FAQ', 'dataviz-ai-woocommerce' ),
-			__( 'FAQ', 'dataviz-ai-woocommerce' ),
+			__( 'FAQ', 'dataviz-ai-for-woocommerce' ),
+			__( 'FAQ', 'dataviz-ai-for-woocommerce' ),
 			'manage_woocommerce',
 			'dataviz-ai-faq',
 			array( $this, 'render_faq_page' )
@@ -91,8 +91,8 @@ class Dataviz_AI_Admin {
 
 		add_submenu_page(
 			$this->menu_slug,
-			__( 'Onboarding', 'dataviz-ai-woocommerce' ),
-			__( 'Onboarding', 'dataviz-ai-woocommerce' ),
+			__( 'Onboarding', 'dataviz-ai-for-woocommerce' ),
+			__( 'Onboarding', 'dataviz-ai-for-woocommerce' ),
 			'manage_woocommerce',
 			'dataviz-ai-onboarding',
 			array( $this, 'render_onboarding_page' )
@@ -108,14 +108,14 @@ class Dataviz_AI_Admin {
 		$faq_file = DATAVIZ_AI_WC_PLUGIN_DIR . 'admin/partials/faq-content.html';
 		?>
 		<div class="wrap dataviz-ai-admin dataviz-ai-faq">
-			<h1><?php esc_html_e( 'FAQ', 'dataviz-ai-woocommerce' ); ?></h1>
+			<h1><?php esc_html_e( 'FAQ', 'dataviz-ai-for-woocommerce' ); ?></h1>
 			<div class="dataviz-ai-faq-content">
 				<?php
 				if ( file_exists( $faq_file ) ) {
 					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static HTML content from plugin
 					echo file_get_contents( $faq_file );
 				} else {
-					echo '<p>' . esc_html__( 'FAQ content not found.', 'dataviz-ai-woocommerce' ) . '</p>';
+					echo '<p>' . esc_html__( 'FAQ content not found.', 'dataviz-ai-for-woocommerce' ) . '</p>';
 				}
 				?>
 			</div>
@@ -132,14 +132,14 @@ class Dataviz_AI_Admin {
 		$onboarding_file = DATAVIZ_AI_WC_PLUGIN_DIR . 'admin/partials/onboarding-content.html';
 		?>
 		<div class="wrap dataviz-ai-admin dataviz-ai-onboarding">
-			<h1><?php esc_html_e( 'Onboarding', 'dataviz-ai-woocommerce' ); ?></h1>
+			<h1><?php esc_html_e( 'Onboarding', 'dataviz-ai-for-woocommerce' ); ?></h1>
 			<div class="dataviz-ai-onboarding-content">
 				<?php
 				if ( file_exists( $onboarding_file ) ) {
 					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static HTML content from plugin
 					echo file_get_contents( $onboarding_file );
 				} else {
-					echo '<p>' . esc_html__( 'Onboarding content not found.', 'dataviz-ai-woocommerce' ) . '</p>';
+					echo '<p>' . esc_html__( 'Onboarding content not found.', 'dataviz-ai-for-woocommerce' ) . '</p>';
 				}
 				?>
 			</div>
@@ -267,11 +267,11 @@ class Dataviz_AI_Admin {
 	 */
 	protected function get_suggested_chat_prompts() {
 		return array(
-			__( 'What was my total revenue this month?', 'dataviz-ai-woocommerce' ),
-			__( 'How many pending orders do I have?', 'dataviz-ai-woocommerce' ),
-			__( 'Show me my top 10 best-selling products.', 'dataviz-ai-woocommerce' ),
-			__( 'Which products are low on stock?', 'dataviz-ai-woocommerce' ),
-			__( 'How many coupons were used last month?', 'dataviz-ai-woocommerce' ),
+			__( 'What was my total revenue this month?', 'dataviz-ai-for-woocommerce' ),
+			__( 'How many pending orders do I have?', 'dataviz-ai-for-woocommerce' ),
+			__( 'Show me my top 10 best-selling products.', 'dataviz-ai-for-woocommerce' ),
+			__( 'Which products are low on stock?', 'dataviz-ai-for-woocommerce' ),
+			__( 'How many coupons were used last month?', 'dataviz-ai-for-woocommerce' ),
 		);
 	}
 
@@ -282,26 +282,26 @@ class Dataviz_AI_Admin {
 	 */
 	protected function get_chat_feedback_i18n() {
 		return array(
-			'helpfulLabel'    => __( 'Helpful', 'dataviz-ai-woocommerce' ),
-			'notHelpfulLabel' => __( 'Not helpful', 'dataviz-ai-woocommerce' ),
-			'thanks'          => __( 'Thanks for your feedback.', 'dataviz-ai-woocommerce' ),
-			'reasonLabel'     => __( 'What went wrong?', 'dataviz-ai-woocommerce' ),
-			'submit'          => __( 'Submit feedback', 'dataviz-ai-woocommerce' ),
-			'optionalNote'    => __( 'Optional details', 'dataviz-ai-woocommerce' ),
-			'saving'          => __( 'Saving…', 'dataviz-ai-woocommerce' ),
-			'errorGeneric'    => __( 'Could not save feedback. Try again.', 'dataviz-ai-woocommerce' ),
+			'helpfulLabel'    => __( 'Helpful', 'dataviz-ai-for-woocommerce' ),
+			'notHelpfulLabel' => __( 'Not helpful', 'dataviz-ai-for-woocommerce' ),
+			'thanks'          => __( 'Thanks for your feedback.', 'dataviz-ai-for-woocommerce' ),
+			'reasonLabel'     => __( 'What went wrong?', 'dataviz-ai-for-woocommerce' ),
+			'submit'          => __( 'Submit feedback', 'dataviz-ai-for-woocommerce' ),
+			'optionalNote'    => __( 'Optional details', 'dataviz-ai-for-woocommerce' ),
+			'saving'          => __( 'Saving…', 'dataviz-ai-for-woocommerce' ),
+			'errorGeneric'    => __( 'Could not save feedback. Try again.', 'dataviz-ai-for-woocommerce' ),
 			'reasons'         => array(
 				array(
 					'value' => 'inaccurate',
-					'label' => __( 'Inaccurate or wrong numbers', 'dataviz-ai-woocommerce' ),
+					'label' => __( 'Inaccurate or wrong numbers', 'dataviz-ai-for-woocommerce' ),
 				),
 				array(
 					'value' => 'not_helpful',
-					'label' => __( 'Not helpful', 'dataviz-ai-woocommerce' ),
+					'label' => __( 'Not helpful', 'dataviz-ai-for-woocommerce' ),
 				),
 				array(
 					'value' => 'other',
-					'label' => __( 'Other', 'dataviz-ai-woocommerce' ),
+					'label' => __( 'Other', 'dataviz-ai-for-woocommerce' ),
 				),
 			),
 		);
@@ -320,23 +320,23 @@ class Dataviz_AI_Admin {
 		$onboarding = new Dataviz_AI_Onboarding( $this->plugin_name, $this->version, $this->api_client );
 		?>
 		<div class="wrap dataviz-ai-admin">
-			<h1><?php esc_html_e( 'Dataviz AI for WooCommerce', 'dataviz-ai-woocommerce' ); ?></h1>
+			<h1><?php esc_html_e( 'Dataviz AI for WooCommerce', 'dataviz-ai-for-woocommerce' ); ?></h1>
 
 			<div class="dataviz-ai-grid">
 				<section class="dataviz-ai-card dataviz-ai-card--wide dataviz-ai-chat-container">
 					<?php if ( ! $api_key ) : ?>
 						<div class="dataviz-ai-chat-warning">
 							<p class="notice inline notice-warning">
-								<strong><?php esc_html_e( 'API key required.', 'dataviz-ai-woocommerce' ); ?></strong> 
-								<?php esc_html_e( 'Please configure your API key via environment variables (OPENAI_API_KEY or DATAVIZ_AI_API_KEY) or by editing the config.php file in the plugin directory.', 'dataviz-ai-woocommerce' ); ?>
+								<strong><?php esc_html_e( 'API key required.', 'dataviz-ai-for-woocommerce' ); ?></strong> 
+								<?php esc_html_e( 'Please configure your API key via environment variables (OPENAI_API_KEY or DATAVIZ_AI_API_KEY) or by editing the config.php file in the plugin directory.', 'dataviz-ai-for-woocommerce' ); ?>
 							</p>
 						</div>
 					<?php endif; ?>
 					
 					<div class="dataviz-ai-chat-messages" id="dataviz-ai-chat-messages" role="log" aria-live="polite" aria-atomic="false">
 						<div class="dataviz-ai-chat-welcome">
-							<h2><?php esc_html_e( 'Chat with me', 'dataviz-ai-woocommerce' ); ?></h2>
-							<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights.', 'dataviz-ai-woocommerce' ); ?></p>
+							<h2><?php esc_html_e( 'Chat with me', 'dataviz-ai-for-woocommerce' ); ?></h2>
+							<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights.', 'dataviz-ai-for-woocommerce' ); ?></p>
 						</div>
 					</div>
 					
@@ -348,13 +348,13 @@ class Dataviz_AI_Admin {
 									name="question" 
 									rows="1" 
 									class="dataviz-ai-chat-input" 
-									placeholder="<?php esc_attr_e( 'Message AI assistant...', 'dataviz-ai-woocommerce' ); ?>"
-									aria-label="<?php esc_attr_e( 'Type your message', 'dataviz-ai-woocommerce' ); ?>"
+									placeholder="<?php esc_attr_e( 'Message AI assistant...', 'dataviz-ai-for-woocommerce' ); ?>"
+									aria-label="<?php esc_attr_e( 'Type your message', 'dataviz-ai-for-woocommerce' ); ?>"
 								></textarea>
 								<button 
 									type="button" 
 									class="dataviz-ai-chat-stop" 
-									aria-label="<?php esc_attr_e( 'Stop generating', 'dataviz-ai-woocommerce' ); ?>"
+									aria-label="<?php esc_attr_e( 'Stop generating', 'dataviz-ai-for-woocommerce' ); ?>"
 								>
 									<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
 										<rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor"/>
@@ -363,7 +363,7 @@ class Dataviz_AI_Admin {
 								<button 
 									type="submit" 
 									class="dataviz-ai-chat-send" 
-									aria-label="<?php esc_attr_e( 'Send message', 'dataviz-ai-woocommerce' ); ?>"
+									aria-label="<?php esc_attr_e( 'Send message', 'dataviz-ai-for-woocommerce' ); ?>"
 									<?php disabled( ! $api_key ); ?>
 								>
 									<svg width="16" height="16" viewBox="0 0 16 16" fill="none">

@@ -102,7 +102,7 @@ self.addEventListener('install', function(event) {
     event.waitUntil(
         caches.open('dataviz-ai-v1').then(function(cache) {
             return cache.addAll([
-                '/wp-content/plugins/dataviz-ai-woocommerce/admin/',
+                '/wp-content/plugins/dataviz-ai-for-woocommerce/admin/',
                 // Cache assets
             ]);
         })

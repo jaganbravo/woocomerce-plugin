@@ -62,7 +62,7 @@ Alternatively, import `dummy-data.xml` via `Tools → Import → WordPress`.
 ./sync-plugin.sh
 
 # Activate the plugin
-docker compose exec wpcli bash -c "wp plugin activate dataviz-ai-woocommerce"
+docker compose exec wpcli bash -c "wp plugin activate dataviz-ai-for-woocommerce"
 ```
 
 ### Updating Plugin Files (after making changes)

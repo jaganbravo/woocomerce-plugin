@@ -50,7 +50,7 @@ class Dataviz_AI_Loader {
 	 *
 	 * @var string
 	 */
-	protected $plugin_name = 'dataviz-ai-woocommerce';
+	protected $plugin_name = 'dataviz-ai-for-woocommerce';
 
 	/**
 	 * Plugin version.

@@ -60,7 +60,7 @@ dataviz-ai-woocommerce-plugin/
 ├── public/
 │   ├── css/, js/, views/
 ├── languages/
-│   └── dataviz-ai-woocommerce.pot
+│   └── dataviz-ai-for-woocommerce.pot
 └── uninstall.php
 ```
 

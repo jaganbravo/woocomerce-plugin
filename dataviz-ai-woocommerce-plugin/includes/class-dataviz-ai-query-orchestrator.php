@@ -104,7 +104,7 @@ class Dataviz_AI_Query_Orchestrator {
 				$pipeline_result['raw_intent'] ?? null
 			);
 			$this->stream_handler->send_error(
-				__( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-woocommerce' )
+				__( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-for-woocommerce' )
 			);
 			return;
 		}
@@ -244,7 +244,7 @@ class Dataviz_AI_Query_Orchestrator {
 						'provider' => 'system',
 					);
 				}
-				return array( 'answer' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-woocommerce' ), 'provider' => 'system' );
+				return array( 'answer' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-for-woocommerce' ), 'provider' => 'system' );
 			}
 		}
 
@@ -331,7 +331,7 @@ class Dataviz_AI_Query_Orchestrator {
 
 		$answer = $response['choices'][0]['message']['content'] ?? '';
 		if ( $answer === '' ) {
-			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-woocommerce' ) );
+			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$interp = Dataviz_AI_Intent_Query_Summary::from_intent( $validated_intent );
@@ -425,7 +425,7 @@ class Dataviz_AI_Query_Orchestrator {
 
 		$answer = $response['choices'][0]['message']['content'] ?? '';
 		if ( $answer === '' ) {
-			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-woocommerce' ) );
+			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$pre = Dataviz_AI_Intent_Query_Summary::conversational_preamble();
@@ -478,7 +478,7 @@ class Dataviz_AI_Query_Orchestrator {
 			return;
 		}
 
-		$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'dataviz-ai-woocommerce' );
+		$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'dataviz-ai-for-woocommerce' );
 		$pre    = Dataviz_AI_Intent_Query_Summary::custom_backend_preamble();
 		$full   = ( $pre !== '' ? $pre . "\n\n" : '' ) . (string) $answer;
 		$mid    = $this->chat_history->save_message( 'ai', $full, $this->session_id, array( 'provider' => 'custom_backend', 'streaming' => true ) );
@@ -656,18 +656,18 @@ class Dataviz_AI_Query_Orchestrator {
 		set_transient( $desc_key, $description, HOUR_IN_SECONDS );
 
 		if ( $low_confidence ) {
-			$message = __( 'I am not confident I understood your question, so I did not run a WooCommerce data query. Rephrasing often helps.', 'dataviz-ai-woocommerce' );
+			$message = __( 'I am not confident I understood your question, so I did not run a WooCommerce data query. Rephrasing often helps.', 'dataviz-ai-for-woocommerce' );
 		} else {
-			$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-woocommerce' );
+			$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-for-woocommerce' );
 		}
-		$prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-woocommerce' );
+		$prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-for-woocommerce' );
 
 		$answer = $message;
 
 		$suggestions = Dataviz_AI_Question_Suggestions::get_lines( $intent_snapshot );
 		$examples    = Dataviz_AI_Question_Suggestions::format_for_chat( $suggestions );
 		if ( $examples !== '' ) {
-			$answer .= "\n\n" . __( 'Examples you can try:', 'dataviz-ai-woocommerce' ) . "\n" . $examples;
+			$answer .= "\n\n" . __( 'Examples you can try:', 'dataviz-ai-for-woocommerce' ) . "\n" . $examples;
 		}
 
 		$answer .= "\n\n" . $prompt;

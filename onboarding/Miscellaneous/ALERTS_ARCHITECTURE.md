@@ -49,7 +49,7 @@ function displayAlerts(alerts) {
         if (Notification.permission === 'granted') {
             new Notification(alert.title, {
                 body: alert.message,
-                icon: '/wp-content/plugins/dataviz-ai-woocommerce/admin/images/icon.png'
+                icon: '/wp-content/plugins/dataviz-ai-for-woocommerce/admin/images/icon.png'
             });
         }
         

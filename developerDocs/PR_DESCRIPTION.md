@@ -41,7 +41,7 @@ This PR introduces two key improvements to the Dataviz AI WooCommerce plugin:
 ## Technical Details
 
 ### API Settings Page
-- **Route**: `admin.php?page=dataviz-ai-woocommerce-settings`
+- **Route**: `admin.php?page=dataviz-ai-for-woocommerce-settings`
 - **Capability**: `manage_woocommerce`
 - **Settings Group**: `dataviz_ai_wc` (unchanged)
 - **Fields**: API Base URL and API Key

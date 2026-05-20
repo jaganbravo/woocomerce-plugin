@@ -299,7 +299,7 @@ require_once 'wp-load.php';
 echo "Testing Dataviz AI Plugin...\n";
 
 // Test 1: Plugin active
-if (is_plugin_active('dataviz-ai-woocommerce-plugin/dataviz-ai-woocommerce.php')) {
+if (is_plugin_active('dataviz-ai-for-woocommerce/dataviz-ai-woocommerce.php')) {
     echo "✅ Plugin is active\n";
 } else {
     echo "❌ Plugin is not active\n";

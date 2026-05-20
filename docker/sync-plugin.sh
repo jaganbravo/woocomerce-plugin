@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_SOURCE="$SCRIPT_DIR/../dataviz-ai-woocommerce-plugin"
-PLUGIN_DEST="$SCRIPT_DIR/wordpress/wp-content/plugins/dataviz-ai-woocommerce-plugin"
+PLUGIN_DEST="$SCRIPT_DIR/wordpress/wp-content/plugins/dataviz-ai-for-woocommerce"
 
 echo "🔄 Syncing plugin files to Docker..."
 echo "   Source: $PLUGIN_SOURCE"

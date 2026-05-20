@@ -106,13 +106,13 @@ class Dataviz_AI_Digest_Email_Template {
 		$avg        = wc_price( $d['avg_order_value'] ?? 0 );
 		$customers  = (int) ( $d['unique_customers'] ?? 0 );
 		?>
-		<?php self::section_heading( __( 'Revenue Summary', 'dataviz-ai-woocommerce' ) ); ?>
+		<?php self::section_heading( __( 'Revenue Summary', 'dataviz-ai-for-woocommerce' ) ); ?>
 		<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
 		<tr>
-			<?php self::metric_card( __( 'Revenue', 'dataviz-ai-woocommerce' ), $revenue, '#10b981' ); ?>
-			<?php self::metric_card( __( 'Orders', 'dataviz-ai-woocommerce' ), $orders, '#6366f1' ); ?>
-			<?php self::metric_card( __( 'Avg Order', 'dataviz-ai-woocommerce' ), $avg, '#f59e0b' ); ?>
-			<?php self::metric_card( __( 'Customers', 'dataviz-ai-woocommerce' ), $customers, '#ec4899' ); ?>
+			<?php self::metric_card( __( 'Revenue', 'dataviz-ai-for-woocommerce' ), $revenue, '#10b981' ); ?>
+			<?php self::metric_card( __( 'Orders', 'dataviz-ai-for-woocommerce' ), $orders, '#6366f1' ); ?>
+			<?php self::metric_card( __( 'Avg Order', 'dataviz-ai-for-woocommerce' ), $avg, '#f59e0b' ); ?>
+			<?php self::metric_card( __( 'Customers', 'dataviz-ai-for-woocommerce' ), $customers, '#ec4899' ); ?>
 		</tr>
 		</table>
 		<?php
@@ -120,12 +120,12 @@ class Dataviz_AI_Digest_Email_Template {
 
 	private static function render_order_breakdown( array $rows ) {
 		?>
-		<?php self::section_heading( __( 'Order Status Breakdown', 'dataviz-ai-woocommerce' ) ); ?>
+		<?php self::section_heading( __( 'Order Status Breakdown', 'dataviz-ai-for-woocommerce' ) ); ?>
 		<table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="margin-bottom:24px;border:1px solid #e5e7eb;border-radius:6px;border-collapse:collapse;">
 		<tr style="background:#f9fafb;">
-			<th align="left" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Status', 'dataviz-ai-woocommerce' ); ?></th>
-			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Count', 'dataviz-ai-woocommerce' ); ?></th>
-			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Revenue', 'dataviz-ai-woocommerce' ); ?></th>
+			<th align="left" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Status', 'dataviz-ai-for-woocommerce' ); ?></th>
+			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Count', 'dataviz-ai-for-woocommerce' ); ?></th>
+			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Revenue', 'dataviz-ai-for-woocommerce' ); ?></th>
 		</tr>
 		<?php foreach ( $rows as $row ) : ?>
 		<tr>
@@ -140,12 +140,12 @@ class Dataviz_AI_Digest_Email_Template {
 
 	private static function render_top_products( array $rows ) {
 		?>
-		<?php self::section_heading( __( 'Top Products', 'dataviz-ai-woocommerce' ) ); ?>
+		<?php self::section_heading( __( 'Top Products', 'dataviz-ai-for-woocommerce' ) ); ?>
 		<table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="margin-bottom:24px;border:1px solid #e5e7eb;border-radius:6px;border-collapse:collapse;">
 		<tr style="background:#f9fafb;">
-			<th align="left" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Product', 'dataviz-ai-woocommerce' ); ?></th>
-			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Sold', 'dataviz-ai-woocommerce' ); ?></th>
-			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Revenue', 'dataviz-ai-woocommerce' ); ?></th>
+			<th align="left" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Product', 'dataviz-ai-for-woocommerce' ); ?></th>
+			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Sold', 'dataviz-ai-for-woocommerce' ); ?></th>
+			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Revenue', 'dataviz-ai-for-woocommerce' ); ?></th>
 		</tr>
 		<?php foreach ( $rows as $row ) : ?>
 		<tr>
@@ -164,12 +164,12 @@ class Dataviz_AI_Digest_Email_Template {
 			return;
 		}
 		?>
-		<?php self::section_heading( __( 'Top Customers', 'dataviz-ai-woocommerce' ) ); ?>
+		<?php self::section_heading( __( 'Top Customers', 'dataviz-ai-for-woocommerce' ) ); ?>
 		<table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="margin-bottom:24px;border:1px solid #e5e7eb;border-radius:6px;border-collapse:collapse;">
 		<tr style="background:#f9fafb;">
-			<th align="left" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Customer', 'dataviz-ai-woocommerce' ); ?></th>
-			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Orders', 'dataviz-ai-woocommerce' ); ?></th>
-			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Spent', 'dataviz-ai-woocommerce' ); ?></th>
+			<th align="left" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Customer', 'dataviz-ai-for-woocommerce' ); ?></th>
+			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Orders', 'dataviz-ai-for-woocommerce' ); ?></th>
+			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Spent', 'dataviz-ai-for-woocommerce' ); ?></th>
 		</tr>
 		<?php foreach ( $customers as $c ) : ?>
 		<tr>
@@ -187,11 +187,11 @@ class Dataviz_AI_Digest_Email_Template {
 			return;
 		}
 		?>
-		<?php self::section_heading( __( 'Low-Stock Alerts', 'dataviz-ai-woocommerce' ) ); ?>
+		<?php self::section_heading( __( 'Low-Stock Alerts', 'dataviz-ai-for-woocommerce' ) ); ?>
 		<table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="margin-bottom:24px;border:1px solid #e5e7eb;border-radius:6px;border-collapse:collapse;">
 		<tr style="background:#f9fafb;">
-			<th align="left" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Product', 'dataviz-ai-woocommerce' ); ?></th>
-			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Stock Qty', 'dataviz-ai-woocommerce' ); ?></th>
+			<th align="left" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Product', 'dataviz-ai-for-woocommerce' ); ?></th>
+			<th align="right" style="padding:8px 12px;font-size:12px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;"><?php esc_html_e( 'Stock Qty', 'dataviz-ai-for-woocommerce' ); ?></th>
 		</tr>
 		<?php foreach ( $products as $p ) : ?>
 		<tr>
@@ -207,11 +207,11 @@ class Dataviz_AI_Digest_Email_Template {
 		$count  = (int) ( $d['refund_count'] ?? 0 );
 		$amount = wc_price( $d['total_refunded'] ?? 0 );
 		?>
-		<?php self::section_heading( __( 'Refund Summary', 'dataviz-ai-woocommerce' ) ); ?>
+		<?php self::section_heading( __( 'Refund Summary', 'dataviz-ai-for-woocommerce' ) ); ?>
 		<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
 		<tr>
-			<?php self::metric_card( __( 'Refunds', 'dataviz-ai-woocommerce' ), $count, '#ef4444' ); ?>
-			<?php self::metric_card( __( 'Amount', 'dataviz-ai-woocommerce' ), $amount, '#ef4444' ); ?>
+			<?php self::metric_card( __( 'Refunds', 'dataviz-ai-for-woocommerce' ), $count, '#ef4444' ); ?>
+			<?php self::metric_card( __( 'Amount', 'dataviz-ai-for-woocommerce' ), $amount, '#ef4444' ); ?>
 			<td width="25%"></td>
 			<td width="25%"></td>
 		</tr>

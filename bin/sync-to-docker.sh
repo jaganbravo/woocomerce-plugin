@@ -4,7 +4,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="${ROOT}/dataviz-ai-woocommerce-plugin"
-DEST="${ROOT}/docker/wordpress/wp-content/plugins/dataviz-ai-woocommerce-plugin"
+DEST="${ROOT}/docker/wordpress/wp-content/plugins/dataviz-ai-for-woocommerce"
 
 if [[ ! -d "${SRC}" ]]; then
 	echo "Missing: ${SRC}" >&2

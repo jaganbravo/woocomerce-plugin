@@ -129,7 +129,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $base_url ) || empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_config',
-				__( 'Please configure the Dataviz AI API URL and key before making requests.', 'dataviz-ai-woocommerce' )
+				__( 'Please configure the Dataviz AI API URL and key before making requests.', 'dataviz-ai-for-woocommerce' )
 			);
 		}
 
@@ -158,7 +158,7 @@ class Dataviz_AI_API_Client {
 				'dataviz_ai_api_error',
 				sprintf(
 					/* translators: %d status code from API. */
-					__( 'Dataviz AI API responded with status %d.', 'dataviz-ai-woocommerce' ),
+					__( 'Dataviz AI API responded with status %d.', 'dataviz-ai-for-woocommerce' ),
 					(int) $status_code
 				),
 				$data
@@ -182,7 +182,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_api_key',
-				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-woocommerce' )
+				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-for-woocommerce' )
 			);
 		}
 
@@ -224,9 +224,7 @@ class Dataviz_AI_API_Client {
 		// Check for JSON decode errors
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
 			$error_msg = 'Failed to parse OpenAI API response: ' . json_last_error_msg();
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] %s. Raw body: %s', $error_msg, wp_remote_retrieve_body( $response ) ) );
-			}
+			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] %s. Raw body: %s', $error_msg, wp_remote_retrieve_body( $response ) ) );
 			return new WP_Error(
 				'dataviz_ai_json_error',
 				$error_msg,
@@ -260,9 +258,7 @@ class Dataviz_AI_API_Client {
 		// Validate response has expected structure
 		if ( ! isset( $body['choices'] ) || ! is_array( $body['choices'] ) ) {
 			$error_msg = 'Invalid response structure from OpenAI API: missing choices array';
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] %s. Response: %s', $error_msg, wp_json_encode( $body ) ) );
-			}
+			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] %s. Response: %s', $error_msg, wp_json_encode( $body ) ) );
 			return new WP_Error(
 				'dataviz_ai_invalid_response',
 				$error_msg,
@@ -344,7 +340,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_api_key',
-				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-woocommerce' )
+				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-for-woocommerce' )
 			);
 		}
 
@@ -419,7 +415,7 @@ class Dataviz_AI_API_Client {
 				'dataviz_ai_http_error',
 				sprintf(
 					/* translators: %s: HTTP error message */
-					__( 'Request error: %1$s', 'dataviz-ai-woocommerce' ),
+					__( 'Request error: %1$s', 'dataviz-ai-for-woocommerce' ),
 					$response->get_error_message()
 				)
 			);
@@ -431,7 +427,7 @@ class Dataviz_AI_API_Client {
 			$error_buffer = $stream_state['error_buffer'];
 			$has_error    = $stream_state['has_error'];
 			// Try to parse error response
-			$error_message = __( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' );
+			$error_message = __( 'The OpenAI API returned an error.', 'dataviz-ai-for-woocommerce' );
 			$error_details = array( 'status' => $status_code );
 			
 			if ( ! empty( $error_buffer ) ) {
@@ -456,9 +452,7 @@ class Dataviz_AI_API_Client {
 			}
 			
 			// Log detailed error for debugging
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] OpenAI Streaming API Error (HTTP %d): %s', $status_code, wp_json_encode( $error_details, JSON_PRETTY_PRINT ) ) );
-			}
+			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] OpenAI Streaming API Error (HTTP %d): %s', $status_code, wp_json_encode( $error_details, JSON_PRETTY_PRINT ) ) );
 			
 			return new WP_Error(
 				'dataviz_ai_openai_error',

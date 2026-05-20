@@ -12,9 +12,9 @@ Prototype plugin scaffold that demonstrates how the Dataviz AI architecture fits
 
 ## Getting Started
 
-1. Copy the `dataviz-ai-woocommerce-plugin` folder into `wp-content/plugins/`.
+1. **Release / WordPress.org:** unzip so `wp-content/plugins/dataviz-ai-for-woocommerce/` contains the plugin (main file `dataviz-ai-woocommerce.php`). **From this repo:** copy `dataviz-ai-woocommerce-plugin/` into `wp-content/plugins/` and sync/rename to match your environment, or run `bash bin/sync-to-docker.sh` for Docker.
 2. Activate the **Dataviz AI for WooCommerce** plugin in the WordPress admin.
-3. Open `Dataviz AI` in the WordPress sidebar.
+3. Open **Dataviz AI** in the WordPress sidebar (admin URL uses `page=dataviz-ai-for-woocommerce`).
 4. Enter your backend API base URL and key, then save.
 5. Use the quick analysis form or embed the `[dataviz_ai_chat]` shortcode on any page.
 

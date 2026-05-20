@@ -14,6 +14,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Uninstall drops custom plugin tables.
 // Drop custom tables.
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}dataviz_ai_chat_history" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}dataviz_ai_feature_requests" );
@@ -41,3 +42,4 @@ $wpdb->query(
 // Clear scheduled events.
 wp_clear_scheduled_hook( 'dataviz_ai_cleanup_chat_history' );
 wp_clear_scheduled_hook( 'dataviz_ai_process_email_digests' );
+// phpcs:enable

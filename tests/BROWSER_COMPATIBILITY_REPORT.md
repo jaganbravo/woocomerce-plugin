@@ -44,7 +44,7 @@ This is a **smoke test** only: each engine opened the URL, waited for `domconten
 
 ### Dataviz admin (unauthenticated)
 
-**URL:** `http://127.0.0.1:8080/wp-admin/admin.php?page=dataviz-ai-woocommerce`
+**URL:** `http://127.0.0.1:8080/wp-admin/admin.php?page=dataviz-ai-for-woocommerce`
 
 | Engine | HTTP | Final URL | Title |
 |--------|------|-----------|--------|
@@ -78,7 +78,7 @@ const { chromium, firefox, webkit } = require('playwright');
 const targets = [
   { name: 'Home', url: 'http://127.0.0.1:8080/' },
   { name: 'Login page', url: 'http://127.0.0.1:8080/wp-login.php' },
-  { name: 'Dataviz admin (unauthenticated)', url: 'http://127.0.0.1:8080/wp-admin/admin.php?page=dataviz-ai-woocommerce' },
+  { name: 'Dataviz admin (unauthenticated)', url: 'http://127.0.0.1:8080/wp-admin/admin.php?page=dataviz-ai-for-woocommerce' },
 ];
 const browsers = [['Chromium', chromium], ['Firefox', firefox], ['WebKit', webkit]];
 (async () => {
@@ -99,4 +99,4 @@ Point `PLUGIN_URL` / URLs at your staging host when Docker is not running.
 
 ## Related project tests
 
-The AI chat agent (`npm test` in `tests/`) uses Playwright **Chromium** against `PLUGIN_URL` (default `http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-woocommerce`). See `tests/ai-chat-test-agent.js` and `tests/package.json`.
+The AI chat agent (`npm test` in `tests/`) uses Playwright **Chromium** against `PLUGIN_URL` (default `http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-for-woocommerce`). See `tests/ai-chat-test-agent.js` and `tests/package.json`.

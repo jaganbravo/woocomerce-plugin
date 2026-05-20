@@ -119,9 +119,7 @@ class Dataviz_AI_Intent_Validator {
 				// Silently ignore unknown presets instead of rejecting the entire intent.
 				// The PHP-side normalize_relative_date_ranges_from_question() will
 				// deterministically resolve dates from the original question text.
-				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-					error_log( sprintf( '[Dataviz AI] Ignoring unknown date preset "%s" — PHP normalization will handle dates.', $preset ) );
-				}
+				dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Ignoring unknown date preset "%s" — PHP normalization will handle dates.', $preset ) );
 			} else {
 				$from = $range['from'];
 				$to   = $range['to'];
