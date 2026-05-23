@@ -1,7 +1,7 @@
 === Dataviz AI for WooCommerce ===
 Tags: woocommerce, analytics, artificial intelligence, chat, reports
 Requires at least: 6.0
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 8.3
 Stable tag: 1.0.0
 License: GPLv2 or later
@@ -31,7 +31,7 @@ Ask questions about your WooCommerce store in plain English. Get answers, charts
 
 * WordPress 6.0 or newer
 * WooCommerce active
-* PHP 8.0 or newer
+* PHP 8.3 or newer
 * An OpenAI-compatible API key, configured in one of the ways listed under **Installation** and **Where do I set the API key?** (see `docs/API-KEY-MANAGEMENT.md` for the full order of precedence).
 
 = Privacy & data =

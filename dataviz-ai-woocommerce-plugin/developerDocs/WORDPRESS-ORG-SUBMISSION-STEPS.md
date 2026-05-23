@@ -36,7 +36,7 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 - [x] Match **API key instructions** in `readme.txt` to real behavior (env vars, `config.php`, `wp-config.php` constants — **Settings/DB** documented only as *when a future build provides it*; see `docs/API-KEY-MANAGEMENT.md`).
 - [x] In **Privacy / data**, state clearly that questions and **aggregates or limited result sets** may be sent to the AI provider; link to the provider’s privacy policy if required.
-- [x] Document **external scripts**: Chart.js loaded from CDN (URL, version) — or bundle Chart.js in the plugin and update the readme to say “bundled”.
+- [x] Document **external scripts**: Chart.js **bundled** in `admin/js/vendor/chart.umd.min.js` (4.4.4); documented in `readme.txt` (no CDN).
 
 ---
 
@@ -49,7 +49,9 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 ## Phase 5 — Local validation
 
-- [ ] Install the **[Plugin Check](https://wordpress.org/plugins/plugin-check/)** plugin on a staging site with your build; fix all **errors** and review **warnings**.
+- [x] Install **[Plugin Check](https://wordpress.org/plugins/plugin-check/)** on staging (e.g. Docker) and fix **errors** (0 errors in recent runs).
+- [ ] **Re-run Plugin Check** after latest sync and confirm **0 warnings** (privacy-export SQL fixes applied; confirm in UI).
+- [x] **Release ZIP** builds: `bash bin/build-release.sh` → `dist/dataviz-ai-for-woocommerce-1.0.0.zip` (folder slug **`dataviz-ai-for-woocommerce`**, matches **Text Domain**).
 
 **Release ZIP (local Docker or any test site):** from the plugin directory, run:
 
@@ -64,8 +66,10 @@ The file appears under `dist/` (e.g. `dist/dataviz-ai-for-woocommerce-1.0.0.zip`
 - **[WordPress Playground](https://developer.wordpress.org/playground/)** — browser-based WP (limited for WooCommerce + real ZIP workflow, but handy for quick checks).
 
 Always verify WooCommerce + your plugin on whichever environment matches your needs (Docker is enough for Plugin Check if WooCommerce is installed there).
-- [ ] Run **PHP** on your minimum supported version (readme says PHP 8.0).
+
+- [ ] Run **PHP 8.3** smoke test (matches `Requires PHP:` in plugin header and `readme.txt`).
 - [ ] Activate on a clean site: **WordPress + WooCommerce only**; smoke-test chat, digests preview, uninstall (tables/options cleanup as intended).
+- [ ] Optional: install from **`dist/*.zip`** on a fresh site (not only `bin/sync-to-docker.sh`) to match what reviewers install.
 
 ---
 

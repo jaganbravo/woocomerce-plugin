@@ -18,7 +18,7 @@ Monorepo for **Dataviz AI for WooCommerce** — conversational AI analytics for 
 ## Requirements
 
 - WordPress 6.0+
-- PHP 8.0+
+- PHP 8.3+
 - WooCommerce 6.0+ (tested with WC up to 8.5 in plugin header)
 
 ## License
