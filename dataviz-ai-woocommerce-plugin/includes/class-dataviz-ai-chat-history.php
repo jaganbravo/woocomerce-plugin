@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin table; identifiers from $wpdb->prefix.
+
 /**
  * Manages AI chat history storage and retrieval.
  */
@@ -153,7 +155,7 @@ class Dataviz_AI_Chat_History {
 		}
 
 		if ( $wpdb->last_error && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( '[Dataviz AI] add_feedback_columns_if_missing: ' . $wpdb->last_error );
+			dataviz_ai_wc_debug_log( '[Dataviz AI] add_feedback_columns_if_missing: ' . $wpdb->last_error );
 		}
 	}
 
@@ -184,7 +186,7 @@ class Dataviz_AI_Chat_History {
 		
 		// Debug: Log if user_id is 0 (not logged in)
 		if ( $user_id === 0 && defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( '[Dataviz AI] Warning: Attempting to save message with user_id = 0 (user not logged in)' );
+			dataviz_ai_wc_debug_log( '[Dataviz AI] Warning: Attempting to save message with user_id = 0 (user not logged in)' );
 		}
 
 		// Generate session ID if not provided.
@@ -210,7 +212,7 @@ class Dataviz_AI_Chat_History {
 		if ( $result ) {
 			// Log successful save if debug is enabled
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf(
+				dataviz_ai_wc_debug_log( sprintf(
 					'[Dataviz AI] Message saved - ID: %d, Type: %s, User: %d, Session: %s',
 					$wpdb->insert_id,
 					$message_type,
@@ -223,7 +225,7 @@ class Dataviz_AI_Chat_History {
 
 		// Log error if save failed
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( sprintf(
+			dataviz_ai_wc_debug_log( sprintf(
 				'[Dataviz AI] Failed to save message - Error: %s, User: %d',
 				$wpdb->last_error ?: 'Unknown error',
 				$user_id
@@ -256,22 +258,22 @@ class Dataviz_AI_Chat_History {
 
 		$message_id = (int) $message_id;
 		if ( $message_id < 1 ) {
-			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid message.', 'dataviz-ai-woocommerce' ) );
+			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid message.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$vote = strtolower( (string) $vote );
 		if ( ! in_array( $vote, array( 'up', 'down' ), true ) ) {
-			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid feedback vote.', 'dataviz-ai-woocommerce' ) );
+			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid feedback vote.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$user_id = get_current_user_id();
 		if ( $user_id < 1 ) {
-			return new WP_Error( 'dataviz_ai_feedback_auth', __( 'You must be logged in to send feedback.', 'dataviz-ai-woocommerce' ) );
+			return new WP_Error( 'dataviz_ai_feedback_auth', __( 'You must be logged in to send feedback.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$reason = is_string( $reason ) ? strtolower( trim( $reason ) ) : '';
 		if ( $reason !== '' && ! in_array( $reason, self::get_allowed_feedback_reasons(), true ) ) {
-			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid feedback reason.', 'dataviz-ai-woocommerce' ) );
+			return new WP_Error( 'dataviz_ai_feedback_invalid', __( 'Invalid feedback reason.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$note_clean = '';
@@ -312,12 +314,12 @@ class Dataviz_AI_Chat_History {
 
 		if ( false === $updated ) {
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG && $wpdb->last_error ) {
-				error_log( '[Dataviz AI] update_feedback SQL error: ' . $wpdb->last_error );
+				dataviz_ai_wc_debug_log( '[Dataviz AI] update_feedback SQL error: ' . $wpdb->last_error );
 			}
-			return new WP_Error( 'dataviz_ai_feedback_db', __( 'Could not save feedback.', 'dataviz-ai-woocommerce' ) );
+			return new WP_Error( 'dataviz_ai_feedback_db', __( 'Could not save feedback.', 'dataviz-ai-for-woocommerce' ) );
 		}
 		if ( 0 === $updated ) {
-			return new WP_Error( 'dataviz_ai_feedback_not_found', __( 'Message not found or not eligible for feedback.', 'dataviz-ai-woocommerce' ) );
+			return new WP_Error( 'dataviz_ai_feedback_not_found', __( 'Message not found or not eligible for feedback.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		return true;
@@ -410,23 +412,23 @@ class Dataviz_AI_Chat_History {
 		if ( ! is_email( $to ) ) {
 			return new WP_Error(
 				'dataviz_cf_email_no_vendor',
-				__( 'Set a vendor support email under Dataviz AI → Support & Requests first.', 'dataviz-ai-woocommerce' )
+				__( 'Set a vendor support email under Dataviz AI → Support & Requests first.', 'dataviz-ai-for-woocommerce' )
 			);
 		}
 
 		$row = $this->get_feedback_entry_by_id( $message_id );
 		if ( ! $row ) {
-			return new WP_Error( 'dataviz_cf_not_found', __( 'Message not found.', 'dataviz-ai-woocommerce' ) );
+			return new WP_Error( 'dataviz_cf_not_found', __( 'Message not found.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$vote = $row['feedback_vote'] ?? '';
 		if ( ! in_array( $vote, array( 'up', 'down' ), true ) ) {
-			return new WP_Error( 'dataviz_cf_no_feedback', __( 'This message has no feedback to send.', 'dataviz-ai-woocommerce' ) );
+			return new WP_Error( 'dataviz_cf_no_feedback', __( 'This message has no feedback to send.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		/* translators: 1: site name, 2: message row ID */
-		$subject = sprintf( __( '[%1$s] Dataviz AI chat feedback (message #%2$d)', 'dataviz-ai-woocommerce' ), $site_name, absint( $message_id ) );
+		$subject = sprintf( __( '[%1$s] Dataviz AI chat feedback (message #%2$d)', 'dataviz-ai-for-woocommerce' ), $site_name, absint( $message_id ) );
 
 		$body = $this->build_feedback_vendor_email_body( $row );
 
@@ -440,7 +442,7 @@ class Dataviz_AI_Chat_History {
 		if ( ! $sent ) {
 			return new WP_Error(
 				'dataviz_cf_email_failed',
-				__( 'WordPress could not send email. Check your site mail configuration.', 'dataviz-ai-woocommerce' )
+				__( 'WordPress could not send email. Check your site mail configuration.', 'dataviz-ai-for-woocommerce' )
 			);
 		}
 
@@ -455,30 +457,30 @@ class Dataviz_AI_Chat_History {
 	 */
 	private function build_feedback_vendor_email_body( array $row ) {
 		$lines   = array();
-		$lines[] = __( 'A store administrator forwarded this Dataviz AI admin chat thumbs feedback.', 'dataviz-ai-woocommerce' );
+		$lines[] = __( 'A store administrator forwarded this Dataviz AI admin chat thumbs feedback.', 'dataviz-ai-for-woocommerce' );
 		$lines[] = '';
-		$lines[] = __( 'Site', 'dataviz-ai-woocommerce' ) . ': ' . home_url();
-		$lines[] = __( 'Message ID', 'dataviz-ai-woocommerce' ) . ': #' . absint( $row['id'] ?? 0 );
-		$lines[] = __( 'Session', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['session_id'] ?? '' );
+		$lines[] = __( 'Site', 'dataviz-ai-for-woocommerce' ) . ': ' . home_url();
+		$lines[] = __( 'Message ID', 'dataviz-ai-for-woocommerce' ) . ': #' . absint( $row['id'] ?? 0 );
+		$lines[] = __( 'Session', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['session_id'] ?? '' );
 		$uid     = absint( $row['user_id'] ?? 0 );
-		$lines[] = __( 'User ID', 'dataviz-ai-woocommerce' ) . ': ' . $uid;
+		$lines[] = __( 'User ID', 'dataviz-ai-for-woocommerce' ) . ': ' . $uid;
 		$user    = $uid > 0 ? get_userdata( $uid ) : false;
 		if ( $user ) {
-			$lines[] = __( 'User', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $user->display_name );
-			$lines[] = __( 'User email', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_email( $user->user_email );
+			$lines[] = __( 'User', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $user->display_name );
+			$lines[] = __( 'User email', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_email( $user->user_email );
 		}
 		$lines[] = '';
-		$lines[] = __( 'Vote', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_vote'] ?? '' );
+		$lines[] = __( 'Vote', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_vote'] ?? '' );
 		if ( ! empty( $row['feedback_reason'] ) ) {
-			$lines[] = __( 'Reason', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_reason'] ?? '' );
+			$lines[] = __( 'Reason', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_reason'] ?? '' );
 		}
 		if ( ! empty( $row['feedback_note'] ) ) {
-			$lines[] = __( 'Note', 'dataviz-ai-woocommerce' ) . ': ' . wp_strip_all_tags( (string) $row['feedback_note'] );
+			$lines[] = __( 'Note', 'dataviz-ai-for-woocommerce' ) . ': ' . wp_strip_all_tags( (string) $row['feedback_note'] );
 		}
-		$lines[] = __( 'Feedback time', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_at'] ?? '' );
-		$lines[] = __( 'Message time', 'dataviz-ai-woocommerce' ) . ': ' . sanitize_text_field( $row['created_at'] ?? '' );
+		$lines[] = __( 'Feedback time', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['feedback_at'] ?? '' );
+		$lines[] = __( 'Message time', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['created_at'] ?? '' );
 		$lines[] = '';
-		$lines[] = __( 'Assistant reply', 'dataviz-ai-woocommerce' ) . ':';
+		$lines[] = __( 'Assistant reply', 'dataviz-ai-for-woocommerce' ) . ':';
 		$content = wp_strip_all_tags( (string) ( $row['message_content'] ?? '' ) );
 		if ( strlen( $content ) > 8000 ) {
 			$content = substr( $content, 0, 8000 ) . '…';
@@ -518,7 +520,7 @@ class Dataviz_AI_Chat_History {
 
 		$table_name = $this->get_table_name();
 		$user_id    = get_current_user_id();
-		$cutoff_date = date( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
+		$cutoff_date = wp_date( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
 
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
@@ -558,7 +560,7 @@ class Dataviz_AI_Chat_History {
 
 		$table_name = $this->get_table_name();
 		$user_id    = get_current_user_id();
-		$cutoff_date = date( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
+		$cutoff_date = wp_date( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
 
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
@@ -623,7 +625,7 @@ class Dataviz_AI_Chat_History {
 		global $wpdb;
 
 		$table_name = $this->get_table_name();
-		$cutoff_date = date( 'Y-m-d H:i:s', strtotime( "-{$this->retention_days} days" ) );
+		$cutoff_date = wp_date( 'Y-m-d H:i:s', strtotime( "-{$this->retention_days} days" ) );
 
 		$deleted = $wpdb->query(
 			$wpdb->prepare(
@@ -754,4 +756,6 @@ class Dataviz_AI_Chat_History {
 		return $this->retention_days;
 	}
 }
+
+// phpcs:enable
 

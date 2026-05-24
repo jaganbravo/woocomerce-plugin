@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from $wpdb->prefix.
+
 class Dataviz_AI_Email_Digests {
 
 	const FREQ_DAILY   = 'daily';
@@ -79,9 +81,9 @@ class Dataviz_AI_Email_Digests {
 	 */
 	public static function frequencies() {
 		return array(
-			self::FREQ_DAILY   => __( 'Daily', 'dataviz-ai-woocommerce' ),
-			self::FREQ_WEEKLY  => __( 'Weekly', 'dataviz-ai-woocommerce' ),
-			self::FREQ_MONTHLY => __( 'Monthly', 'dataviz-ai-woocommerce' ),
+			self::FREQ_DAILY   => __( 'Daily', 'dataviz-ai-for-woocommerce' ),
+			self::FREQ_WEEKLY  => __( 'Weekly', 'dataviz-ai-for-woocommerce' ),
+			self::FREQ_MONTHLY => __( 'Monthly', 'dataviz-ai-for-woocommerce' ),
 		);
 	}
 
@@ -92,12 +94,12 @@ class Dataviz_AI_Email_Digests {
 	 */
 	public static function available_sections() {
 		return array(
-			'revenue_summary'  => __( 'Revenue Summary', 'dataviz-ai-woocommerce' ),
-			'order_breakdown'  => __( 'Order Status Breakdown', 'dataviz-ai-woocommerce' ),
-			'top_products'     => __( 'Top-Selling Products', 'dataviz-ai-woocommerce' ),
-			'low_stock'        => __( 'Low-Stock Alerts', 'dataviz-ai-woocommerce' ),
-			'top_customers'    => __( 'Top Customers', 'dataviz-ai-woocommerce' ),
-			'refund_summary'   => __( 'Refund Summary', 'dataviz-ai-woocommerce' ),
+			'revenue_summary'  => __( 'Revenue Summary', 'dataviz-ai-for-woocommerce' ),
+			'order_breakdown'  => __( 'Order Status Breakdown', 'dataviz-ai-for-woocommerce' ),
+			'top_products'     => __( 'Top-Selling Products', 'dataviz-ai-for-woocommerce' ),
+			'low_stock'        => __( 'Low-Stock Alerts', 'dataviz-ai-for-woocommerce' ),
+			'top_customers'    => __( 'Top Customers', 'dataviz-ai-for-woocommerce' ),
+			'refund_summary'   => __( 'Refund Summary', 'dataviz-ai-for-woocommerce' ),
 		);
 	}
 
@@ -113,7 +115,7 @@ class Dataviz_AI_Email_Digests {
 
 		$defaults = array(
 			'user_id'      => get_current_user_id(),
-			'digest_name'  => __( 'Weekly Sales Digest', 'dataviz-ai-woocommerce' ),
+			'digest_name'  => __( 'Weekly Sales Digest', 'dataviz-ai-for-woocommerce' ),
 			'frequency'    => self::FREQ_WEEKLY,
 			'day_of_week'  => 1,
 			'day_of_month' => 1,
@@ -306,7 +308,7 @@ class Dataviz_AI_Email_Digests {
 				$days_map = array( 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' );
 				$day_name = $days_map[ $day_of_week % 7 ];
 				$candidate = strtotime( "next {$day_name} " . sprintf( '%02d:00:00', $send_hour ), $now );
-				$today_is = (int) date( 'w', $now );
+				$today_is = (int) wp_date( 'w', $now );
 				if ( $today_is === ( $day_of_week % 7 ) ) {
 					$today_candidate = strtotime( sprintf( 'today %02d:00:00', $send_hour ), $now );
 					if ( $today_candidate > $now ) {
@@ -318,8 +320,8 @@ class Dataviz_AI_Email_Digests {
 			case self::FREQ_MONTHLY:
 			default:
 				$dom  = max( 1, min( 28, $day_of_month ) );
-				$year  = (int) date( 'Y', $now );
-				$month = (int) date( 'n', $now );
+				$year  = (int) wp_date( 'Y', $now );
+				$month = (int) wp_date( 'n', $now );
 				$candidate = mktime( $send_hour, 0, 0, $month, $dom, $year );
 				if ( $candidate <= $now ) {
 					$candidate = mktime( $send_hour, 0, 0, $month + 1, $dom, $year );
@@ -327,6 +329,8 @@ class Dataviz_AI_Email_Digests {
 				break;
 		}
 
-		return date( 'Y-m-d H:i:s', $candidate );
+		return wp_date( 'Y-m-d H:i:s', $candidate );
 	}
 }
+
+// phpcs:enable

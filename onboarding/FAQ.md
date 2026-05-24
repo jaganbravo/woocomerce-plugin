@@ -56,7 +56,7 @@
 ### How do I install the plugin?
 
 **Answer:** 
-1. Upload the `dataviz-ai-woocommerce-plugin` folder to `/wp-content/plugins/`
+1. From the release ZIP, upload the `dataviz-ai-for-woocommerce` folder to `/wp-content/plugins/` (this repository’s source tree is named `dataviz-ai-woocommerce-plugin/` for development.)
 2. Activate the plugin through the 'Plugins' menu in WordPress
 3. Ensure WooCommerce is installed and activated before activation
 4. Navigate to the **Dataviz AI** menu in your WordPress admin sidebar
@@ -289,7 +289,7 @@ Example: `[dataviz_ai_chat]`
 1. Generate a `.pot` file into the `languages/` directory using `wp i18n make-pot`
 2. Create translation files for your language
 3. Load the translations in your WordPress installation
-4. The plugin uses the text domain `dataviz-ai-woocommerce`
+4. The plugin uses the text domain `dataviz-ai-for-woocommerce`
 
 ### What database tables does the plugin create?
 

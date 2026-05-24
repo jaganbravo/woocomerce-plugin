@@ -82,7 +82,7 @@ define( 'DATAVIZ_AI_API_KEY', 'sk-...' );
 
 **Best for:** deployments where you want secrets **next to the plugin** without touching core WordPress files.
 
-1. In the **plugin** folder (same place as the main `dataviz-ai-woocommerce.php`), copy `config.php.example` → `config.php`.
+1. In the **plugin** folder (same place as the main `dataviz-ai-woocommerce.php` — typically `wp-content/plugins/dataviz-ai-for-woocommerce/` when installed from the release ZIP), copy `config.php.example` → `config.php`.
 2. Fill in:
    - `define( 'DATAVIZ_AI_API_KEY', 'sk-...' );`
    - optionally `DATAVIZ_AI_API_BASE_URL`

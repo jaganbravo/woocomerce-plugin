@@ -1,7 +1,7 @@
 === Dataviz AI for WooCommerce ===
-Tags: woocommerce, analytics, artificial intelligence, chat, reports, email
+Tags: woocommerce, analytics, artificial intelligence, chat, reports
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 7.0
 Requires PHP: 8.3
 Stable tag: 1.0.0
 License: GPLv2 or later
@@ -24,14 +24,14 @@ Ask questions about your WooCommerce store in plain English. Get answers, charts
 = Documentation =
 
 * **WordPress.org plugin page** — Shows this **readme** (Description, Installation, FAQ). Most users never need to open other files.
-* **After install** — Optional deep guides ship inside the plugin ZIP under the `docs/` folder (same path on your server: `wp-content/plugins/…/dataviz-ai-woocommerce-plugin/docs/`). For example, `API-KEY-MANAGEMENT.md` explains API key precedence, roles, and security in one place. Open with a text editor, hosting file manager, or SFTP. (GitHub or another public repo may also host the same files for easy reading in the browser.)
+* **After install** — Optional deep guides ship inside the plugin ZIP under the `docs/` folder (same path on your server: `wp-content/plugins/dataviz-ai-for-woocommerce/docs/`). For example, `API-KEY-MANAGEMENT.md` explains API key precedence, roles, and security in one place. Open with a text editor, hosting file manager, or SFTP. (GitHub or another public repo may also host the same files for easy reading in the browser.)
 * You do **not** need to read every `.md` file to use the plugin — start with **Installation** and **FAQ** below.
 
 = Requirements =
 
 * WordPress 6.0 or newer
 * WooCommerce active
-* PHP 8.0 or newer
+* PHP 8.3 or newer
 * An OpenAI-compatible API key, configured in one of the ways listed under **Installation** and **Where do I set the API key?** (see `docs/API-KEY-MANAGEMENT.md` for the full order of precedence).
 
 = Privacy & data =
@@ -42,11 +42,11 @@ Optional thumbs up/down feedback on admin chat assistant messages may be stored 
 
 = External scripts =
 
-* **Chart.js** (MIT License) is enqueued in the WordPress **admin** on the Dataviz AI chat screen to draw charts. It is loaded from the **jsDelivr** CDN: `https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js` (**Chart.js 4.4.4**). It is not loaded on the public storefront by default. Project site: https://www.chartjs.org/
+* **Chart.js** (MIT License) is bundled in the plugin (`admin/js/vendor/chart.umd.min.js`, **Chart.js 4.4.4**) and enqueued in WordPress **admin** on the Dataviz AI chat screen to draw charts. It is not loaded on the public storefront by default. Project site: https://www.chartjs.org/
 
 == Installation ==
 
-1. Upload the plugin files to `/wp-content/plugins/dataviz-ai-woocommerce-plugin/`, or install the ZIP via **Plugins → Add New → Upload Plugin**.
+1. Upload the plugin files to `/wp-content/plugins/dataviz-ai-for-woocommerce/`, or install the ZIP via **Plugins → Add New → Upload Plugin**.
 2. Activate the plugin through the **Plugins** menu in WordPress.
 3. Ensure **WooCommerce** is installed and active.
 4. **Configure your API key** — same precedence as the FAQ below (env → `DATAVIZ_AI_API_KEY` in `wp-config.php` / `config.php` → optional future Settings/DB). Details: `docs/API-KEY-MANAGEMENT.md`.

@@ -140,18 +140,14 @@ class Dataviz_AI_Tool_Executor {
 		try {
 			return $this->execute_tool( $function_name, $arguments );
 		} catch ( \Exception $e ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] Exception in tool %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
-			}
+			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Exception in tool %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
 			return array(
 				'error'      => true,
 				'error_type' => 'exception',
 				'message'    => 'An error occurred while executing the tool: ' . $e->getMessage(),
 			);
 		} catch ( \Error $e ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] Fatal error in tool %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
-			}
+			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Fatal error in tool %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
 			return array(
 				'error'      => true,
 				'error_type' => 'fatal_error',
@@ -209,13 +205,15 @@ class Dataviz_AI_Tool_Executor {
 				return $this->data_fetcher->get_customers( $limit );
 
 			default:
-				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-					error_log( sprintf( '[Dataviz AI] Unknown tool requested: %s', $function_name ) );
-				}
+				dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Unknown tool requested: %s', $function_name ) );
 				return array(
 					'error'           => true,
 					'error_type'      => 'unknown_tool',
-					'message'         => sprintf( __( 'The tool "%s" is not available.', 'dataviz-ai-woocommerce' ), esc_html( $function_name ) ),
+					'message'         => sprintf(
+						/* translators: %s: internal tool name requested by the AI */
+						__( 'The tool "%1$s" is not available.', 'dataviz-ai-for-woocommerce' ),
+						esc_html( $function_name )
+					),
 					'requested_tool'  => $function_name,
 					'available_tools' => array( 'get_woocommerce_data', 'get_order_statistics' ),
 				);
@@ -241,14 +239,14 @@ class Dataviz_AI_Tool_Executor {
 		$original_entity_type = $entity_type;
 
 		$supported_entities = array(
-			'orders'     => __( 'orders', 'dataviz-ai-woocommerce' ),
-			'products'   => __( 'products', 'dataviz-ai-woocommerce' ),
-			'customers'  => __( 'customers', 'dataviz-ai-woocommerce' ),
-			'categories' => __( 'categories', 'dataviz-ai-woocommerce' ),
-			'tags'       => __( 'tags', 'dataviz-ai-woocommerce' ),
-			'coupons'    => __( 'coupons', 'dataviz-ai-woocommerce' ),
-			'refunds'    => __( 'refunds', 'dataviz-ai-woocommerce' ),
-			'stock'      => __( 'stock levels / inventory', 'dataviz-ai-woocommerce' ),
+			'orders'     => __( 'orders', 'dataviz-ai-for-woocommerce' ),
+			'products'   => __( 'products', 'dataviz-ai-for-woocommerce' ),
+			'customers'  => __( 'customers', 'dataviz-ai-for-woocommerce' ),
+			'categories' => __( 'categories', 'dataviz-ai-for-woocommerce' ),
+			'tags'       => __( 'tags', 'dataviz-ai-for-woocommerce' ),
+			'coupons'    => __( 'coupons', 'dataviz-ai-for-woocommerce' ),
+			'refunds'    => __( 'refunds', 'dataviz-ai-for-woocommerce' ),
+			'stock'      => __( 'stock levels / inventory', 'dataviz-ai-for-woocommerce' ),
 		);
 
 		$entity_type_normalized = Dataviz_AI_Intent_Classifier::normalize_entity_type( $entity_type );
@@ -273,23 +271,27 @@ class Dataviz_AI_Tool_Executor {
 			case 'inventory':
 				return $this->handle_stock_query( $filters, 'inventory' );
 			default:
-				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-					error_log( sprintf( '[Dataviz AI] Unsupported entity type requested: %s', $entity_type ) );
-				}
+				dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Unsupported entity type requested: %s', $entity_type ) );
 				return array(
 					'error'              => true,
 					'error_type'         => 'unsupported_entity',
 					'message'            => sprintf(
-						__( 'The "%1$s" data type is not currently supported. Available data types are: %2$s.', 'dataviz-ai-woocommerce' ),
+						/* translators: 1: requested data type, 2: comma-separated list of supported types */
+						__( 'The "%1$s" data type is not currently supported. Available data types are: %2$s.', 'dataviz-ai-for-woocommerce' ),
 						esc_html( $entity_type ),
 						implode( ', ', $supported_entities )
 					),
 					'requested_entity'   => $entity_type,
 					'available_entities' => array_keys( $supported_entities ),
-					'suggestion'         => sprintf( __( 'You can ask about: %s', 'dataviz-ai-woocommerce' ), implode( ', ', $supported_entities ) ),
+					'suggestion'         => sprintf(
+						/* translators: %s: comma-separated list of supported data types */
+						__( 'You can ask about: %1$s', 'dataviz-ai-for-woocommerce' ),
+						implode( ', ', $supported_entities )
+					),
 					'can_submit_request' => true,
 					'submission_prompt'  => sprintf(
-						__( 'Would you like to request this feature? Just say "yes" and I\'ll submit a feature request for "%s" to the administrators.', 'dataviz-ai-woocommerce' ),
+						/* translators: %s: requested data type name */
+						__( 'Would you like to request this feature? Just say "yes" and I\'ll submit a feature request for "%1$s" to the administrators.', 'dataviz-ai-for-woocommerce' ),
 						esc_html( $entity_type )
 					),
 				);
@@ -444,13 +446,14 @@ class Dataviz_AI_Tool_Executor {
 		$user_id     = get_current_user_id();
 
 		if ( empty( $entity_type ) ) {
-			return array( 'error' => true, 'message' => __( 'Entity type is required to submit a feature request.', 'dataviz-ai-woocommerce' ) );
+			return array( 'error' => true, 'message' => __( 'Entity type is required to submit a feature request.', 'dataviz-ai-for-woocommerce' ) );
 		}
 
 		$feature_requests = new Dataviz_AI_Feature_Requests();
 
 		global $wpdb;
 		$table_name   = $wpdb->prefix . 'dataviz_ai_feature_requests';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema check for legacy feature_requests table.
 		$table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) === $table_name;
 		if ( ! $table_exists ) {
 			$feature_requests->create_table();
@@ -463,7 +466,8 @@ class Dataviz_AI_Tool_Executor {
 			return array(
 				'success'    => true,
 				'message'    => sprintf(
-					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d. The administrators have been notified.', 'dataviz-ai-woocommerce' ),
+					/* translators: 1: feature/data type name, 2: feature request database ID */
+					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d. The administrators have been notified.', 'dataviz-ai-for-woocommerce' ),
 					esc_html( $entity_type ),
 					$request_id
 				),
@@ -471,27 +475,38 @@ class Dataviz_AI_Tool_Executor {
 			);
 		}
 
-		return array( 'error' => true, 'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-woocommerce' ) );
+		return array( 'error' => true, 'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-for-woocommerce' ) );
 	}
 
 	protected function send_feature_request_email( $request_id, $entity_type, $user_id, $description = '' ) {
 		$user       = $user_id > 0 ? get_userdata( $user_id ) : null;
-		$user_email = $user ? $user->user_email : __( 'Guest', 'dataviz-ai-woocommerce' );
-		$user_name  = $user ? $user->display_name : __( 'Guest User', 'dataviz-ai-woocommerce' );
+		$user_email = $user ? $user->user_email : __( 'Guest', 'dataviz-ai-for-woocommerce' );
+		$user_name  = $user ? $user->display_name : __( 'Guest User', 'dataviz-ai-for-woocommerce' );
 		$admin_email = get_option( 'admin_email' );
 		$site_name   = get_bloginfo( 'name' );
 
-		$subject = sprintf( __( '[%1$s] New Feature Request: %2$s', 'dataviz-ai-woocommerce' ), $site_name, ucfirst( $entity_type ) );
+		$subject = sprintf(
+			/* translators: 1: site name, 2: requested feature/data type */
+			__( '[%1$s] New Feature Request: %2$s', 'dataviz-ai-for-woocommerce' ),
+			$site_name,
+			ucfirst( $entity_type )
+		);
 
-		$message  = sprintf( __( 'A new feature request has been submitted on %1$s:', 'dataviz-ai-woocommerce' ), $site_name ) . "\n\n";
-		$message .= sprintf( __( 'Request ID: #%d', 'dataviz-ai-woocommerce' ), $request_id ) . "\n";
-		$message .= sprintf( __( 'Feature Requested: %s', 'dataviz-ai-woocommerce' ), ucfirst( $entity_type ) ) . "\n";
-		$message .= sprintf( __( 'Requested By: %s (%s)', 'dataviz-ai-woocommerce' ), $user_name, $user_email ) . "\n";
-		$message .= sprintf( __( 'Date: %s', 'dataviz-ai-woocommerce' ), current_time( 'mysql' ) ) . "\n";
+		/* translators: %s: site name */
+		$message  = sprintf( __( 'A new feature request has been submitted on %1$s:', 'dataviz-ai-for-woocommerce' ), $site_name ) . "\n\n";
+		/* translators: %d: feature request database ID */
+		$message .= sprintf( __( 'Request ID: #%1$d', 'dataviz-ai-for-woocommerce' ), $request_id ) . "\n";
+		/* translators: %s: requested feature/data type */
+		$message .= sprintf( __( 'Feature Requested: %1$s', 'dataviz-ai-for-woocommerce' ), ucfirst( $entity_type ) ) . "\n";
+		/* translators: 1: user display name, 2: user email address */
+		$message .= sprintf( __( 'Requested By: %1$s (%2$s)', 'dataviz-ai-for-woocommerce' ), $user_name, $user_email ) . "\n";
+		/* translators: %s: date and time */
+		$message .= sprintf( __( 'Date: %1$s', 'dataviz-ai-for-woocommerce' ), current_time( 'mysql' ) ) . "\n";
 		if ( ! empty( $description ) ) {
-			$message .= "\n" . __( 'Description:', 'dataviz-ai-woocommerce' ) . "\n" . $description . "\n";
+			$message .= "\n" . __( 'Description:', 'dataviz-ai-for-woocommerce' ) . "\n" . $description . "\n";
 		}
-		$message .= "\n" . sprintf( __( 'View all feature requests: %s', 'dataviz-ai-woocommerce' ), admin_url( 'admin.php?page=dataviz-ai-feature-requests' ) ) . "\n";
+		/* translators: %s: admin URL to the feature requests list */
+		$message .= "\n" . sprintf( __( 'View all feature requests: %1$s', 'dataviz-ai-for-woocommerce' ), admin_url( 'admin.php?page=dataviz-ai-feature-requests' ) ) . "\n";
 
 		$admins = get_users( array( 'role' => 'administrator' ) );
 		foreach ( $admins as $admin ) {

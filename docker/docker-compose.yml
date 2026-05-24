@@ -25,6 +25,11 @@ services:
       WORDPRESS_DB_USER: wp
       WORDPRESS_DB_PASSWORD: wppass
       WORDPRESS_DEBUG: "1"
+      # Dataviz AI for WooCommerce — PHP getenv(); see plugin class-dataviz-ai-api-client.php.
+      # Set values in docker/.env (copy from .env.example). Leave empty if using wp-config.php.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DATAVIZ_AI_API_KEY: ${DATAVIZ_AI_API_KEY:-}
+      DATAVIZ_AI_API_BASE_URL: ${DATAVIZ_AI_API_BASE_URL:-}
     ports:
       - "8080:80"
     volumes:

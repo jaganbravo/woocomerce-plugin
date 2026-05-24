@@ -12,7 +12,7 @@ npm install
 2. Configure environment variables (create `.env` file):
 ```env
 OPENAI_API_KEY=your_api_key_here
-PLUGIN_URL=http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-woocommerce
+PLUGIN_URL=http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-for-woocommerce
 WP_ADMIN_USER=admin
 WP_ADMIN_PASS=admin
 ```

@@ -16,7 +16,7 @@ You need to update the `config.php` file in your Docker WordPress installation w
 
 Edit this file:
 ```
-docker/wordpress/wp-content/plugins/dataviz-ai-woocommerce-plugin/config.php
+docker/wordpress/wp-content/plugins/dataviz-ai-for-woocommerce/config.php
 ```
 
 Change line 37 from:

@@ -1,6 +1,6 @@
 # Monorepo developer documentation
 
-This folder holds planning, architecture, testing, and product notes that used to sit at the repository root. **End-user** documentation for the released plugin (API keys, email digests) is in `dataviz-ai-woocommerce-plugin/docs/`.
+This folder holds planning, architecture, testing, and product notes that used to sit at the repository root. **End-user** documentation for the released plugin (API keys, email digests) is in `dataviz-ai-woocommerce-plugin/docs/`. Installed sites and release ZIPs use the folder slug **`dataviz-ai-for-woocommerce`** (WordPress.org trademark rule); the git working tree remains **`dataviz-ai-woocommerce-plugin/`**.
 
 | Start here | File |
 |------------|------|

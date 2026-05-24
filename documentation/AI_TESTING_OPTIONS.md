@@ -88,7 +88,7 @@ async function aiTestAgent() {
   const page = await browser.newPage();
   
   // Navigate to plugin page
-  await page.goto('http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-woocommerce');
+  await page.goto('http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-for-woocommerce');
   
   // AI generates test questions
   const questions = await generateTestQuestions();
@@ -161,7 +161,7 @@ import openai
 
 def ai_test_agent():
     driver = webdriver.Chrome()
-    driver.get("http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-woocommerce")
+    driver.get("http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-for-woocommerce")
     
     # Generate test questions using AI
     questions = generate_test_questions()

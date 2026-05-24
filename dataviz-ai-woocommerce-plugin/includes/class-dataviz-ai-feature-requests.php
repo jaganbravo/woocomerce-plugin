@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin table; identifiers from $wpdb->prefix.
+
 /**
  * Manages feature request storage and retrieval.
  */
@@ -120,7 +122,7 @@ class Dataviz_AI_Feature_Requests {
 		// Get user info.
 		$user = $user_id > 0 ? get_userdata( $user_id ) : null;
 		$user_email = $user ? $user->user_email : '';
-		$user_name = $user ? $user->display_name : __( 'Guest', 'dataviz-ai-woocommerce' );
+		$user_name = $user ? $user->display_name : __( 'Guest', 'dataviz-ai-for-woocommerce' );
 
 		$data = array(
 			'entity_type' => sanitize_text_field( $entity_type ),
@@ -145,15 +147,14 @@ class Dataviz_AI_Feature_Requests {
 			return $wpdb->insert_id;
 		}
 
-		// Log the database error if available.
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			error_log( sprintf(
+		dataviz_ai_wc_debug_log(
+			sprintf(
 				'[Dataviz AI] Failed to insert feature request - DB Error: %s, Entity: %s, User: %d',
 				$wpdb->last_error ?: 'Unknown error',
 				$entity_type,
 				$user_id
-			) );
-		}
+			)
+		);
 
 		return false;
 	}
@@ -266,3 +267,4 @@ class Dataviz_AI_Feature_Requests {
 	}
 }
 
+// phpcs:enable

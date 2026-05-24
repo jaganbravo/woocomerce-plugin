@@ -129,7 +129,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $base_url ) || empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_config',
-				__( 'Please configure the Dataviz AI API URL and key before making requests.', 'dataviz-ai-woocommerce' )
+				__( 'Please configure the Dataviz AI API URL and key before making requests.', 'dataviz-ai-for-woocommerce' )
 			);
 		}
 
@@ -158,7 +158,7 @@ class Dataviz_AI_API_Client {
 				'dataviz_ai_api_error',
 				sprintf(
 					/* translators: %d status code from API. */
-					__( 'Dataviz AI API responded with status %d.', 'dataviz-ai-woocommerce' ),
+					__( 'Dataviz AI API responded with status %d.', 'dataviz-ai-for-woocommerce' ),
 					(int) $status_code
 				),
 				$data
@@ -182,7 +182,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_api_key',
-				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-woocommerce' )
+				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-for-woocommerce' )
 			);
 		}
 
@@ -224,9 +224,7 @@ class Dataviz_AI_API_Client {
 		// Check for JSON decode errors
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
 			$error_msg = 'Failed to parse OpenAI API response: ' . json_last_error_msg();
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] %s. Raw body: %s', $error_msg, wp_remote_retrieve_body( $response ) ) );
-			}
+			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] %s. Raw body: %s', $error_msg, wp_remote_retrieve_body( $response ) ) );
 			return new WP_Error(
 				'dataviz_ai_json_error',
 				$error_msg,
@@ -260,9 +258,7 @@ class Dataviz_AI_API_Client {
 		// Validate response has expected structure
 		if ( ! isset( $body['choices'] ) || ! is_array( $body['choices'] ) ) {
 			$error_msg = 'Invalid response structure from OpenAI API: missing choices array';
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] %s. Response: %s', $error_msg, wp_json_encode( $body ) ) );
-			}
+			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] %s. Response: %s', $error_msg, wp_json_encode( $body ) ) );
 			return new WP_Error(
 				'dataviz_ai_invalid_response',
 				$error_msg,
@@ -344,7 +340,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_api_key',
-				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-woocommerce' )
+				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-for-woocommerce' )
 			);
 		}
 
@@ -364,89 +360,74 @@ class Dataviz_AI_API_Client {
 			$body_json = preg_replace( '/"properties"\s*:\s*\[\s*\]/', '"properties":{}', $body_json );
 		}
 
-		// Use cURL for proper streaming support.
-		$ch = curl_init();
-		$error_buffer = ''; // Buffer to capture error responses
-		$has_error = false;
-		
-		curl_setopt_array(
-			$ch,
-			array(
-				CURLOPT_URL            => $this->default_openai_url,
-				CURLOPT_RETURNTRANSFER => false,
-				CURLOPT_POST           => true,
-				CURLOPT_POSTFIELDS     => $body_json,
-				CURLOPT_HTTPHEADER     => array(
-					'Content-Type: application/json',
-					'Authorization: Bearer ' . $api_key,
-				),
-				CURLOPT_WRITEFUNCTION  => function( $ch, $data ) use ( &$buffer, &$error_buffer, &$has_error, $callback ) {
-					// Check HTTP status code first
-					$status_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-					
-					if ( $status_code >= 400 ) {
-						// This is an error response, capture it
-						$has_error = true;
-						$error_buffer .= $data;
+		$stream_state = array(
+			'buffer'       => '',
+			'error_buffer' => '',
+			'has_error'    => false,
+		);
+
+		$curl_hook = function ( $handle ) use ( &$stream_state, $body_json, $callback ) {
+			if ( ! self::is_curl_handle( $handle ) ) {
+				return;
+			}
+
+			// OpenAI SSE needs incremental reads; WordPress documents http_api_curl for transport tweaks.
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt -- Hooked via http_api_curl; not a direct curl_init() call.
+			curl_setopt( $handle, CURLOPT_POSTFIELDS, $body_json );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt
+			curl_setopt(
+				$handle,
+				CURLOPT_WRITEFUNCTION,
+				function ( $ch, $data ) use ( &$stream_state, $callback ) {
+					// phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_getinfo -- Status checked per chunk during SSE.
+					$chunk_status = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+
+					if ( $chunk_status >= 400 ) {
+						$stream_state['has_error']    = true;
+						$stream_state['error_buffer'] .= $data;
 						return strlen( $data );
 					}
-					
-					// Normal streaming response
-					$buffer .= $data;
-					$lines   = explode( "\n", $buffer );
-					$buffer  = array_pop( $lines ); // Keep incomplete line.
 
-					foreach ( $lines as $line ) {
-						$line = trim( $line );
-						if ( empty( $line ) || substr( $line, 0, 6 ) !== 'data: ' ) {
-							continue;
-						}
-
-						$data_str = substr( $line, 6 ); // Remove "data: " prefix.
-
-						if ( '[DONE]' === $data_str ) {
-							return strlen( $data );
-						}
-
-						$chunk = json_decode( $data_str, true );
-						
-						// Check if this chunk contains an error
-						if ( is_array( $chunk ) && isset( $chunk['error'] ) ) {
-							$has_error = true;
-							$error_buffer = json_encode( $chunk['error'] );
-							continue;
-						}
-						
-						if ( ! is_array( $chunk ) || ! isset( $chunk['choices'][0]['delta']['content'] ) ) {
-							continue;
-						}
-
-						$content = $chunk['choices'][0]['delta']['content'];
-						if ( ! empty( $content ) ) {
-							call_user_func( $callback, $content );
-						}
-					}
-
+					self::consume_openai_sse_chunk( $stream_state, $data, $callback );
 					return strlen( $data );
-				},
+				}
+			);
+		};
+
+		add_action( 'http_api_curl', $curl_hook, 10, 1 );
+
+		$response = wp_remote_post(
+			$this->default_openai_url,
+			array(
+				'headers' => array(
+					'Content-Type'  => 'application/json',
+					'Authorization' => 'Bearer ' . $api_key,
+				),
+				'body'    => $body_json,
+				'timeout' => 300,
 			)
 		);
 
-		$result = curl_exec( $ch );
-		$status_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-		$error = curl_error( $ch );
-		curl_close( $ch );
+		remove_action( 'http_api_curl', $curl_hook, 10 );
 
-		if ( false === $result || ! empty( $error ) ) {
+		if ( is_wp_error( $response ) ) {
 			return new WP_Error(
-				'dataviz_ai_curl_error',
-				sprintf( __( 'cURL error: %s', 'dataviz-ai-woocommerce' ), $error )
+				'dataviz_ai_http_error',
+				sprintf(
+					/* translators: %s: HTTP error message */
+					__( 'Request error: %1$s', 'dataviz-ai-for-woocommerce' ),
+					$response->get_error_message()
+				)
 			);
 		}
 
-		if ( $status_code >= 400 || $has_error ) {
+		$status_code = (int) wp_remote_retrieve_response_code( $response );
+
+		if ( $status_code >= 400 || $stream_state['has_error'] ) {
+			$error_buffer = $stream_state['error_buffer'];
+			$has_error    = $stream_state['has_error'];
 			// Try to parse error response
-			$error_message = __( 'The OpenAI API returned an error.', 'dataviz-ai-woocommerce' );
+			$error_message = __( 'The OpenAI API returned an error.', 'dataviz-ai-for-woocommerce' );
 			$error_details = array( 'status' => $status_code );
 			
 			if ( ! empty( $error_buffer ) ) {
@@ -471,9 +452,7 @@ class Dataviz_AI_API_Client {
 			}
 			
 			// Log detailed error for debugging
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf( '[Dataviz AI] OpenAI Streaming API Error (HTTP %d): %s', $status_code, wp_json_encode( $error_details, JSON_PRETTY_PRINT ) ) );
-			}
+			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] OpenAI Streaming API Error (HTTP %d): %s', $status_code, wp_json_encode( $error_details, JSON_PRETTY_PRINT ) ) );
 			
 			return new WP_Error(
 				'dataviz_ai_openai_error',
@@ -483,6 +462,64 @@ class Dataviz_AI_API_Client {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Whether a value is a cURL handle (PHP 7 resource or PHP 8 CurlHandle).
+	 *
+	 * @param mixed $handle Value from http_api_curl.
+	 * @return bool
+	 */
+	private static function is_curl_handle( $handle ) {
+		if ( is_resource( $handle ) ) {
+			return true;
+		}
+
+		return is_object( $handle ) && class_exists( 'CurlHandle', false ) && $handle instanceof CurlHandle;
+	}
+
+	/**
+	 * Parse one SSE chunk from OpenAI and invoke the stream callback for content deltas.
+	 *
+	 * @param array    $state    Mutable keys: buffer, error_buffer, has_error.
+	 * @param string   $data     Raw bytes from the HTTP stream.
+	 * @param callable $callback Consumer for text deltas.
+	 * @return void
+	 */
+	private static function consume_openai_sse_chunk( array &$state, $data, callable $callback ) {
+		$state['buffer'] .= $data;
+		$lines           = explode( "\n", $state['buffer'] );
+		$state['buffer'] = array_pop( $lines );
+
+		foreach ( $lines as $line ) {
+			$line = trim( $line );
+			if ( empty( $line ) || substr( $line, 0, 6 ) !== 'data: ' ) {
+				continue;
+			}
+
+			$data_str = substr( $line, 6 );
+
+			if ( '[DONE]' === $data_str ) {
+				return;
+			}
+
+			$chunk = json_decode( $data_str, true );
+
+			if ( is_array( $chunk ) && isset( $chunk['error'] ) ) {
+				$state['has_error']    = true;
+				$state['error_buffer'] = wp_json_encode( $chunk['error'] );
+				continue;
+			}
+
+			if ( ! is_array( $chunk ) || ! isset( $chunk['choices'][0]['delta']['content'] ) ) {
+				continue;
+			}
+
+			$content = $chunk['choices'][0]['delta']['content'];
+			if ( ! empty( $content ) ) {
+				call_user_func( $callback, $content );
+			}
+		}
 	}
 }
 

@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
-const PLUGIN_URL = process.env.PLUGIN_URL || 'http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-woocommerce';
+const PLUGIN_URL = process.env.PLUGIN_URL || 'http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-for-woocommerce';
 const LOGIN_URL = process.env.LOGIN_URL || 'http://localhost:8080/wp-login.php';
 const WP_USER = process.env.WP_ADMIN_USER || 'admin';
 const WP_PASS = process.env.WP_ADMIN_PASS || 'admin';

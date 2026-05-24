@@ -42,8 +42,8 @@ class Dataviz_AI_Intent_Normalizer {
 
 			if ( $needs_override ) {
 				$now = current_time( 'timestamp' );
-				$validated_intent['filters']['date_from'] = date( 'Y-m-d', $now - ( $days * DAY_IN_SECONDS ) );
-				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+				$validated_intent['filters']['date_from'] = wp_date( 'Y-m-d', $now - ( $days * DAY_IN_SECONDS ) );
+				$validated_intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 			}
 		}
 
@@ -72,8 +72,8 @@ class Dataviz_AI_Intent_Normalizer {
 			if ( $needs_override ) {
 				$now    = current_time( 'timestamp' );
 				$from_ts = strtotime( sprintf( '-%d months', $months ), $now );
-				$validated_intent['filters']['date_from'] = date( 'Y-m-d', $from_ts );
-				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+				$validated_intent['filters']['date_from'] = wp_date( 'Y-m-d', $from_ts );
+				$validated_intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 			}
 		}
 
@@ -101,8 +101,8 @@ class Dataviz_AI_Intent_Normalizer {
 			}
 			if ( $needs_override ) {
 				$now = current_time( 'timestamp' );
-				$validated_intent['filters']['date_from'] = date( 'Y-m-d', $now - ( $weeks * 7 * DAY_IN_SECONDS ) );
-				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+				$validated_intent['filters']['date_from'] = wp_date( 'Y-m-d', $now - ( $weeks * 7 * DAY_IN_SECONDS ) );
+				$validated_intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 			}
 		}
 
@@ -111,8 +111,8 @@ class Dataviz_AI_Intent_Normalizer {
 			if ( $needs_override ) {
 				$now = current_time( 'timestamp' );
 				$week_start = strtotime( 'monday this week', $now );
-				$validated_intent['filters']['date_from'] = date( 'Y-m-d', $week_start );
-				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+				$validated_intent['filters']['date_from'] = wp_date( 'Y-m-d', $week_start );
+				$validated_intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 			}
 		}
 
@@ -120,8 +120,8 @@ class Dataviz_AI_Intent_Normalizer {
 			$needs_override = empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] );
 			if ( $needs_override ) {
 				$now = current_time( 'timestamp' );
-				$validated_intent['filters']['date_from'] = date( 'Y-01-01', $now );
-				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+				$validated_intent['filters']['date_from'] = wp_date( 'Y-01-01', $now );
+				$validated_intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 			}
 		}
 
@@ -129,8 +129,8 @@ class Dataviz_AI_Intent_Normalizer {
 			$needs_override = empty( $validated_intent['filters']['date_from'] ) || empty( $validated_intent['filters']['date_to'] );
 			if ( $needs_override ) {
 				$now = current_time( 'timestamp' );
-				$validated_intent['filters']['date_from'] = date( 'Y-m-01', $now );
-				$validated_intent['filters']['date_to']   = date( 'Y-m-d', $now );
+				$validated_intent['filters']['date_from'] = wp_date( 'Y-m-01', $now );
+				$validated_intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 			}
 		}
 
@@ -148,7 +148,7 @@ class Dataviz_AI_Intent_Normalizer {
 				}
 				$from = sprintf( '%04d-%02d-01', $ly, $lm );
 				$validated_intent['filters']['date_from'] = $from;
-				$validated_intent['filters']['date_to']   = date( 'Y-m-d', strtotime( $from . ' +1 month -1 day' ) );
+				$validated_intent['filters']['date_to']   = wp_date( 'Y-m-d', strtotime( $from . ' +1 month -1 day' ) );
 			}
 		}
 
@@ -198,7 +198,7 @@ class Dataviz_AI_Intent_Normalizer {
 					$from = sprintf( '%04d-%02d-01', $year, $start_month );
 					$last_day_timestamp = strtotime( $from . ' +3 months -1 day' );
 					$validated_intent['filters']['date_from'] = $from;
-					$validated_intent['filters']['date_to']   = date( 'Y-m-d', $last_day_timestamp );
+					$validated_intent['filters']['date_to']   = wp_date( 'Y-m-d', $last_day_timestamp );
 				}
 			}
 		}
@@ -308,7 +308,7 @@ class Dataviz_AI_Intent_Normalizer {
 		$from = sprintf( '%04d-%02d-01', $last_year, $last_month );
 		$last_day_timestamp = strtotime( $from . ' +1 month -1 day' );
 		$intent['filters']['date_from'] = $from;
-		$intent['filters']['date_to']   = date( 'Y-m-d', $last_day_timestamp );
+		$intent['filters']['date_to']   = wp_date( 'Y-m-d', $last_day_timestamp );
 		return array( 'score' => $s, 'intent' => $intent );
 	}
 
@@ -456,8 +456,8 @@ class Dataviz_AI_Intent_Normalizer {
 
 		if ( preg_match( '/\bthis\s+year\b/i', $q ) ) {
 			$now = current_time( 'timestamp' );
-			$intent['filters']['date_from'] = date( 'Y-01-01', $now );
-			$intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			$intent['filters']['date_from'] = wp_date( 'Y-01-01', $now );
+			$intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 		} elseif ( preg_match( '/\blast\s+month\b/i', $q ) ) {
 			$current_year  = (int) current_time( 'Y' );
 			$current_month = (int) current_time( 'm' );
@@ -470,11 +470,11 @@ class Dataviz_AI_Intent_Normalizer {
 			}
 			$from = sprintf( '%04d-%02d-01', $ly, $lm );
 			$intent['filters']['date_from'] = $from;
-			$intent['filters']['date_to']   = date( 'Y-m-d', strtotime( $from . ' +1 month -1 day' ) );
+			$intent['filters']['date_to']   = wp_date( 'Y-m-d', strtotime( $from . ' +1 month -1 day' ) );
 		} elseif ( preg_match( '/\bthis\s+month\b/i', $q ) ) {
 			$now = current_time( 'timestamp' );
-			$intent['filters']['date_from'] = date( 'Y-m-01', $now );
-			$intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			$intent['filters']['date_from'] = wp_date( 'Y-m-01', $now );
+			$intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 		}
 		return array( 'score' => $s, 'intent' => $intent );
 	}
@@ -531,8 +531,8 @@ class Dataviz_AI_Intent_Normalizer {
 			$intent['filters']['date_to']   = $last_year . '-12-31';
 		} elseif ( preg_match( '/\bthis\s+year\b/i', $q ) ) {
 			$now = current_time( 'timestamp' );
-			$intent['filters']['date_from'] = date( 'Y-01-01', $now );
-			$intent['filters']['date_to']   = date( 'Y-m-d', $now );
+			$intent['filters']['date_from'] = wp_date( 'Y-01-01', $now );
+			$intent['filters']['date_to']   = wp_date( 'Y-m-d', $now );
 		}
 		return array( 'score' => $s, 'intent' => $intent );
 	}

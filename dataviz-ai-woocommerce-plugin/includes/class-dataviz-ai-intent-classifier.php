@@ -210,36 +210,36 @@ class Dataviz_AI_Intent_Classifier {
 			
 			switch ( $date_phrase ) {
 				case 'today':
-					$filters['date_from'] = date( 'Y-m-d', $now );
-					$filters['date_to']   = date( 'Y-m-d', $now );
+					$filters['date_from'] = wp_date( 'Y-m-d', $now );
+					$filters['date_to']   = wp_date( 'Y-m-d', $now );
 					$has_calendar_month = true;
 					break;
 					
 				case 'yesterday':
 					$yesterday = $now - DAY_IN_SECONDS;
-					$filters['date_from'] = date( 'Y-m-d', $yesterday );
-					$filters['date_to']   = date( 'Y-m-d', $yesterday );
+					$filters['date_from'] = wp_date( 'Y-m-d', $yesterday );
+					$filters['date_to']   = wp_date( 'Y-m-d', $yesterday );
 					$has_calendar_month = true;
 					break;
 					
 				case 'this week':
 					$week_start = strtotime( 'monday this week', $now );
-					$filters['date_from'] = date( 'Y-m-d', $week_start );
-					$filters['date_to']   = date( 'Y-m-d', $now );
+					$filters['date_from'] = wp_date( 'Y-m-d', $week_start );
+					$filters['date_to']   = wp_date( 'Y-m-d', $now );
 					$has_calendar_month = true;
 					break;
 					
 				case 'last week':
 					$last_week_start = strtotime( 'monday last week', $now );
 					$last_week_end   = strtotime( 'sunday last week', $now );
-					$filters['date_from'] = date( 'Y-m-d', $last_week_start );
-					$filters['date_to']   = date( 'Y-m-d', $last_week_end );
+					$filters['date_from'] = wp_date( 'Y-m-d', $last_week_start );
+					$filters['date_to']   = wp_date( 'Y-m-d', $last_week_end );
 					$has_calendar_month = true;
 					break;
 					
 				case 'this month':
-					$filters['date_from'] = date( 'Y-m-01', $now );
-					$filters['date_to']   = date( 'Y-m-d', $now );
+					$filters['date_from'] = wp_date( 'Y-m-01', $now );
+					$filters['date_to']   = wp_date( 'Y-m-d', $now );
 					$has_calendar_month = true;
 					break;
 					
@@ -262,18 +262,18 @@ class Dataviz_AI_Intent_Classifier {
 					$filters['date_from'] = sprintf( '%04d-%02d-01', $last_year, $last_month );
 					// Use WordPress timezone for last day calculation
 					$last_day_timestamp = strtotime( $filters['date_from'] . ' +1 month -1 day' );
-					$filters['date_to'] = date( 'Y-m-d', $last_day_timestamp );
+					$filters['date_to'] = wp_date( 'Y-m-d', $last_day_timestamp );
 					$has_calendar_month = true;
 					break;
 					
 				case 'this year':
-					$filters['date_from'] = date( 'Y-01-01', $now );
-					$filters['date_to']   = date( 'Y-m-d', $now );
+					$filters['date_from'] = wp_date( 'Y-01-01', $now );
+					$filters['date_to']   = wp_date( 'Y-m-d', $now );
 					$has_calendar_month = true;
 					break;
 					
 				case 'last year':
-					$last_year = date( 'Y', $now ) - 1;
+					$last_year = wp_date( 'Y', $now ) - 1;
 					$filters['date_from'] = $last_year . '-01-01';
 					$filters['date_to']   = $last_year . '-12-31';
 					$has_calendar_month = true;
@@ -305,7 +305,7 @@ class Dataviz_AI_Intent_Classifier {
 				$month                    = $month_map[ $month_name ];
 				$filters['date_from']     = sprintf( '%04d-%02d-01', $year, $month );
 				$last_day_timestamp       = strtotime( $filters['date_from'] . ' +1 month -1 day' );
-				$filters['date_to']       = date( 'Y-m-d', $last_day_timestamp );
+				$filters['date_to']       = wp_date( 'Y-m-d', $last_day_timestamp );
 				$has_calendar_month       = true;
 			}
 		}
@@ -325,25 +325,25 @@ class Dataviz_AI_Intent_Classifier {
 			$unit   = strtolower( $period_matches[2] );
 			$now    = current_time( 'timestamp' );
 			
-			$filters['date_to'] = date( 'Y-m-d', $now );
+			$filters['date_to'] = wp_date( 'Y-m-d', $now );
 			
 			switch ( $unit ) {
 				case 'day':
 				case 'days':
 					$from_timestamp = $now - ( $amount * DAY_IN_SECONDS );
-					$filters['date_from'] = date( 'Y-m-d', $from_timestamp );
+					$filters['date_from'] = wp_date( 'Y-m-d', $from_timestamp );
 					break;
 					
 				case 'week':
 				case 'weeks':
 					$from_timestamp = $now - ( $amount * WEEK_IN_SECONDS );
-					$filters['date_from'] = date( 'Y-m-d', $from_timestamp );
+					$filters['date_from'] = wp_date( 'Y-m-d', $from_timestamp );
 					break;
 					
 				case 'month':
 				case 'months':
 					$from_timestamp = strtotime( "-{$amount} months", $now );
-					$filters['date_from'] = date( 'Y-m-d', $from_timestamp );
+					$filters['date_from'] = wp_date( 'Y-m-d', $from_timestamp );
 					break;
 			}
 		}
