@@ -3,8 +3,8 @@
 # Preserves docker-only config.php (not in git).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="${ROOT}/dataviz-ai-woocommerce-plugin"
-DEST="${ROOT}/docker/wordpress/wp-content/plugins/dataviz-ai-for-woocommerce"
+SRC="${ROOT}/store-compass-for-woocommerce"
+DEST="${ROOT}/docker/wordpress/wp-content/plugins/store-compass-for-woocommerce"
 
 if [[ ! -d "${SRC}" ]]; then
 	echo "Missing: ${SRC}" >&2

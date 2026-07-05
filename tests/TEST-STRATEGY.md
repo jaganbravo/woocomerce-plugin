@@ -129,4 +129,6 @@ npm run test:ambiguous:headless    # ambiguous-questions.json (headless)
 # New sets (added as implemented)
 npm run test:dates                 # edge-case-dates.json (headed)
 npm run test:dates:headless        # edge-case-dates.json (headless)
+npm run test:nlp:phase0            # nlp-phase0-baseline-questions.json (headed)
+npm run test:nlp:phase0:headless   # nlp-phase0-baseline-questions.json (headless)
 ```

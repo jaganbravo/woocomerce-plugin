@@ -1,7 +1,7 @@
 {
-  "name": "dataviz-ai-test-agent",
+  "name": "store-compass-test-agent",
   "version": "1.0.0",
-  "description": "AI-powered test agent for Dataviz AI WooCommerce plugin",
+  "description": "AI-powered test agent for Store Compass WooCommerce plugin",
   "main": "ai-chat-test-agent.js",
   "scripts": {
     "test": "node ai-chat-test-agent.js",
@@ -11,7 +11,9 @@
     "test:ambiguous": "node ai-chat-test-agent.js --questions ambiguous-questions.json",
     "test:ambiguous:headless": "HEADLESS=true node ai-chat-test-agent.js --questions ambiguous-questions.json",
     "test:dates": "node ai-chat-test-agent.js --questions edge-case-dates.json",
-    "test:dates:headless": "HEADLESS=true node ai-chat-test-agent.js --questions edge-case-dates.json"
+    "test:dates:headless": "HEADLESS=true node ai-chat-test-agent.js --questions edge-case-dates.json",
+    "test:nlp:phase0": "node ai-chat-test-agent.js --questions nlp-phase0-baseline-questions.json",
+    "test:nlp:phase0:headless": "HEADLESS=true node ai-chat-test-agent.js --questions nlp-phase0-baseline-questions.json"
   },
   "keywords": [
     "testing",

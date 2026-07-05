@@ -1,0 +1,416 @@
+<h1>Customer Onboarding Flow</h1>
+<h2>Dataviz AI for WooCommerce</h2>
+<p>This document outlines the complete customer onboarding experience for the Dataviz AI WooCommerce plugin.</p>
+<hr>
+
+<h2>Overview</h2>
+<p>The onboarding flow guides new users through:</p>
+<ol>
+<li><strong>Welcome &amp; Introduction</strong> - What the plugin does</li>
+<li><strong>API Configuration</strong> - Setting up the API key</li>
+<li><strong>Settings Overview</strong> - Understanding configuration options</li>
+<li><strong>First Interaction</strong> - Trying the AI chat for the first time</li>
+<li><strong>Feature Discovery</strong> - Learning about key features</li>
+</ol>
+<hr>
+
+<h2>Onboarding Flow Steps</h2>
+
+<h3>Step 1: Welcome Screen (First Visit)</h3>
+<p><strong>Trigger</strong>: User visits the Dataviz AI admin page for the first time</p>
+<p><strong>Display</strong>:</p>
+<ul>
+<li>Welcome message with plugin overview</li>
+<li>Key benefits and use cases</li>
+<li>"Get Started" button to begin onboarding</li>
+<li>"Skip" option for experienced users</li>
+</ul>
+<p><strong>Content</strong>:</p>
+<pre><code>Welcome to Dataviz AI for WooCommerce! 🎉
+
+Transform your store data into actionable insights with AI-powered analytics.
+
+What you can do:
+• Ask questions about your store in natural language
+• Get instant insights on orders, products, customers, and more
+• Visualize data with interactive charts
+• Track trends and patterns automatically
+
+Ready to get started?</code></pre>
+<p><strong>Actions</strong>:</p>
+<ul>
+<li>[Get Started] → Proceed to Step 2</li>
+<li>[Skip] → Dismiss onboarding, show normal interface</li>
+<li>[Learn More] → Show feature overview modal</li>
+</ul>
+<hr>
+
+<h3>Step 2: API Configuration Check</h3>
+<p><strong>Trigger</strong>: After clicking "Get Started" or if API key is missing</p>
+<p><strong>Display</strong>:</p>
+<ul>
+<li>Check if API key is configured</li>
+<li>Show configuration status</li>
+<li>Provide setup instructions</li>
+</ul>
+<p><strong>Scenarios</strong>:</p>
+<h4>Scenario A: API Key Not Configured</h4>
+<pre><code>⚠️ API Key Required
+
+To use Dataviz AI, you need to configure your API key.
+
+Option 1: Environment Variable (Recommended)
+Set one of these environment variables:
+• OPENAI_API_KEY
+• DATAVIZ_AI_API_KEY
+
+Option 2: Config File
+Edit config.php in the plugin directory
+
+[Configure API Key] [Skip for Now]</code></pre>
+<h4>Scenario B: API Key Configured</h4>
+<pre><code>✅ API Key Configured
+
+Great! Your API key is set up and ready to use.
+
+[Continue] [Test Connection]</code></pre>
+<p><strong>Actions</strong>:</p>
+<ul>
+<li>[Configure API Key] → Show detailed setup instructions</li>
+<li>[Test Connection] → Verify API key works</li>
+<li>[Continue] → Proceed to Step 3</li>
+<li>[Skip for Now] → Allow limited functionality</li>
+</ul>
+<hr>
+
+<h3>Step 3: Settings Overview</h3>
+<p><strong>Trigger</strong>: After API configuration or if already configured</p>
+<p><strong>Display</strong>:</p>
+<ul>
+<li>Overview of plugin settings</li>
+<li>Key configuration options</li>
+<li>Links to settings page</li>
+</ul>
+<p><strong>Content</strong>:</p>
+<pre><code>Settings Overview
+
+Your plugin is configured with:
+• API Endpoint: [URL or Default]
+• Model: [Model Name]
+• Features Enabled: [List]
+
+Key Settings:
+• API Configuration
+• Data Access Permissions
+• Chat History Settings
+
+[View Settings] [Continue]</code></pre>
+<p><strong>Actions</strong>:</p>
+<ul>
+<li>[View Settings] → Navigate to settings page</li>
+<li>[Continue] → Proceed to Step 4</li>
+</ul>
+<hr>
+
+<h3>Step 4: First Interaction Tutorial</h3>
+<p><strong>Trigger</strong>: After settings overview</p>
+<p><strong>Display</strong>:</p>
+<ul>
+<li>Interactive tutorial overlay</li>
+<li>Highlighted chat interface</li>
+<li>Example questions to try</li>
+</ul>
+<p><strong>Content</strong>:</p>
+<pre><code>Try Your First Question! 💬
+
+The AI assistant is ready to help you understand your store data.
+
+Try asking:
+• "What are my top-selling products?"
+• "Show me orders from last week"
+• "How many customers did I get this month?"
+
+[Try Example Question] [I'll Ask My Own] [Skip Tutorial]</code></pre>
+<p><strong>Interactive Elements</strong>:</p>
+<ul>
+<li>Highlight chat input box</li>
+<li>Show example questions as clickable suggestions</li>
+<li>Animate first question submission</li>
+<li>Show response preview</li>
+</ul>
+<p><strong>Actions</strong>:</p>
+<ul>
+<li>[Try Example Question] → Auto-fill and submit example</li>
+<li>[I'll Ask My Own] → Focus input, dismiss tutorial</li>
+<li>[Skip Tutorial] → Proceed to Step 5</li>
+</ul>
+<hr>
+
+<h3>Step 5: Feature Discovery</h3>
+<p><strong>Trigger</strong>: After first interaction or tutorial skip</p>
+<p><strong>Display</strong>:</p>
+<ul>
+<li>Feature highlights</li>
+<li>Quick tips and tricks</li>
+<li>Links to documentation</li>
+</ul>
+<p><strong>Content</strong>:</p>
+<pre><code>Discover Features 🚀
+
+What you can do with Dataviz AI:
+
+📊 Charts &amp; Visualizations
+Ask for charts to visualize your data
+Example: "Show me a pie chart of order status"
+
+📈 Data Analysis
+Get insights on orders, products, customers
+Example: "What are my best-selling products?"
+
+💬 Chat History
+Your conversations are saved automatically
+Access history anytime from the chat interface
+
+📝 Feature Requests
+Request new features directly from the chat
+Example: "I'd like to see product reviews analysis"
+
+[View Documentation] [Start Using] [Close]</code></pre>
+<p><strong>Actions</strong>:</p>
+<ul>
+<li>[View Documentation] → Open documentation link</li>
+<li>[Start Using] → Dismiss onboarding, show normal interface</li>
+<li>[Close] → Dismiss onboarding</li>
+</ul>
+<hr>
+
+<h2>Onboarding States</h2>
+<h3>State Management</h3>
+<p>The plugin tracks onboarding completion using user meta:</p>
+<pre><code>// Check if user has completed onboarding
+$onboarding_completed = get_user_meta( $user_id, 'dataviz_ai_onboarding_completed', true );
+
+// Mark onboarding as completed
+update_user_meta( $user_id, 'dataviz_ai_onboarding_completed', true );
+update_user_meta( $user_id, 'dataviz_ai_onboarding_completed_at', current_time( 'mysql' ) );</code></pre>
+<h3>Onboarding Status</h3>
+<ul>
+<li><strong>Not Started</strong>: User hasn't seen onboarding</li>
+<li><strong>In Progress</strong>: User started but didn't complete</li>
+<li><strong>Completed</strong>: User finished onboarding</li>
+<li><strong>Skipped</strong>: User explicitly skipped onboarding</li>
+</ul>
+<hr>
+
+<h2>User Experience Flow</h2>
+<h3>First-Time User Journey</h3>
+<pre><code>1. Plugin Activated
+   ↓
+2. User visits Dataviz AI page
+   ↓
+3. Welcome Screen (Step 1)
+   ↓
+4. API Configuration Check (Step 2)
+   ↓
+5. Settings Overview (Step 3)
+   ↓
+6. First Interaction Tutorial (Step 4)
+   ↓
+7. Feature Discovery (Step 5)
+   ↓
+8. Normal Interface (Onboarding Complete)</code></pre>
+<h3>Returning User Journey</h3>
+<pre><code>1. User visits Dataviz AI page
+   ↓
+2. Check onboarding status
+   ↓
+3. If completed: Show normal interface
+   ↓
+4. If not completed: Resume from last step
+   ↓
+5. Option to restart onboarding</code></pre>
+<hr>
+
+<h2>Implementation Details</h2>
+<h3>Components</h3>
+<ol>
+<li><strong>Onboarding Wizard Class</strong> (<code>class-dataviz-ai-onboarding.php</code>)
+<ul>
+<li>Manages onboarding state</li>
+<li>Renders onboarding steps</li>
+<li>Handles user interactions</li>
+</ul>
+</li>
+<li><strong>Onboarding JavaScript</strong> (<code>admin/js/onboarding.js</code>)
+<ul>
+<li>Step navigation</li>
+<li>Interactive tutorials</li>
+<li>Progress tracking</li>
+</ul>
+</li>
+<li><strong>Onboarding Styles</strong> (<code>admin/css/onboarding.css</code>)
+<ul>
+<li>Wizard styling</li>
+<li>Animations</li>
+<li>Responsive design</li>
+</ul>
+</li>
+</ol>
+<h3>API Endpoints</h3>
+<ul>
+<li><code>dataviz_ai_complete_onboarding</code> - Mark onboarding as complete</li>
+<li><code>dataviz_ai_skip_onboarding</code> - Skip onboarding</li>
+<li><code>dataviz_ai_reset_onboarding</code> - Reset onboarding (admin only)</li>
+<li><code>dataviz_ai_get_onboarding_status</code> - Get current status</li>
+</ul>
+<hr>
+
+<h2>Customization Options</h2>
+<h3>Configurable Elements</h3>
+<ol>
+<li><strong>Onboarding Steps</strong>: Add/remove steps as needed</li>
+<li><strong>Welcome Message</strong>: Customize welcome content</li>
+<li><strong>Example Questions</strong>: Update example questions</li>
+<li><strong>Feature Highlights</strong>: Modify feature discovery content</li>
+<li><strong>Skip Options</strong>: Control when users can skip</li>
+</ol>
+<h3>Settings</h3>
+<ul>
+<li><strong>Force Onboarding</strong>: Require completion before using plugin</li>
+<li><strong>Auto-start</strong>: Automatically start onboarding on first visit</li>
+<li><strong>Show Progress</strong>: Display progress indicator</li>
+<li><strong>Allow Skip</strong>: Allow users to skip onboarding</li>
+</ul>
+<hr>
+
+<h2>Best Practices</h2>
+<h3>Do's</h3>
+<ul>
+<li>✅ <strong>Keep it Short</strong>: 3-5 steps maximum</li>
+<li>✅ <strong>Show Value</strong>: Focus on benefits, not features</li>
+<li>✅ <strong>Make it Interactive</strong>: Let users try features during onboarding</li>
+<li>✅ <strong>Allow Skipping</strong>: Don't force users through every step</li>
+<li>✅ <strong>Save Progress</strong>: Remember where users left off</li>
+<li>✅ <strong>Mobile Friendly</strong>: Ensure onboarding works on mobile</li>
+</ul>
+<h3>Don'ts</h3>
+<ul>
+<li>❌ <strong>Don't Overwhelm</strong>: Too many steps = abandonment</li>
+<li>❌ <strong>Don't Block Access</strong>: Allow skipping to main interface</li>
+<li>❌ <strong>Don't Repeat</strong>: Don't show onboarding if already completed</li>
+<li>❌ <strong>Don't Assume Knowledge</strong>: Explain everything clearly</li>
+<li>❌ <strong>Don't Ignore Mobile</strong>: Test on mobile devices</li>
+</ul>
+<hr>
+
+<h2>Analytics &amp; Tracking</h2>
+<h3>Metrics to Track</h3>
+<ol>
+<li><strong>Onboarding Start Rate</strong>: % of users who start onboarding</li>
+<li><strong>Completion Rate</strong>: % of users who complete onboarding</li>
+<li><strong>Step Drop-off</strong>: Where users abandon onboarding</li>
+<li><strong>Skip Rate</strong>: % of users who skip onboarding</li>
+<li><strong>Time to Complete</strong>: Average time to finish onboarding</li>
+<li><strong>Feature Discovery</strong>: Which features users explore first</li>
+</ol>
+<h3>Events to Track</h3>
+<ul>
+<li><code>onboarding_started</code></li>
+<li><code>onboarding_step_completed</code></li>
+<li><code>onboarding_skipped</code></li>
+<li><code>onboarding_completed</code></li>
+<li><code>onboarding_restarted</code></li>
+</ul>
+<hr>
+
+<h2>Accessibility</h2>
+<h3>Requirements</h3>
+<ul>
+<li><strong>Keyboard Navigation</strong>: All steps navigable via keyboard</li>
+<li><strong>Screen Reader Support</strong>: ARIA labels and descriptions</li>
+<li><strong>Focus Management</strong>: Clear focus indicators</li>
+<li><strong>Color Contrast</strong>: WCAG AA compliant</li>
+<li><strong>Skip Links</strong>: Allow skipping to main content</li>
+</ul>
+<hr>
+
+<h2>Localization</h2>
+<h3>Translatable Strings</h3>
+<p>All onboarding content should be translatable:</p>
+<ul>
+<li>Welcome messages</li>
+<li>Step titles and descriptions</li>
+<li>Button labels</li>
+<li>Example questions</li>
+<li>Feature descriptions</li>
+</ul>
+<h3>Translation Functions</h3>
+<p>Use WordPress translation functions:</p>
+<ul>
+<li><code>__()</code> for translatable strings</li>
+<li><code>_e()</code> for echoed strings</li>
+<li><code>esc_html__()</code> for escaped HTML</li>
+<li><code>esc_attr__()</code> for attributes</li>
+</ul>
+<hr>
+
+<h2>Testing Checklist</h2>
+<h3>Functional Testing</h3>
+<ul>
+<li>[ ] Onboarding starts on first visit</li>
+<li>[ ] All steps display correctly</li>
+<li>[ ] Navigation between steps works</li>
+<li>[ ] Skip functionality works</li>
+<li>[ ] Progress is saved correctly</li>
+<li>[ ] Onboarding doesn't show after completion</li>
+<li>[ ] Reset onboarding works (admin)</li>
+</ul>
+<h3>Browser Testing</h3>
+<ul>
+<li>[ ] Chrome</li>
+<li>[ ] Firefox</li>
+<li>[ ] Safari</li>
+<li>[ ] Edge</li>
+<li>[ ] Mobile browsers</li>
+</ul>
+<h3>Accessibility Testing</h3>
+<ul>
+<li>[ ] Keyboard navigation</li>
+<li>[ ] Screen reader compatibility</li>
+<li>[ ] Focus management</li>
+<li>[ ] Color contrast</li>
+</ul>
+<hr>
+
+<h2>Future Enhancements</h2>
+<h3>Potential Additions</h3>
+<ol>
+<li><strong>Video Tutorials</strong>: Embed video guides in onboarding</li>
+<li><strong>Interactive Demos</strong>: Let users try features in sandbox</li>
+<li><strong>Personalization</strong>: Customize onboarding based on store type</li>
+<li><strong>Progress Rewards</strong>: Gamify onboarding completion</li>
+<li><strong>Contextual Help</strong>: Show help based on user actions</li>
+<li><strong>Multi-language</strong>: Support for multiple languages</li>
+</ol>
+<hr>
+
+<h2>Support &amp; Documentation</h2>
+<h3>Resources</h3>
+<ul>
+<li><strong>User Guide</strong>: Link to comprehensive user guide</li>
+<li><strong>Video Tutorials</strong>: Link to video walkthroughs</li>
+<li><strong>FAQ</strong>: Link to frequently asked questions</li>
+<li><strong>Support</strong>: Link to support channels</li>
+</ul>
+<h3>Help Text</h3>
+<p>Each step should include:</p>
+<ul>
+<li>Clear instructions</li>
+<li>Help links</li>
+<li>Example use cases</li>
+<li>Troubleshooting tips</li>
+</ul>
+<hr>
+
+<p><strong>Last Updated</strong>: February 2025 | <strong>Version</strong>: 1.0.0</p>
+<p>For implementation details, see the onboarding class files in the plugin directory.</p>
