@@ -274,7 +274,7 @@ class Dataviz_AI_Support_Requests_Admin {
 
 	public static function register_submenu() {
 		add_submenu_page(
-			'dataviz-ai-for-woocommerce',
+			'store-compass-for-woocommerce',
 			__( 'Support & Requests', 'dataviz-ai-for-woocommerce' ),
 			__( 'Support & Requests', 'dataviz-ai-for-woocommerce' ),
 			'manage_woocommerce',

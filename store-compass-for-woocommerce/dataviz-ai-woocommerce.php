@@ -1,11 +1,11 @@
 <?php
 /**
- * Plugin Name: Dataviz AI for WooCommerce
- * Plugin URI: https://dataviz.ai/products/dataviz-ai-woocommerce
+ * Plugin Name: Store Compass for WooCommerce
+ * Plugin URI: https://compassforstore.com
  * Description: Conversational AI analytics for WooCommerce — ask questions, get answers, charts, and email digests.
  * Version: 1.0.0
- * Author: Dataviz AI
- * Author URI: https://dataviz.ai
+ * Author: Store Compass
+ * Author URI: https://compassforstore.com
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: dataviz-ai-for-woocommerce

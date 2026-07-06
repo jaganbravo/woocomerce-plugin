@@ -71,8 +71,8 @@ class Dataviz_AI_Admin {
 	 */
 	public function register_menu_page() {
 		add_menu_page(
-			__( 'Dataviz AI Insights', 'dataviz-ai-for-woocommerce' ),
-			__( 'Dataviz AI', 'dataviz-ai-for-woocommerce' ),
+			__( 'Store Compass Insights', 'dataviz-ai-for-woocommerce' ),
+			__( 'Store Compass', 'dataviz-ai-for-woocommerce' ),
 			'manage_woocommerce',
 			$this->menu_slug,
 			array( $this, 'render_admin_page' ),
@@ -320,7 +320,7 @@ class Dataviz_AI_Admin {
 		$onboarding = new Dataviz_AI_Onboarding( $this->plugin_name, $this->version, $this->api_client );
 		?>
 		<div class="wrap dataviz-ai-admin">
-			<h1><?php esc_html_e( 'Dataviz AI for WooCommerce', 'dataviz-ai-for-woocommerce' ); ?></h1>
+			<h1><?php esc_html_e( 'Store Compass for WooCommerce', 'dataviz-ai-for-woocommerce' ); ?></h1>
 
 			<div class="dataviz-ai-grid">
 				<section class="dataviz-ai-card dataviz-ai-card--wide dataviz-ai-chat-container">
