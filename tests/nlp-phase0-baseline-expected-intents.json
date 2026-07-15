@@ -1,0 +1,120 @@
+{
+  "What is my stock level?": {
+    "entity": "stock",
+    "operation": "list",
+    "scope": "low_stock"
+  },
+  "List stock levels for all products": {
+    "entity": "stock",
+    "operation": "list",
+    "scope": "all",
+    "filters": {
+      "limit": -1
+    }
+  },
+  "List inventory for all products": {
+    "entity": "inventory",
+    "operation": "list",
+    "scope": "all",
+    "filters": {
+      "limit": -1
+    }
+  },
+  "Show out of stock products": {
+    "entity": "stock",
+    "operation": "list",
+    "scope": "out_of_stock",
+    "filters": {
+      "stock_status": "outofstock"
+    }
+  },
+  "Show me products low in stock": {
+    "entity": "stock",
+    "operation": "list",
+    "scope": "low_stock"
+  },
+  "Show inventory distribution across categories": {
+    "entity": "inventory",
+    "operation": "list",
+    "scope": "all"
+  },
+  "Show me all products": {
+    "entity": "products",
+    "operation": "list",
+    "scope": "all",
+    "filters": {
+      "limit": -1
+    }
+  },
+  "What are my top selling products?": {
+    "entity": "products",
+    "operation": "list",
+    "scope": "top_n",
+    "filters": {
+      "limit": 10
+    }
+  },
+  "Show me orders by status": {
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "How many completed orders do I have?": {
+    "entity": "orders",
+    "operation": "statistics",
+    "filters": {
+      "status": "completed"
+    }
+  },
+  "Show all pending orders": {
+    "entity": "orders",
+    "operation": "list",
+    "scope": "all",
+    "filters": {
+      "status": "pending",
+      "limit": -1
+    }
+  },
+  "What is my total revenue this month?": {
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Revenue from last 30 days": {
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Show coupons used last month": {
+    "entity": "coupons",
+    "operation": "statistics"
+  },
+  "Show all refunds this month": {
+    "entity": "refunds",
+    "operation": "list"
+  },
+  "How many customers placed orders this month?": {
+    "entity": "customers",
+    "operation": "statistics"
+  },
+  "Who are my top customers by spend?": {
+    "entity": "customers",
+    "operation": "statistics",
+    "scope": "top_n"
+  },
+  "Show products under Clothing category": {
+    "entity": "products",
+    "operation": "list",
+    "filters": {
+      "category_name": "Clothing"
+    }
+  },
+  "Show me a pie chart of order status": {
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Show me a chart of sales by category": {
+    "entity": "orders",
+    "operation": "statistics",
+    "filters": {
+      "group_by": "category"
+    }
+  }
+}

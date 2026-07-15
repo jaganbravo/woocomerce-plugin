@@ -1,4 +1,4 @@
-# Test Agent for Dataviz AI WooCommerce Plugin
+# Test Agent for Store Compass WooCommerce Plugin
 
 Automated testing using Playwright and OpenAI for generating and verifying test questions.
 
@@ -12,7 +12,7 @@ npm install
 2. Configure environment variables (create `.env` file):
 ```env
 OPENAI_API_KEY=your_api_key_here
-PLUGIN_URL=http://localhost:8080/wp-admin/admin.php?page=dataviz-ai-for-woocommerce
+PLUGIN_URL=http://localhost:8080/wp-admin/admin.php?page=store-compass-for-woocommerce
 WP_ADMIN_USER=admin
 WP_ADMIN_PASS=admin
 ```
@@ -46,6 +46,17 @@ npm run test:static:headless  # Run in headless mode
 - Always uses the same predefined questions
 - No AI generation required
 - Consistent test results across runs
+
+### 3. Phase 0 NLP Baseline
+Runs the fixed baseline set used to track intent/execution regressions before refactors:
+```bash
+npm run test:nlp:phase0
+npm run test:nlp:phase0:headless
+```
+
+Uses:
+- `nlp-phase0-baseline-questions.json`
+- `nlp-phase0-baseline-expected-intents.json`
 
 ## File Structure
 
