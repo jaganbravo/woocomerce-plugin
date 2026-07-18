@@ -596,15 +596,14 @@ class Dataviz_AI_Intent_Normalizer {
 	}
 
 	/**
-	 * Detect conversion-rate questions that require traffic analytics (unsupported today).
+	 * Detect conversion-rate questions (unsupported today due to missing traffic/session data).
 	 *
 	 * @param string $question Question.
 	 * @return bool
 	 */
 	public static function is_conversion_rate_question( $question ) {
 		$q = (string) $question;
-		return (bool) preg_match( '/\b(conversion\s*rate|conversion|cvr)\b/i', $q )
-			&& (bool) preg_match( '/\b(traffic|visitors?|sessions?|pageviews?)\b/i', $q );
+		return (bool) preg_match( '/\b(conversion\s*rate|conversion|cvr)\b/i', $q );
 	}
 
 	/**
@@ -640,6 +639,7 @@ class Dataviz_AI_Intent_Normalizer {
 		$scope = isset( $intent['scope'] ) ? (string) $intent['scope'] : '';
 		$entity = isset( $intent['entity'] ) ? (string) $intent['entity'] : '';
 		$filters = isset( $intent['filters'] ) && is_array( $intent['filters'] ) ? $intent['filters'] : array();
+		$metrics = isset( $intent['metrics'] ) && is_array( $intent['metrics'] ) ? $intent['metrics'] : array();
 
 		// "orders by status" should be treated as statistics breakdown, not raw list.
 		if (
@@ -650,6 +650,43 @@ class Dataviz_AI_Intent_Normalizer {
 			$intent['operation'] = 'statistics';
 			if ( ! in_array( 'status', $intent['dimensions'] ?? array(), true ) ) {
 				$intent['dimensions'][] = 'status';
+			}
+		}
+
+		$mentions_low = (bool) preg_match( '/\b(low stock|running low)\b/i', $q );
+		$mentions_out = (bool) preg_match( '/\bout of stock\b/i', $q );
+		$mentions_inventory_semantics = (bool) preg_match( '/\b(inventory|stock(?:\s+levels?)?|stock\s+quantit(?:y|ies)|quantit(?:y|ies)|qty|on hand)\b/i', $q );
+		$mentions_products = (bool) preg_match( '/\bproducts?\b/i', $q );
+		$wants_numbers = (bool) preg_match( '/\b(numbers?|quantit(?:y|ies)|qty)\b/i', $q );
+		$is_product_ranking = in_array( 'top_products', $metrics, true ) || (bool) preg_match( '/\b(top|best[\s-]?selling|most sold)\b/i', $q );
+
+		// Capability resolver: product + inventory semantics should use inventory capability.
+		if ( $entity === 'products' && $mentions_inventory_semantics && ! $is_product_ranking ) {
+			$intent['entity']    = 'inventory';
+			$intent['operation'] = 'list';
+			$entity              = 'inventory';
+
+			if ( $mentions_out ) {
+				$intent['scope'] = 'out_of_stock';
+				$intent['filters']['stock_status'] = 'outofstock';
+				unset( $intent['filters']['stock_threshold'] );
+				return $intent;
+			}
+			if ( $mentions_low ) {
+				$intent['scope'] = 'low_stock';
+				if ( ! isset( $intent['filters']['stock_threshold'] ) ) {
+					$intent['filters']['stock_threshold'] = 10;
+				}
+				unset( $intent['filters']['stock_status'] );
+				return $intent;
+			}
+
+			// When user asks products + inventory (or asks for numbers), default to full inventory with quantities.
+			if ( $mentions_products || $wants_all || $wants_numbers ) {
+				$intent['scope'] = 'all';
+				$intent['filters']['limit'] = -1;
+				unset( $intent['filters']['stock_status'], $intent['filters']['stock_threshold'] );
+				return $intent;
 			}
 		}
 
@@ -665,9 +702,6 @@ class Dataviz_AI_Intent_Normalizer {
 
 		// Stock/inventory scope normalization.
 		$wants_all = (bool) preg_match( '/\b(all|every|entire|complete|full)\b/i', $q );
-		$mentions_low = (bool) preg_match( '/\b(low stock|running low)\b/i', $q );
-		$mentions_out = (bool) preg_match( '/\bout of stock\b/i', $q );
-
 		if ( $mentions_out || ( isset( $filters['stock_status'] ) && $filters['stock_status'] === 'outofstock' ) ) {
 			$intent['scope'] = 'out_of_stock';
 			$intent['filters']['stock_status'] = 'outofstock';

@@ -79,6 +79,26 @@ class Dataviz_AI_Query_Orchestrator {
 			return;
 		}
 
+		// Conversion-rate questions are unsupported without traffic/session analytics.
+		if ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
+			$resp = $this->build_intent_not_found_response(
+				$question,
+				'Conversion-rate queries require traffic/session data, which is not currently available.',
+				array(
+					'requires_data' => true,
+					'entity'        => 'conversion_rate',
+					'operation'     => 'feature_request',
+				),
+				array(
+					'low_confidence' => false,
+				)
+			);
+			$this->stream_handler->send_chunk( $resp['answer'] );
+			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
+			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
+			return;
+		}
+
 		// Comparison questions are currently unsupported; route to feature-request style response.
 		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
 			$resp = $this->build_intent_not_found_response(
@@ -238,6 +258,22 @@ class Dataviz_AI_Query_Orchestrator {
 		// Custom backend.
 		if ( $this->api_client->has_custom_backend() ) {
 			return $this->handle_custom_backend( $question );
+		}
+
+		// Conversion-rate questions are unsupported without traffic/session analytics.
+		if ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
+			return $this->build_intent_not_found_response(
+				$question,
+				'Conversion-rate queries require traffic/session data, which is not currently available.',
+				array(
+					'requires_data' => true,
+					'entity'        => 'conversion_rate',
+					'operation'     => 'feature_request',
+				),
+				array(
+					'low_confidence' => false,
+				)
+			);
 		}
 
 		// Comparison questions are currently unsupported; route to feature-request style response.
@@ -683,6 +719,8 @@ class Dataviz_AI_Query_Orchestrator {
 		$entity_type = 'intent_not_found';
 		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
 			$entity_type = 'comparisons';
+		} elseif ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
+			$entity_type = 'conversion_rate';
 		}
 		$description = "User question:\n" . (string) $question;
 		if ( is_string( $reason ) && $reason !== '' ) {
@@ -696,6 +734,8 @@ class Dataviz_AI_Query_Orchestrator {
 
 		if ( $entity_type === 'comparisons' ) {
 			$message = __( 'Comparisons across periods (for example, January vs February) are not currently supported in this version.', 'dataviz-ai-for-woocommerce' );
+		} elseif ( $entity_type === 'conversion_rate' ) {
+			$message = __( 'Conversion rate is not currently supported because this store is not connected to traffic/session analytics data yet.', 'dataviz-ai-for-woocommerce' );
 		} elseif ( $low_confidence ) {
 			$message = __( 'I am not confident I understood your question, so I did not run a WooCommerce data query. Rephrasing often helps.', 'dataviz-ai-for-woocommerce' );
 		} else {
