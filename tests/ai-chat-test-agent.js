@@ -66,6 +66,7 @@ const testResults = {
     passed: [],
     failed: [],
     total: 0,
+    infraFailures: [],
     allTests: [], // Store all tests with full Q&A
     performance: {
         totalResponseTime: 0,
@@ -76,6 +77,22 @@ const testResults = {
         slowestResponse: 0,
     },
 };
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isInfrastructureErrorText(text) {
+    const t = String(text || '').toLowerCase();
+    return (
+        t.includes('curl error 28') ||
+        t.includes('failed to connect to api.openai.com') ||
+        t.includes('timeout was reached') ||
+        t.includes('etimedout') ||
+        t.includes('econnreset') ||
+        t.includes('eai_again')
+    );
+}
 
 /**
  * Get path to saved questions file
@@ -510,19 +527,46 @@ async function fetchValidatedIntent(page, question) {
         return { ok: false, error: 'Missing ajaxUrl/nonce from page' };
     }
 
-    const resp = await page.request.post(ajaxUrl, {
-        form: {
-            action: 'dataviz_ai_debug_intent',
-            nonce,
-            question
-        },
-        timeout: CONFIG.timeout
-    });
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const resp = await page.request.post(ajaxUrl, {
+                form: {
+                    action: 'dataviz_ai_debug_intent',
+                    nonce,
+                    question
+                },
+                timeout: Math.max(CONFIG.timeout, 45000)
+            });
 
-    const json = await resp.json().catch(() => null);
-    if (!json) return { ok: false, error: 'Non-JSON response from intent endpoint' };
-    if (!json.success) return { ok: false, error: json.data && json.data.message ? json.data.message : 'Intent endpoint error', data: json.data };
-    return { ok: true, intent: json.data.validated_intent };
+            const json = await resp.json().catch(() => null);
+            if (!json) {
+                if (attempt < maxAttempts) {
+                    await sleep(750 * attempt);
+                    continue;
+                }
+                return { ok: false, error: 'Non-JSON response from intent endpoint' };
+            }
+            if (!json.success) {
+                const msg = json.data && json.data.message ? json.data.message : 'Intent endpoint error';
+                if (isInfrastructureErrorText(msg) && attempt < maxAttempts) {
+                    await sleep(1000 * attempt);
+                    continue;
+                }
+                return { ok: false, error: msg, data: json.data };
+            }
+            return { ok: true, intent: json.data.validated_intent };
+        } catch (e) {
+            const msg = e && e.message ? e.message : String(e);
+            if (isInfrastructureErrorText(msg) && attempt < maxAttempts) {
+                await sleep(1000 * attempt);
+                continue;
+            }
+            return { ok: false, error: msg };
+        }
+    }
+
+    return { ok: false, error: 'Intent endpoint retries exhausted' };
 }
 
 /**
@@ -764,7 +808,11 @@ async function testChatQuestion(page, question, questionNumber) {
             const expected = EXPECTED_INTENTS[question];
             const intentResp = await fetchValidatedIntent(page, question);
             if (!intentResp.ok) {
-                throw new Error(`Intent check failed: ${intentResp.error}`);
+                const msg = `Intent check failed: ${intentResp.error}`;
+                if (isInfrastructureErrorText(msg)) {
+                    throw new Error(`[INFRA] ${msg}`);
+                }
+                throw new Error(msg);
             }
             const ok = deepPartialMatch(intentResp.intent, expected);
             if (!ok) {
@@ -969,6 +1017,11 @@ async function testChatQuestion(page, question, questionNumber) {
         if (responseText.length < 50) {
             console.log('   [WARN]  Warning: Response seems short (' + responseText.length + ' chars): "' + responseText + '"');
         }
+
+        // Treat infrastructure/network provider issues as infra failures, not NLP regressions.
+        if (isInfrastructureErrorText(responseText)) {
+            throw new Error('[INFRA] Provider/network failure: ' + responseText.substring(0, 220));
+        }
         
         // Additional check: if response is just a greeting, wait longer for tools to execute
         if (/^hello[!.]?\s*(how can i assist you|how may i help)/i.test(responseText) && responseText.length < 100) {
@@ -1082,6 +1135,7 @@ async function testChatQuestion(page, question, questionNumber) {
         // Calculate response time (performanceMetrics is initialized before try block)
         performanceMetrics.responseTime = Date.now() - performanceMetrics.questionStartTime;
         console.log('[FAIL] ERROR: ' + error.message + '');
+        const isInfraFailure = /^\[INFRA\]/.test(String(error.message || '')) || isInfrastructureErrorText(error.message || '');
         const testResult = {
             question,
             response: '',
@@ -1089,16 +1143,26 @@ async function testChatQuestion(page, question, questionNumber) {
             reason: 'Error: ' + error.message,
             chartDisplayed: false,
             performanceMetrics: performanceMetrics,
-            dataQuality: 'poor',
+            dataQuality: isInfraFailure ? 'unknown' : 'poor',
+            infraFailure: isInfraFailure,
             timestamp: new Date().toISOString()
         };
         testResults.allTests.push(testResult);
-        testResults.failed.push({ 
-            question, 
-            error: error.message,
-            responseTime: performanceMetrics.responseTime
-        });
-        testResults.total++;
+        if (isInfraFailure) {
+            testResults.infraFailures.push({
+                question,
+                error: error.message,
+                responseTime: performanceMetrics.responseTime
+            });
+            console.log('   [INFRA] Marked as infrastructure failure (excluded from pass/fail rate)');
+        } else {
+            testResults.failed.push({ 
+                question, 
+                error: error.message,
+                responseTime: performanceMetrics.responseTime
+            });
+            testResults.total++;
+        }
     }
 }
 
@@ -1163,9 +1227,12 @@ async function runTests(useStatic = false) {
  * Print test summary
  */
 function printSummary() {
+    const attemptedTotal = testResults.allTests.length;
+    const evaluatedTotal = testResults.total;
+
     // Calculate average performance metrics
-    if (testResults.total > 0) {
-        testResults.performance.averageResponseTime = Math.round(testResults.performance.totalResponseTime / testResults.total);
+    if (evaluatedTotal > 0) {
+        testResults.performance.averageResponseTime = Math.round(testResults.performance.totalResponseTime / evaluatedTotal);
         const streamingTests = testResults.allTests.filter(t => t.performanceMetrics && t.performanceMetrics.streamingTime);
         if (streamingTests.length > 0) {
             testResults.performance.averageStreamingTime = Math.round(
@@ -1177,10 +1244,15 @@ function printSummary() {
     console.log('\n' + '='.repeat(60));
     console.log('[SUMMARY] TEST SUMMARY');
     console.log('='.repeat(60));
-    console.log('Total Tests: ' + testResults.total + '');
+    console.log('Total Questions Attempted: ' + attemptedTotal + '');
+    console.log('Evaluated Tests (functional): ' + evaluatedTotal + '');
+    console.log('Infra Failures (excluded): ' + testResults.infraFailures.length + '');
     console.log('[SUCCESS] Passed: ' + testResults.passed.length + '');
     console.log('[FAIL] Failed: ' + testResults.failed.length + '');
-    console.log('Success Rate: ' + ((testResults.passed.length / testResults.total) * 100).toFixed(1) + '%');
+    const successRate = evaluatedTotal > 0
+        ? ((testResults.passed.length / evaluatedTotal) * 100).toFixed(1) + '%'
+        : 'N/A';
+    console.log('Success Rate: ' + successRate);
     
     // Performance summary
     console.log('\n[PERF] Performance Metrics:');
@@ -1199,16 +1271,26 @@ function printSummary() {
         poor: 0,
         unknown: 0
     };
-    testResults.allTests.forEach(test => {
+    testResults.allTests.filter(test => !test.infraFailure).forEach(test => {
         const quality = test.dataQuality || 'unknown';
         qualityCounts[quality] = (qualityCounts[quality] || 0) + 1;
     });
     console.log('\n[DATA] Data Quality Distribution:');
     Object.entries(qualityCounts).forEach(([quality, count]) => {
         if (count > 0) {
-            console.log(`   ${quality.charAt(0).toUpperCase() + quality.slice(1)}: ${count} (${((count / testResults.total) * 100).toFixed(1)}%)`);
+            const pct = evaluatedTotal > 0 ? ((count / evaluatedTotal) * 100).toFixed(1) : '0.0';
+            console.log(`   ${quality.charAt(0).toUpperCase() + quality.slice(1)}: ${count} (${pct}%)`);
         }
     });
+
+    if (testResults.infraFailures.length > 0) {
+        console.log('\n[INFRA] Infrastructure Failures (excluded from pass/fail):');
+        testResults.infraFailures.forEach((test, i) => {
+            console.log(`\n${i + 1}. Question: "${test.question}"`);
+            if (test.error) console.log('   Error: ' + test.error + '');
+            if (test.responseTime) console.log('   Response Time: ' + test.responseTime + 'ms');
+        });
+    }
     
     if (testResults.failed.length > 0) {
         console.log('\n[FAIL] Failed Tests:');
@@ -1267,10 +1349,18 @@ async function generatePDFReport() {
     doc.fontSize(14).text('Test Summary', { underline: true });
     doc.moveDown(0.5);
     doc.fontSize(11);
-    doc.text(`Total Tests: ${testResults.total}`);
+    const attemptedTotal = testResults.allTests.length;
+    const evaluatedTotal = testResults.total;
+    const successRate = evaluatedTotal > 0
+        ? ((testResults.passed.length / evaluatedTotal) * 100).toFixed(1)
+        : 'N/A';
+
+    doc.text(`Total Questions Attempted: ${attemptedTotal}`);
+    doc.text(`Evaluated Tests (functional): ${evaluatedTotal}`);
+    doc.text(`Infra Failures (excluded): ${testResults.infraFailures.length}`);
     doc.text(`Passed: ${testResults.passed.length}`, { continued: true, indent: 20 });
     doc.text(`Failed: ${testResults.failed.length}`, { continued: true, indent: 20 });
-    doc.text(`Success Rate: ${((testResults.passed.length / testResults.total) * 100).toFixed(1)}%`);
+    doc.text(`Success Rate: ${successRate}${successRate === 'N/A' ? '' : '%'}`);
     doc.moveDown(2);
     
     // Test Results
