@@ -1,0 +1,16 @@
+{
+  "questions": [
+    "How many orders did I get this month?",
+    "Total orders this week",
+    "What is revenue for pending orders this month?",
+    "Show all completed orders",
+    "List pending orders from last 30 days",
+    "Show order status breakdown for this month",
+    "Give me sales total for last 14 days",
+    "Display orders by status",
+    "Show processing orders",
+    "Revenue by status this month"
+  ],
+  "generatedAt": "manual-phase5-fixture",
+  "count": 10
+}

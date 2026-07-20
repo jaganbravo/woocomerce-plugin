@@ -123,10 +123,13 @@ function loadSavedQuestions() {
     if (fs.existsSync(filePath)) {
         try {
             const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            const questions = data.questions || [];
+            const questions = Array.isArray(data)
+                ? data
+                : (Array.isArray(data.questions) ? data.questions : []);
             if (questions.length > 0) {
                 console.log(`[LOAD] Loaded ${questions.length} saved questions from ${filePath}`);
-                console.log(`[INFO] Questions generated at: ${data.generatedAt || 'unknown'}`);
+                const generatedAt = Array.isArray(data) ? 'n/a (manual list)' : (data.generatedAt || 'unknown');
+                console.log(`[INFO] Questions generated at: ${generatedAt}`);
                 return questions;
             }
         } catch (e) {

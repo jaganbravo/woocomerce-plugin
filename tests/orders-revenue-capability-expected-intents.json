@@ -1,0 +1,64 @@
+{
+  "How many orders did I get this month?": {
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Total orders this week": {
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "What is revenue for pending orders this month?": {
+    "entity": "orders",
+    "operation": "statistics",
+    "filters": {
+      "status": "pending"
+    }
+  },
+  "Show all completed orders": {
+    "entity": "orders",
+    "operation": "list",
+    "filters": {
+      "status": "completed",
+      "limit": -1
+    }
+  },
+  "List pending orders from last 30 days": {
+    "entity": "orders",
+    "operation": "list",
+    "filters": {
+      "status": "pending"
+    }
+  },
+  "Show order status breakdown for this month": {
+    "entity": "orders",
+    "operation": "statistics",
+    "dimensions": [
+      "status"
+    ]
+  },
+  "Give me sales total for last 14 days": {
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Display orders by status": {
+    "entity": "orders",
+    "operation": "statistics",
+    "dimensions": [
+      "status"
+    ]
+  },
+  "Show processing orders": {
+    "entity": "orders",
+    "operation": "list",
+    "filters": {
+      "status": "processing"
+    }
+  },
+  "Revenue by status this month": {
+    "entity": "orders",
+    "operation": "statistics",
+    "dimensions": [
+      "status"
+    ]
+  }
+}
