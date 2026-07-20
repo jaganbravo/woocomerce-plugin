@@ -329,6 +329,20 @@ function isZeroDataResponse(response) {
     );
 }
 
+function hasDebugIntentLeak(response) {
+    return /\binterpreting your question as:\b/i.test(response || '');
+}
+
+function isClarificationResponse(response) {
+    const lr = (response || '').toLowerCase();
+    return (
+        /\b(not fully confident|not confident|did not run a woocommerce data query yet)\b/i.test(response || '') ||
+        /\bplease try again\b/i.test(response || '') ||
+        /\bone clear target and timeframe\b/i.test(response || '') ||
+        (lr.includes('examples you can try') && lr.includes('please'))
+    );
+}
+
 /**
  * Check if the response indicates an internal error (not a data error, but an actual system error).
  * These should NOT be treated as valid — they indicate bugs to be fixed.
@@ -360,9 +374,19 @@ function validateResponseData(question, response) {
     const featureRequest = isFeatureRequestResponse(response);
     const informational = isInformationalQuestion(question);
     const zeroData = isZeroDataResponse(response);
+    const clarification = isClarificationResponse(response);
+
+    if (hasDebugIntentLeak(response)) {
+        issues.push('Response leaked internal debug interpretation text');
+        return { issues, validations, hasSpecificData: false };
+    }
 
     if (featureRequest) {
         validations.push('Feature request response (data validation skipped)');
+        return { issues, validations, hasSpecificData: true };
+    }
+    if (clarification) {
+        validations.push('Clarification response for ambiguous question (data validation skipped)');
         return { issues, validations, hasSpecificData: true };
     }
     if (informational) {
@@ -610,6 +634,7 @@ IMPORTANT:
 - If user asks for "all" and response shows multiple items or explicitly states completeness (e.g., "all 50 products"), mark as VALID
 - A response that correctly identifies a feature as unsupported and offers to submit a feature request IS VALID (e.g., comparison queries, conversion rate with traffic data, social media referrals, cross-entity combination queries)
 - A response that explains what data is or isn't available IS VALID for informational/meta questions (e.g., "What happens if I request unsupported features?", "Are there empty data sets?")
+- A response that asks the user to clarify/rephrase because intent confidence is low IS VALID when it includes concrete examples to retry
 - A response that explicitly states zero/no results (e.g., "No coupons were used", "0 customers have placed orders", "No refunds found", "I couldn't find a tag named X", "No records matching your query") IS VALID — the system correctly queried but found no matching data. This is a legitimate deterministic answer.
 - Only mark as INVALID if the response is clearly irrelevant, contains no data, is just a greeting, OR violates the "all" requirement above (EXCEPT when the response explicitly says no matching items were found — that's valid for "all" queries too)
 ${dataValidation.issues.length > 0 ? `\n⚠️ VALIDATION ISSUES DETECTED: ${dataValidation.issues.join(', ')}. These should cause the test to FAIL if they indicate incomplete data (especially "all" queries showing only 1 item).` : ''}
@@ -635,7 +660,11 @@ Return ONLY a JSON object with:
         const evaluation = JSON.parse(result.choices[0].message.content);
         
         // Feature-request, informational, and legitimate zero-data responses bypass strict data validation.
-        const skipHardFail = isFeatureRequestResponse(response) || isInformationalQuestion(question) || isZeroDataResponse(response);
+        const skipHardFail =
+            isFeatureRequestResponse(response) ||
+            isInformationalQuestion(question) ||
+            isZeroDataResponse(response) ||
+            isClarificationResponse(response);
 
         // Treat validation issues as hard failures (prevents irrelevant responses from passing).
         if (dataValidation.issues.length > 0 && !skipHardFail) {
@@ -694,6 +723,17 @@ Return ONLY a JSON object with:
             return {
                 valid: true,
                 reason: 'Zero-data / no-results response detected (fallback)',
+                dataValidation: dataValidation,
+                performanceMetrics: performanceMetrics,
+                dataQuality: 'fair'
+            };
+        }
+
+        const clarificationResp = isClarificationResponse(response);
+        if (clarificationResp) {
+            return {
+                valid: true,
+                reason: 'Clarification response detected (fallback)',
                 dataValidation: dataValidation,
                 performanceMetrics: performanceMetrics,
                 dataQuality: 'fair'

@@ -727,21 +727,26 @@ class Dataviz_AI_Query_Orchestrator {
 			$description .= "\n\nReason:\n" . $reason;
 		}
 
-		$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
-		set_transient( $transient_key, $entity_type, HOUR_IN_SECONDS );
-		$desc_key = 'dataviz_ai_pending_request_desc_' . md5( $this->session_id );
-		set_transient( $desc_key, $description, HOUR_IN_SECONDS );
+		// For low-confidence intent parsing, guide the user to clarify instead of
+		// opening a feature-request flow.
+		if ( ! $low_confidence ) {
+			$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
+			set_transient( $transient_key, $entity_type, HOUR_IN_SECONDS );
+			$desc_key = 'dataviz_ai_pending_request_desc_' . md5( $this->session_id );
+			set_transient( $desc_key, $description, HOUR_IN_SECONDS );
+		}
 
 		if ( $entity_type === 'comparisons' ) {
 			$message = __( 'Comparisons across periods (for example, January vs February) are not currently supported in this version.', 'dataviz-ai-for-woocommerce' );
 		} elseif ( $entity_type === 'conversion_rate' ) {
 			$message = __( 'Conversion rate is not currently supported because this store is not connected to traffic/session analytics data yet.', 'dataviz-ai-for-woocommerce' );
 		} elseif ( $low_confidence ) {
-			$message = __( 'I am not confident I understood your question, so I did not run a WooCommerce data query. Rephrasing often helps.', 'dataviz-ai-for-woocommerce' );
+			$message = __( 'I am not fully confident I understood that question, so I did not run a WooCommerce data query yet.', 'dataviz-ai-for-woocommerce' );
 		} else {
 			$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-for-woocommerce' );
 		}
-		$prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-for-woocommerce' );
+		$feature_prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-for-woocommerce' );
+		$clarify_prompt = __( 'Please try again with one clear target and timeframe, for example: "Show pending orders for this week" or "List out-of-stock products".', 'dataviz-ai-for-woocommerce' );
 
 		$answer = $message;
 
@@ -751,7 +756,7 @@ class Dataviz_AI_Query_Orchestrator {
 			$answer .= "\n\n" . __( 'Examples you can try:', 'dataviz-ai-for-woocommerce' ) . "\n" . $examples;
 		}
 
-		$answer .= "\n\n" . $prompt;
+		$answer .= "\n\n" . ( $low_confidence ? $clarify_prompt : $feature_prompt );
 		$answer  = trim( $answer );
 
 		$line = Dataviz_AI_Intent_Query_Summary::from_intent( $intent_snapshot );

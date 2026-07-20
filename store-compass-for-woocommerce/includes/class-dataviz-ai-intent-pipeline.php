@@ -79,6 +79,7 @@ class Dataviz_AI_Intent_Pipeline {
 		if ( is_wp_error( $intent_parse ) ) {
 			if ( $intent_parse->get_error_code() === 'dataviz_ai_invalid_intent' ) {
 				$result['error_reason'] = $intent_parse->get_error_message();
+				$result['low_confidence'] = true;
 				return $result;
 			}
 			$result['error'] = $intent_parse;
