@@ -752,6 +752,7 @@ class Dataviz_AI_Intent_Normalizer {
 		$operation = isset( $intent['operation'] ) ? (string) $intent['operation'] : 'list';
 
 		$mentions_orders = (bool) preg_match( '/\borders?\b/i', $q );
+		$mentions_customers = (bool) preg_match( '/\bcustomers?\b/i', $q );
 		$mentions_revenue = (bool) preg_match( '/\b(revenue|sales|income|gmv|gross merchandise value|order value)\b/i', $q );
 		$mentions_count = (bool) preg_match( '/\b(how many|count|number of|total number of|total orders?)\b/i', $q_l );
 		$mentions_list = (bool) preg_match( '/\b(show|list|display|give|fetch|view)\b/i', $q );
@@ -762,6 +763,17 @@ class Dataviz_AI_Intent_Normalizer {
 
 		$is_order_revenue_capability = ( $entity === 'orders' ) || $mentions_orders || $mentions_revenue || $mentions_status_breakdown || $status !== '';
 		if ( ! $is_order_revenue_capability ) {
+			return $intent;
+		}
+
+		// Keep customer-count capability under customers when the question is
+		// customer-centric (e.g. "How many customers placed orders this month?").
+		if (
+			$entity === 'customers'
+			&& $mentions_customers
+			&& ! $mentions_revenue
+			&& ! $mentions_status_breakdown
+		) {
 			return $intent;
 		}
 
@@ -841,6 +853,8 @@ class Dataviz_AI_Intent_Normalizer {
 		$q = strtolower( (string) $question );
 
 		$external_sources = array(
+			'traffic source'         => 'traffic_source_analytics',
+			'traffic sources'        => 'traffic_source_analytics',
 			'social media referral'  => 'social_media_referrals',
 			'social media'           => 'social_media_analytics',
 			'referral'               => 'referral_analytics',

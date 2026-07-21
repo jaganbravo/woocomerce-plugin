@@ -1,0 +1,28 @@
+{
+  "questions": [
+    "Show all products and their inventory quantities",
+    "Which items are running low on stock?",
+    "List out-of-stock items",
+    "Give me every completed order",
+    "How many pending orders do I have?",
+    "Show orders by status for this month",
+    "Revenue for last 14 days",
+    "Show a daily order chart for this week",
+    "How many customers placed orders this month?",
+    "Who are my top customers by spend?",
+    "List products under Clothing category",
+    "Show coupons used last month",
+    "Show all refunds this month",
+    "Orders this morning",
+    "Revenue by status this month",
+    "Show me a pie chart of order status",
+    "Compare this month vs last month revenue",
+    "What is our conversion rate this month?",
+    "Show traffic sources by campaign",
+    "Combine products and orders in one report",
+    "Show social media referrals",
+    "Can you export all orders to CSV?"
+  ],
+  "generatedAt": "phase7-expansion-fixture",
+  "count": 22
+}

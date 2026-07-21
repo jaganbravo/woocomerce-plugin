@@ -681,13 +681,14 @@ Return ONLY a JSON object with:
         // Deterministic override for known single-item-valid query families.
         // These are not "all" queries; single-result answers can be fully correct.
         if (!evaluation.valid && dataValidation.issues.length === 0) {
-            const isStockScopeListQuestion = /\b(out of stock|low in stock|low stock)\b/i.test(question);
+            const isStockScopeListQuestion = /\b(out[\s-]?of[\s-]?stock|low in stock|low stock|running low(?:\s+on\s+stock)?)\b/i.test(question);
             const isCategorySalesQuestion = /\bsales?\b/i.test(question) && /\bcategory\b/i.test(question);
             const stockResponseLooksValid =
-                /\b(out-of-stock|out of stock|low in stock|stock quantity|qty)\b/i.test(response) &&
+                /\b(out[\s-]?of[\s-]?stock|low in stock|running low|stock quantity|qty)\b/i.test(response) &&
                 (
                     /\n?\s*1[\.\)]\s+/i.test(response) || // numbered list
                     /there is\s+1\s+product\s+low\s+in\s+stock/i.test(response) || // explicit singular count
+                    /the item that is running low on stock is/i.test(response) || // explicit singular wording
                     /[•\-\*]\s+\*\*[^*]+\*\*/i.test(response) // bullet style list item
                 );
             const categoryResponseLooksValid = /\b(category|categories)\b/i.test(response) && /\d/.test(response);

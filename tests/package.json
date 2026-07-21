@@ -14,6 +14,8 @@
     "test:dates:headless": "HEADLESS=true node ai-chat-test-agent.js --questions edge-case-dates.json",
     "test:orders:revenue": "node ai-chat-test-agent.js --questions orders-revenue-capability-questions.json",
     "test:orders:revenue:headless": "HEADLESS=true node ai-chat-test-agent.js --questions orders-revenue-capability-questions.json",
+    "test:phase7": "node ai-chat-test-agent.js --questions phase7-expansion-questions.json",
+    "test:phase7:headless": "HEADLESS=true node ai-chat-test-agent.js --questions phase7-expansion-questions.json",
     "test:nlp:phase0": "node ai-chat-test-agent.js --questions nlp-phase0-baseline-questions.json",
     "test:nlp:phase0:headless": "HEADLESS=true node ai-chat-test-agent.js --questions nlp-phase0-baseline-questions.json"
   },

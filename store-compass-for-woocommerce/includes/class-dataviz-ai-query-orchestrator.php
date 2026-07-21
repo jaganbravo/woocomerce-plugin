@@ -79,46 +79,6 @@ class Dataviz_AI_Query_Orchestrator {
 			return;
 		}
 
-		// Conversion-rate questions are unsupported without traffic/session analytics.
-		if ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
-			$resp = $this->build_intent_not_found_response(
-				$question,
-				'Conversion-rate queries require traffic/session data, which is not currently available.',
-				array(
-					'requires_data' => true,
-					'entity'        => 'conversion_rate',
-					'operation'     => 'feature_request',
-				),
-				array(
-					'low_confidence' => false,
-				)
-			);
-			$this->stream_handler->send_chunk( $resp['answer'] );
-			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
-			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
-			return;
-		}
-
-		// Comparison questions are currently unsupported; route to feature-request style response.
-		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
-			$resp = $this->build_intent_not_found_response(
-				$question,
-				'Comparison queries are not currently supported.',
-				array(
-					'requires_data' => true,
-					'entity'        => 'comparisons',
-					'operation'     => 'feature_request',
-				),
-				array(
-					'low_confidence' => false,
-				)
-			);
-			$this->stream_handler->send_chunk( $resp['answer'] );
-			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
-			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
-			return;
-		}
-
 		// Feature-request confirmation shortcut.
 		if ( $this->is_feature_request_confirmation( $question ) ) {
 			$handled = $this->handle_feature_request_confirmation_stream( $question );
@@ -127,8 +87,12 @@ class Dataviz_AI_Query_Orchestrator {
 			}
 		}
 
-		// Non-data question: pure LLM chat.
-		if ( ! Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
+		// Non-data question: pure LLM chat, unless pipeline pre-guards require deterministic
+		// feature-request handling for unsupported analytics capabilities.
+		if (
+			! Dataviz_AI_Intent_Classifier::question_requires_data( $question )
+			&& ! $this->pipeline->should_force_pipeline( $question )
+		) {
 			$this->stream_chat_response( $question );
 			return;
 		}
@@ -260,38 +224,6 @@ class Dataviz_AI_Query_Orchestrator {
 			return $this->handle_custom_backend( $question );
 		}
 
-		// Conversion-rate questions are unsupported without traffic/session analytics.
-		if ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
-			return $this->build_intent_not_found_response(
-				$question,
-				'Conversion-rate queries require traffic/session data, which is not currently available.',
-				array(
-					'requires_data' => true,
-					'entity'        => 'conversion_rate',
-					'operation'     => 'feature_request',
-				),
-				array(
-					'low_confidence' => false,
-				)
-			);
-		}
-
-		// Comparison questions are currently unsupported; route to feature-request style response.
-		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
-			return $this->build_intent_not_found_response(
-				$question,
-				'Comparison queries are not currently supported.',
-				array(
-					'requires_data' => true,
-					'entity'        => 'comparisons',
-					'operation'     => 'feature_request',
-				),
-				array(
-					'low_confidence' => false,
-				)
-			);
-		}
-
 		// Feature-request confirmation.
 		if ( $this->is_feature_request_confirmation( $question ) ) {
 			$entity_type = $this->extract_entity_type_from_history();
@@ -320,8 +252,12 @@ class Dataviz_AI_Query_Orchestrator {
 			}
 		}
 
-		// Non-data question.
-		if ( ! Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
+		// Non-data question, except unsupported analytics capabilities which must
+		// still flow through the pipeline's deterministic guard handling.
+		if (
+			! Dataviz_AI_Intent_Classifier::question_requires_data( $question )
+			&& ! $this->pipeline->should_force_pipeline( $question )
+		) {
 			return $this->chat_response( $question );
 		}
 
@@ -717,7 +653,9 @@ class Dataviz_AI_Query_Orchestrator {
 		$low_confidence = ! empty( $options['low_confidence'] );
 
 		$entity_type = 'intent_not_found';
-		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
+		if ( ! empty( $intent_snapshot['entity'] ) && is_string( $intent_snapshot['entity'] ) ) {
+			$entity_type = sanitize_key( $intent_snapshot['entity'] );
+		} elseif ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
 			$entity_type = 'comparisons';
 		} elseif ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
 			$entity_type = 'conversion_rate';
