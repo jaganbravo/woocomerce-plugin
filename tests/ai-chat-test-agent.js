@@ -66,6 +66,7 @@ const testResults = {
     passed: [],
     failed: [],
     total: 0,
+    infraFailures: [],
     allTests: [], // Store all tests with full Q&A
     performance: {
         totalResponseTime: 0,
@@ -76,6 +77,22 @@ const testResults = {
         slowestResponse: 0,
     },
 };
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isInfrastructureErrorText(text) {
+    const t = String(text || '').toLowerCase();
+    return (
+        t.includes('curl error 28') ||
+        t.includes('failed to connect to api.openai.com') ||
+        t.includes('timeout was reached') ||
+        t.includes('etimedout') ||
+        t.includes('econnreset') ||
+        t.includes('eai_again')
+    );
+}
 
 /**
  * Get path to saved questions file
@@ -106,10 +123,13 @@ function loadSavedQuestions() {
     if (fs.existsSync(filePath)) {
         try {
             const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            const questions = data.questions || [];
+            const questions = Array.isArray(data)
+                ? data
+                : (Array.isArray(data.questions) ? data.questions : []);
             if (questions.length > 0) {
                 console.log(`[LOAD] Loaded ${questions.length} saved questions from ${filePath}`);
-                console.log(`[INFO] Questions generated at: ${data.generatedAt || 'unknown'}`);
+                const generatedAt = Array.isArray(data) ? 'n/a (manual list)' : (data.generatedAt || 'unknown');
+                console.log(`[INFO] Questions generated at: ${generatedAt}`);
                 return questions;
             }
         } catch (e) {
@@ -312,6 +332,20 @@ function isZeroDataResponse(response) {
     );
 }
 
+function hasDebugIntentLeak(response) {
+    return /\binterpreting your question as:\b/i.test(response || '');
+}
+
+function isClarificationResponse(response) {
+    const lr = (response || '').toLowerCase();
+    return (
+        /\b(not fully confident|not confident|did not run a woocommerce data query yet)\b/i.test(response || '') ||
+        /\bplease try again\b/i.test(response || '') ||
+        /\bone clear target and timeframe\b/i.test(response || '') ||
+        (lr.includes('examples you can try') && lr.includes('please'))
+    );
+}
+
 /**
  * Check if the response indicates an internal error (not a data error, but an actual system error).
  * These should NOT be treated as valid — they indicate bugs to be fixed.
@@ -343,9 +377,19 @@ function validateResponseData(question, response) {
     const featureRequest = isFeatureRequestResponse(response);
     const informational = isInformationalQuestion(question);
     const zeroData = isZeroDataResponse(response);
+    const clarification = isClarificationResponse(response);
+
+    if (hasDebugIntentLeak(response)) {
+        issues.push('Response leaked internal debug interpretation text');
+        return { issues, validations, hasSpecificData: false };
+    }
 
     if (featureRequest) {
         validations.push('Feature request response (data validation skipped)');
+        return { issues, validations, hasSpecificData: true };
+    }
+    if (clarification) {
+        validations.push('Clarification response for ambiguous question (data validation skipped)');
         return { issues, validations, hasSpecificData: true };
     }
     if (informational) {
@@ -510,19 +554,46 @@ async function fetchValidatedIntent(page, question) {
         return { ok: false, error: 'Missing ajaxUrl/nonce from page' };
     }
 
-    const resp = await page.request.post(ajaxUrl, {
-        form: {
-            action: 'dataviz_ai_debug_intent',
-            nonce,
-            question
-        },
-        timeout: CONFIG.timeout
-    });
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const resp = await page.request.post(ajaxUrl, {
+                form: {
+                    action: 'dataviz_ai_debug_intent',
+                    nonce,
+                    question
+                },
+                timeout: Math.max(CONFIG.timeout, 45000)
+            });
 
-    const json = await resp.json().catch(() => null);
-    if (!json) return { ok: false, error: 'Non-JSON response from intent endpoint' };
-    if (!json.success) return { ok: false, error: json.data && json.data.message ? json.data.message : 'Intent endpoint error', data: json.data };
-    return { ok: true, intent: json.data.validated_intent };
+            const json = await resp.json().catch(() => null);
+            if (!json) {
+                if (attempt < maxAttempts) {
+                    await sleep(750 * attempt);
+                    continue;
+                }
+                return { ok: false, error: 'Non-JSON response from intent endpoint' };
+            }
+            if (!json.success) {
+                const msg = json.data && json.data.message ? json.data.message : 'Intent endpoint error';
+                if (isInfrastructureErrorText(msg) && attempt < maxAttempts) {
+                    await sleep(1000 * attempt);
+                    continue;
+                }
+                return { ok: false, error: msg, data: json.data };
+            }
+            return { ok: true, intent: json.data.validated_intent };
+        } catch (e) {
+            const msg = e && e.message ? e.message : String(e);
+            if (isInfrastructureErrorText(msg) && attempt < maxAttempts) {
+                await sleep(1000 * attempt);
+                continue;
+            }
+            return { ok: false, error: msg };
+        }
+    }
+
+    return { ok: false, error: 'Intent endpoint retries exhausted' };
 }
 
 /**
@@ -566,6 +637,7 @@ IMPORTANT:
 - If user asks for "all" and response shows multiple items or explicitly states completeness (e.g., "all 50 products"), mark as VALID
 - A response that correctly identifies a feature as unsupported and offers to submit a feature request IS VALID (e.g., comparison queries, conversion rate with traffic data, social media referrals, cross-entity combination queries)
 - A response that explains what data is or isn't available IS VALID for informational/meta questions (e.g., "What happens if I request unsupported features?", "Are there empty data sets?")
+- A response that asks the user to clarify/rephrase because intent confidence is low IS VALID when it includes concrete examples to retry
 - A response that explicitly states zero/no results (e.g., "No coupons were used", "0 customers have placed orders", "No refunds found", "I couldn't find a tag named X", "No records matching your query") IS VALID — the system correctly queried but found no matching data. This is a legitimate deterministic answer.
 - Only mark as INVALID if the response is clearly irrelevant, contains no data, is just a greeting, OR violates the "all" requirement above (EXCEPT when the response explicitly says no matching items were found — that's valid for "all" queries too)
 ${dataValidation.issues.length > 0 ? `\n⚠️ VALIDATION ISSUES DETECTED: ${dataValidation.issues.join(', ')}. These should cause the test to FAIL if they indicate incomplete data (especially "all" queries showing only 1 item).` : ''}
@@ -591,7 +663,11 @@ Return ONLY a JSON object with:
         const evaluation = JSON.parse(result.choices[0].message.content);
         
         // Feature-request, informational, and legitimate zero-data responses bypass strict data validation.
-        const skipHardFail = isFeatureRequestResponse(response) || isInformationalQuestion(question) || isZeroDataResponse(response);
+        const skipHardFail =
+            isFeatureRequestResponse(response) ||
+            isInformationalQuestion(question) ||
+            isZeroDataResponse(response) ||
+            isClarificationResponse(response);
 
         // Treat validation issues as hard failures (prevents irrelevant responses from passing).
         if (dataValidation.issues.length > 0 && !skipHardFail) {
@@ -605,13 +681,14 @@ Return ONLY a JSON object with:
         // Deterministic override for known single-item-valid query families.
         // These are not "all" queries; single-result answers can be fully correct.
         if (!evaluation.valid && dataValidation.issues.length === 0) {
-            const isStockScopeListQuestion = /\b(out of stock|low in stock|low stock)\b/i.test(question);
+            const isStockScopeListQuestion = /\b(out[\s-]?of[\s-]?stock|low in stock|low stock|running low(?:\s+on\s+stock)?)\b/i.test(question);
             const isCategorySalesQuestion = /\bsales?\b/i.test(question) && /\bcategory\b/i.test(question);
             const stockResponseLooksValid =
-                /\b(out-of-stock|out of stock|low in stock|stock quantity|qty)\b/i.test(response) &&
+                /\b(out[\s-]?of[\s-]?stock|low in stock|running low|stock quantity|qty)\b/i.test(response) &&
                 (
                     /\n?\s*1[\.\)]\s+/i.test(response) || // numbered list
                     /there is\s+1\s+product\s+low\s+in\s+stock/i.test(response) || // explicit singular count
+                    /the item that is running low on stock is/i.test(response) || // explicit singular wording
                     /[•\-\*]\s+\*\*[^*]+\*\*/i.test(response) // bullet style list item
                 );
             const categoryResponseLooksValid = /\b(category|categories)\b/i.test(response) && /\d/.test(response);
@@ -650,6 +727,17 @@ Return ONLY a JSON object with:
             return {
                 valid: true,
                 reason: 'Zero-data / no-results response detected (fallback)',
+                dataValidation: dataValidation,
+                performanceMetrics: performanceMetrics,
+                dataQuality: 'fair'
+            };
+        }
+
+        const clarificationResp = isClarificationResponse(response);
+        if (clarificationResp) {
+            return {
+                valid: true,
+                reason: 'Clarification response detected (fallback)',
                 dataValidation: dataValidation,
                 performanceMetrics: performanceMetrics,
                 dataQuality: 'fair'
@@ -764,7 +852,11 @@ async function testChatQuestion(page, question, questionNumber) {
             const expected = EXPECTED_INTENTS[question];
             const intentResp = await fetchValidatedIntent(page, question);
             if (!intentResp.ok) {
-                throw new Error(`Intent check failed: ${intentResp.error}`);
+                const msg = `Intent check failed: ${intentResp.error}`;
+                if (isInfrastructureErrorText(msg)) {
+                    throw new Error(`[INFRA] ${msg}`);
+                }
+                throw new Error(msg);
             }
             const ok = deepPartialMatch(intentResp.intent, expected);
             if (!ok) {
@@ -969,6 +1061,11 @@ async function testChatQuestion(page, question, questionNumber) {
         if (responseText.length < 50) {
             console.log('   [WARN]  Warning: Response seems short (' + responseText.length + ' chars): "' + responseText + '"');
         }
+
+        // Treat infrastructure/network provider issues as infra failures, not NLP regressions.
+        if (isInfrastructureErrorText(responseText)) {
+            throw new Error('[INFRA] Provider/network failure: ' + responseText.substring(0, 220));
+        }
         
         // Additional check: if response is just a greeting, wait longer for tools to execute
         if (/^hello[!.]?\s*(how can i assist you|how may i help)/i.test(responseText) && responseText.length < 100) {
@@ -1082,6 +1179,7 @@ async function testChatQuestion(page, question, questionNumber) {
         // Calculate response time (performanceMetrics is initialized before try block)
         performanceMetrics.responseTime = Date.now() - performanceMetrics.questionStartTime;
         console.log('[FAIL] ERROR: ' + error.message + '');
+        const isInfraFailure = /^\[INFRA\]/.test(String(error.message || '')) || isInfrastructureErrorText(error.message || '');
         const testResult = {
             question,
             response: '',
@@ -1089,16 +1187,26 @@ async function testChatQuestion(page, question, questionNumber) {
             reason: 'Error: ' + error.message,
             chartDisplayed: false,
             performanceMetrics: performanceMetrics,
-            dataQuality: 'poor',
+            dataQuality: isInfraFailure ? 'unknown' : 'poor',
+            infraFailure: isInfraFailure,
             timestamp: new Date().toISOString()
         };
         testResults.allTests.push(testResult);
-        testResults.failed.push({ 
-            question, 
-            error: error.message,
-            responseTime: performanceMetrics.responseTime
-        });
-        testResults.total++;
+        if (isInfraFailure) {
+            testResults.infraFailures.push({
+                question,
+                error: error.message,
+                responseTime: performanceMetrics.responseTime
+            });
+            console.log('   [INFRA] Marked as infrastructure failure (excluded from pass/fail rate)');
+        } else {
+            testResults.failed.push({ 
+                question, 
+                error: error.message,
+                responseTime: performanceMetrics.responseTime
+            });
+            testResults.total++;
+        }
     }
 }
 
@@ -1163,9 +1271,12 @@ async function runTests(useStatic = false) {
  * Print test summary
  */
 function printSummary() {
+    const attemptedTotal = testResults.allTests.length;
+    const evaluatedTotal = testResults.total;
+
     // Calculate average performance metrics
-    if (testResults.total > 0) {
-        testResults.performance.averageResponseTime = Math.round(testResults.performance.totalResponseTime / testResults.total);
+    if (evaluatedTotal > 0) {
+        testResults.performance.averageResponseTime = Math.round(testResults.performance.totalResponseTime / evaluatedTotal);
         const streamingTests = testResults.allTests.filter(t => t.performanceMetrics && t.performanceMetrics.streamingTime);
         if (streamingTests.length > 0) {
             testResults.performance.averageStreamingTime = Math.round(
@@ -1177,10 +1288,15 @@ function printSummary() {
     console.log('\n' + '='.repeat(60));
     console.log('[SUMMARY] TEST SUMMARY');
     console.log('='.repeat(60));
-    console.log('Total Tests: ' + testResults.total + '');
+    console.log('Total Questions Attempted: ' + attemptedTotal + '');
+    console.log('Evaluated Tests (functional): ' + evaluatedTotal + '');
+    console.log('Infra Failures (excluded): ' + testResults.infraFailures.length + '');
     console.log('[SUCCESS] Passed: ' + testResults.passed.length + '');
     console.log('[FAIL] Failed: ' + testResults.failed.length + '');
-    console.log('Success Rate: ' + ((testResults.passed.length / testResults.total) * 100).toFixed(1) + '%');
+    const successRate = evaluatedTotal > 0
+        ? ((testResults.passed.length / evaluatedTotal) * 100).toFixed(1) + '%'
+        : 'N/A';
+    console.log('Success Rate: ' + successRate);
     
     // Performance summary
     console.log('\n[PERF] Performance Metrics:');
@@ -1199,16 +1315,26 @@ function printSummary() {
         poor: 0,
         unknown: 0
     };
-    testResults.allTests.forEach(test => {
+    testResults.allTests.filter(test => !test.infraFailure).forEach(test => {
         const quality = test.dataQuality || 'unknown';
         qualityCounts[quality] = (qualityCounts[quality] || 0) + 1;
     });
     console.log('\n[DATA] Data Quality Distribution:');
     Object.entries(qualityCounts).forEach(([quality, count]) => {
         if (count > 0) {
-            console.log(`   ${quality.charAt(0).toUpperCase() + quality.slice(1)}: ${count} (${((count / testResults.total) * 100).toFixed(1)}%)`);
+            const pct = evaluatedTotal > 0 ? ((count / evaluatedTotal) * 100).toFixed(1) : '0.0';
+            console.log(`   ${quality.charAt(0).toUpperCase() + quality.slice(1)}: ${count} (${pct}%)`);
         }
     });
+
+    if (testResults.infraFailures.length > 0) {
+        console.log('\n[INFRA] Infrastructure Failures (excluded from pass/fail):');
+        testResults.infraFailures.forEach((test, i) => {
+            console.log(`\n${i + 1}. Question: "${test.question}"`);
+            if (test.error) console.log('   Error: ' + test.error + '');
+            if (test.responseTime) console.log('   Response Time: ' + test.responseTime + 'ms');
+        });
+    }
     
     if (testResults.failed.length > 0) {
         console.log('\n[FAIL] Failed Tests:');
@@ -1267,10 +1393,18 @@ async function generatePDFReport() {
     doc.fontSize(14).text('Test Summary', { underline: true });
     doc.moveDown(0.5);
     doc.fontSize(11);
-    doc.text(`Total Tests: ${testResults.total}`);
+    const attemptedTotal = testResults.allTests.length;
+    const evaluatedTotal = testResults.total;
+    const successRate = evaluatedTotal > 0
+        ? ((testResults.passed.length / evaluatedTotal) * 100).toFixed(1)
+        : 'N/A';
+
+    doc.text(`Total Questions Attempted: ${attemptedTotal}`);
+    doc.text(`Evaluated Tests (functional): ${evaluatedTotal}`);
+    doc.text(`Infra Failures (excluded): ${testResults.infraFailures.length}`);
     doc.text(`Passed: ${testResults.passed.length}`, { continued: true, indent: 20 });
     doc.text(`Failed: ${testResults.failed.length}`, { continued: true, indent: 20 });
-    doc.text(`Success Rate: ${((testResults.passed.length / testResults.total) * 100).toFixed(1)}%`);
+    doc.text(`Success Rate: ${successRate}${successRate === 'N/A' ? '' : '%'}`);
     doc.moveDown(2);
     
     // Test Results

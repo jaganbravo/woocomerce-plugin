@@ -79,26 +79,6 @@ class Dataviz_AI_Query_Orchestrator {
 			return;
 		}
 
-		// Comparison questions are currently unsupported; route to feature-request style response.
-		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
-			$resp = $this->build_intent_not_found_response(
-				$question,
-				'Comparison queries are not currently supported.',
-				array(
-					'requires_data' => true,
-					'entity'        => 'comparisons',
-					'operation'     => 'feature_request',
-				),
-				array(
-					'low_confidence' => false,
-				)
-			);
-			$this->stream_handler->send_chunk( $resp['answer'] );
-			$mid = $this->chat_history->save_message( 'ai', $resp['answer'], $this->session_id, array( 'provider' => 'system', 'streaming' => true, 'direct_response' => true ) );
-			$this->stream_handler->send_end( null, is_numeric( $mid ) ? (int) $mid : null );
-			return;
-		}
-
 		// Feature-request confirmation shortcut.
 		if ( $this->is_feature_request_confirmation( $question ) ) {
 			$handled = $this->handle_feature_request_confirmation_stream( $question );
@@ -107,8 +87,12 @@ class Dataviz_AI_Query_Orchestrator {
 			}
 		}
 
-		// Non-data question: pure LLM chat.
-		if ( ! Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
+		// Non-data question: pure LLM chat, unless pipeline pre-guards require deterministic
+		// feature-request handling for unsupported analytics capabilities.
+		if (
+			! Dataviz_AI_Intent_Classifier::question_requires_data( $question )
+			&& ! $this->pipeline->should_force_pipeline( $question )
+		) {
 			$this->stream_chat_response( $question );
 			return;
 		}
@@ -240,22 +224,6 @@ class Dataviz_AI_Query_Orchestrator {
 			return $this->handle_custom_backend( $question );
 		}
 
-		// Comparison questions are currently unsupported; route to feature-request style response.
-		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
-			return $this->build_intent_not_found_response(
-				$question,
-				'Comparison queries are not currently supported.',
-				array(
-					'requires_data' => true,
-					'entity'        => 'comparisons',
-					'operation'     => 'feature_request',
-				),
-				array(
-					'low_confidence' => false,
-				)
-			);
-		}
-
 		// Feature-request confirmation.
 		if ( $this->is_feature_request_confirmation( $question ) ) {
 			$entity_type = $this->extract_entity_type_from_history();
@@ -284,8 +252,12 @@ class Dataviz_AI_Query_Orchestrator {
 			}
 		}
 
-		// Non-data question.
-		if ( ! Dataviz_AI_Intent_Classifier::question_requires_data( $question ) ) {
+		// Non-data question, except unsupported analytics capabilities which must
+		// still flow through the pipeline's deterministic guard handling.
+		if (
+			! Dataviz_AI_Intent_Classifier::question_requires_data( $question )
+			&& ! $this->pipeline->should_force_pipeline( $question )
+		) {
 			return $this->chat_response( $question );
 		}
 
@@ -681,27 +653,38 @@ class Dataviz_AI_Query_Orchestrator {
 		$low_confidence = ! empty( $options['low_confidence'] );
 
 		$entity_type = 'intent_not_found';
-		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
+		if ( ! empty( $intent_snapshot['entity'] ) && is_string( $intent_snapshot['entity'] ) ) {
+			$entity_type = sanitize_key( $intent_snapshot['entity'] );
+		} elseif ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
 			$entity_type = 'comparisons';
+		} elseif ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
+			$entity_type = 'conversion_rate';
 		}
 		$description = "User question:\n" . (string) $question;
 		if ( is_string( $reason ) && $reason !== '' ) {
 			$description .= "\n\nReason:\n" . $reason;
 		}
 
-		$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
-		set_transient( $transient_key, $entity_type, HOUR_IN_SECONDS );
-		$desc_key = 'dataviz_ai_pending_request_desc_' . md5( $this->session_id );
-		set_transient( $desc_key, $description, HOUR_IN_SECONDS );
+		// For low-confidence intent parsing, guide the user to clarify instead of
+		// opening a feature-request flow.
+		if ( ! $low_confidence ) {
+			$transient_key = 'dataviz_ai_pending_request_' . md5( $this->session_id );
+			set_transient( $transient_key, $entity_type, HOUR_IN_SECONDS );
+			$desc_key = 'dataviz_ai_pending_request_desc_' . md5( $this->session_id );
+			set_transient( $desc_key, $description, HOUR_IN_SECONDS );
+		}
 
 		if ( $entity_type === 'comparisons' ) {
 			$message = __( 'Comparisons across periods (for example, January vs February) are not currently supported in this version.', 'dataviz-ai-for-woocommerce' );
+		} elseif ( $entity_type === 'conversion_rate' ) {
+			$message = __( 'Conversion rate is not currently supported because this store is not connected to traffic/session analytics data yet.', 'dataviz-ai-for-woocommerce' );
 		} elseif ( $low_confidence ) {
-			$message = __( 'I am not confident I understood your question, so I did not run a WooCommerce data query. Rephrasing often helps.', 'dataviz-ai-for-woocommerce' );
+			$message = __( 'I am not fully confident I understood that question, so I did not run a WooCommerce data query yet.', 'dataviz-ai-for-woocommerce' );
 		} else {
 			$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-for-woocommerce' );
 		}
-		$prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-for-woocommerce' );
+		$feature_prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-for-woocommerce' );
+		$clarify_prompt = __( 'Please try again with one clear target and timeframe, for example: "Show pending orders for this week" or "List out-of-stock products".', 'dataviz-ai-for-woocommerce' );
 
 		$answer = $message;
 
@@ -711,7 +694,7 @@ class Dataviz_AI_Query_Orchestrator {
 			$answer .= "\n\n" . __( 'Examples you can try:', 'dataviz-ai-for-woocommerce' ) . "\n" . $examples;
 		}
 
-		$answer .= "\n\n" . $prompt;
+		$answer .= "\n\n" . ( $low_confidence ? $clarify_prompt : $feature_prompt );
 		$answer  = trim( $answer );
 
 		$line = Dataviz_AI_Intent_Query_Summary::from_intent( $intent_snapshot );

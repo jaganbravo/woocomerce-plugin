@@ -596,15 +596,14 @@ class Dataviz_AI_Intent_Normalizer {
 	}
 
 	/**
-	 * Detect conversion-rate questions that require traffic analytics (unsupported today).
+	 * Detect conversion-rate questions (unsupported today due to missing traffic/session data).
 	 *
 	 * @param string $question Question.
 	 * @return bool
 	 */
 	public static function is_conversion_rate_question( $question ) {
 		$q = (string) $question;
-		return (bool) preg_match( '/\b(conversion\s*rate|conversion|cvr)\b/i', $q )
-			&& (bool) preg_match( '/\b(traffic|visitors?|sessions?|pageviews?)\b/i', $q );
+		return (bool) preg_match( '/\b(conversion\s*rate|conversion|cvr)\b/i', $q );
 	}
 
 	/**
@@ -640,6 +639,8 @@ class Dataviz_AI_Intent_Normalizer {
 		$scope = isset( $intent['scope'] ) ? (string) $intent['scope'] : '';
 		$entity = isset( $intent['entity'] ) ? (string) $intent['entity'] : '';
 		$filters = isset( $intent['filters'] ) && is_array( $intent['filters'] ) ? $intent['filters'] : array();
+		$metrics = isset( $intent['metrics'] ) && is_array( $intent['metrics'] ) ? $intent['metrics'] : array();
+		$wants_all = (bool) preg_match( '/\b(all|every|entire|complete|full)\b/i', $q );
 
 		// "orders by status" should be treated as statistics breakdown, not raw list.
 		if (
@@ -650,6 +651,43 @@ class Dataviz_AI_Intent_Normalizer {
 			$intent['operation'] = 'statistics';
 			if ( ! in_array( 'status', $intent['dimensions'] ?? array(), true ) ) {
 				$intent['dimensions'][] = 'status';
+			}
+		}
+
+		$mentions_low = (bool) preg_match( '/\b(low stock|running low)\b/i', $q );
+		$mentions_out = (bool) preg_match( '/\bout of stock\b/i', $q );
+		$mentions_inventory_semantics = (bool) preg_match( '/\b(inventory|stock(?:\s+levels?)?|stock\s+quantit(?:y|ies)|quantit(?:y|ies)|qty|on hand)\b/i', $q );
+		$mentions_products = (bool) preg_match( '/\bproducts?\b/i', $q );
+		$wants_numbers = (bool) preg_match( '/\b(numbers?|quantit(?:y|ies)|qty)\b/i', $q );
+		$is_product_ranking = in_array( 'top_products', $metrics, true ) || (bool) preg_match( '/\b(top|best[\s-]?selling|most sold)\b/i', $q );
+
+		// Capability resolver: product + inventory semantics should use inventory capability.
+		if ( $entity === 'products' && $mentions_inventory_semantics && ! $is_product_ranking ) {
+			$intent['entity']    = 'inventory';
+			$intent['operation'] = 'list';
+			$entity              = 'inventory';
+
+			if ( $mentions_out ) {
+				$intent['scope'] = 'out_of_stock';
+				$intent['filters']['stock_status'] = 'outofstock';
+				unset( $intent['filters']['stock_threshold'] );
+				return $intent;
+			}
+			if ( $mentions_low ) {
+				$intent['scope'] = 'low_stock';
+				if ( ! isset( $intent['filters']['stock_threshold'] ) ) {
+					$intent['filters']['stock_threshold'] = 10;
+				}
+				unset( $intent['filters']['stock_status'] );
+				return $intent;
+			}
+
+			// When user asks products + inventory (or asks for numbers), default to full inventory with quantities.
+			if ( $mentions_products || $wants_all || $wants_numbers ) {
+				$intent['scope'] = 'all';
+				$intent['filters']['limit'] = -1;
+				unset( $intent['filters']['stock_status'], $intent['filters']['stock_threshold'] );
+				return $intent;
 			}
 		}
 
@@ -664,10 +702,6 @@ class Dataviz_AI_Intent_Normalizer {
 		}
 
 		// Stock/inventory scope normalization.
-		$wants_all = (bool) preg_match( '/\b(all|every|entire|complete|full)\b/i', $q );
-		$mentions_low = (bool) preg_match( '/\b(low stock|running low)\b/i', $q );
-		$mentions_out = (bool) preg_match( '/\bout of stock\b/i', $q );
-
 		if ( $mentions_out || ( isset( $filters['stock_status'] ) && $filters['stock_status'] === 'outofstock' ) ) {
 			$intent['scope'] = 'out_of_stock';
 			$intent['filters']['stock_status'] = 'outofstock';
@@ -704,6 +738,112 @@ class Dataviz_AI_Intent_Normalizer {
 	}
 
 	/**
+	 * Capability resolver for orders/revenue questions.
+	 * Enforces deterministic operation routing for counts, totals, and status breakdowns.
+	 *
+	 * @param string $question Question text.
+	 * @param array  $intent   Validated + normalized intent.
+	 * @return array
+	 */
+	private static function normalize_orders_revenue_capability( $question, array $intent ) {
+		$q = (string) $question;
+		$q_l = strtolower( $q );
+		$entity = isset( $intent['entity'] ) ? (string) $intent['entity'] : '';
+		$operation = isset( $intent['operation'] ) ? (string) $intent['operation'] : 'list';
+
+		$mentions_orders = (bool) preg_match( '/\borders?\b/i', $q );
+		$mentions_customers = (bool) preg_match( '/\bcustomers?\b/i', $q );
+		$mentions_revenue = (bool) preg_match( '/\b(revenue|sales|income|gmv|gross merchandise value|order value)\b/i', $q );
+		$mentions_count = (bool) preg_match( '/\b(how many|count|number of|total number of|total orders?)\b/i', $q_l );
+		$mentions_list = (bool) preg_match( '/\b(show|list|display|give|fetch|view)\b/i', $q );
+		$mentions_status_breakdown = (bool) preg_match( '/\b(by status|status breakdown|order status|statuses)\b/i', $q );
+		$mentions_chart_period = (bool) preg_match( '/\b(chart|graph|trend|timeline|over time)\b/i', $q );
+		$status = self::extract_order_status_from_question( $q );
+		$wants_all = (bool) preg_match( '/\b(all|every|entire|complete|full)\b/i', $q );
+
+		$is_order_revenue_capability = ( $entity === 'orders' ) || $mentions_orders || $mentions_revenue || $mentions_status_breakdown || $status !== '';
+		if ( ! $is_order_revenue_capability ) {
+			return $intent;
+		}
+
+		// Keep customer-count capability under customers when the question is
+		// customer-centric (e.g. "How many customers placed orders this month?").
+		if (
+			$entity === 'customers'
+			&& $mentions_customers
+			&& ! $mentions_revenue
+			&& ! $mentions_status_breakdown
+		) {
+			return $intent;
+		}
+
+		$intent['entity'] = 'orders';
+
+		// Keep chart/by-period capability when explicitly requested.
+		if ( $operation === 'by_period' || $mentions_chart_period ) {
+			if ( $status !== '' ) {
+				$intent['filters']['status'] = $status;
+			}
+			return $intent;
+		}
+
+		if ( $mentions_status_breakdown ) {
+			$intent['operation'] = 'statistics';
+			if ( ! isset( $intent['dimensions'] ) || ! is_array( $intent['dimensions'] ) ) {
+				$intent['dimensions'] = array();
+			}
+			if ( ! in_array( 'status', $intent['dimensions'], true ) ) {
+				$intent['dimensions'][] = 'status';
+			}
+		} elseif ( $mentions_revenue || $mentions_count ) {
+			$intent['operation'] = 'statistics';
+		} elseif ( $mentions_orders && $mentions_list ) {
+			$intent['operation'] = 'list';
+		}
+
+		if ( $status !== '' ) {
+			if ( ! isset( $intent['filters'] ) || ! is_array( $intent['filters'] ) ) {
+				$intent['filters'] = array();
+			}
+			$intent['filters']['status'] = $status;
+		}
+
+		if ( isset( $intent['operation'] ) && $intent['operation'] === 'list' ) {
+			if ( $wants_all ) {
+				$intent['filters']['limit'] = -1;
+				$intent['scope'] = 'all';
+			}
+		}
+
+		if ( isset( $intent['operation'] ) && $intent['operation'] === 'statistics' ) {
+			unset( $intent['filters']['limit'] );
+		}
+
+		return $intent;
+	}
+
+	/**
+	 * Extract normalized WooCommerce order status slug from question text.
+	 *
+	 * @param string $question Question text.
+	 * @return string Empty when no explicit status is found.
+	 */
+	private static function extract_order_status_from_question( $question ) {
+		if ( ! preg_match( '/\b(pending|processing|completed|on[\s-]?hold|cancelled|canceled|refunded|failed|trash)\b/i', (string) $question, $m ) ) {
+			return '';
+		}
+
+		$status = strtolower( $m[1] );
+		if ( preg_match( '/^on[\s-]?hold$/', $status ) ) {
+			return 'on-hold';
+		}
+		if ( $status === 'canceled' ) {
+			return 'cancelled';
+		}
+		return $status;
+	}
+
+	/**
 	 * Detect questions that require external data sources not available in WooCommerce.
 	 *
 	 * @param string $question Question.
@@ -713,6 +853,8 @@ class Dataviz_AI_Intent_Normalizer {
 		$q = strtolower( (string) $question );
 
 		$external_sources = array(
+			'traffic source'         => 'traffic_source_analytics',
+			'traffic sources'        => 'traffic_source_analytics',
 			'social media referral'  => 'social_media_referrals',
 			'social media'           => 'social_media_analytics',
 			'referral'               => 'referral_analytics',
@@ -744,6 +886,7 @@ class Dataviz_AI_Intent_Normalizer {
 	public static function normalize( $question, array $validated_intent ) {
 		$validated_intent = self::normalize_relative_date_ranges( $question, $validated_intent );
 		$validated_intent = self::normalize_intent_from_question( $question, $validated_intent );
+		$validated_intent = self::normalize_orders_revenue_capability( $question, $validated_intent );
 		$validated_intent = self::normalize_scope_from_question( $question, $validated_intent );
 		return $validated_intent;
 	}

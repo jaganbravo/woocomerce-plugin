@@ -1,0 +1,94 @@
+{
+  "Show all products and their inventory quantities": {
+    "entity": "inventory",
+    "operation": "list",
+    "scope": "all",
+    "filters": {
+      "limit": -1
+    }
+  },
+  "Which items are running low on stock?": {
+    "entity": "stock",
+    "operation": "list",
+    "scope": "low_stock"
+  },
+  "List out-of-stock items": {
+    "entity": "stock",
+    "operation": "list",
+    "scope": "out_of_stock",
+    "filters": {
+      "stock_status": "outofstock"
+    }
+  },
+  "Give me every completed order": {
+    "entity": "orders",
+    "operation": "list",
+    "filters": {
+      "status": "completed",
+      "limit": -1
+    }
+  },
+  "How many pending orders do I have?": {
+    "entity": "orders",
+    "operation": "statistics",
+    "filters": {
+      "status": "pending"
+    }
+  },
+  "Show orders by status for this month": {
+    "entity": "orders",
+    "operation": "statistics",
+    "dimensions": [
+      "status"
+    ]
+  },
+  "Revenue for last 14 days": {
+    "entity": "orders",
+    "operation": "statistics"
+  },
+  "Show a daily order chart for this week": {
+    "entity": "orders",
+    "operation": "by_period",
+    "dimensions": [
+      "day"
+    ]
+  },
+  "How many customers placed orders this month?": {
+    "entity": "customers",
+    "operation": "statistics"
+  },
+  "Who are my top customers by spend?": {
+    "entity": "customers",
+    "operation": "statistics"
+  },
+  "List products under Clothing category": {
+    "entity": "products",
+    "operation": "list",
+    "filters": {
+      "category_name": "Clothing"
+    }
+  },
+  "Show coupons used last month": {
+    "entity": "coupons",
+    "operation": "statistics"
+  },
+  "Show all refunds this month": {
+    "entity": "refunds",
+    "operation": "list"
+  },
+  "Orders this morning": {
+    "entity": "orders",
+    "operation": "list"
+  },
+  "Revenue by status this month": {
+    "entity": "orders",
+    "operation": "statistics",
+    "dimensions": [
+      "status"
+    ]
+  },
+  "Show me a pie chart of order status": {
+    "entity": "orders",
+    "operation": "statistics"
+  }
+}

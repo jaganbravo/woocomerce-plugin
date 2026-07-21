@@ -53,25 +53,9 @@ class Dataviz_AI_Intent_Pipeline {
 			'low_confidence'  => false,
 		);
 
-		// Guard: comparison questions (unsupported).
-		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
-			return $this->feature_request_result( $result, 'comparisons' );
-		}
-
-		// Guard: cross-entity questions (unsupported).
-		if ( Dataviz_AI_Intent_Normalizer::is_cross_entity_question( $question ) ) {
-			return $this->feature_request_result( $result, 'cross_entity_analysis' );
-		}
-
-		// Guard: conversion rate with traffic data (unsupported).
-		if ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
-			return $this->feature_request_result( $result, 'conversion_rate' );
-		}
-
-		// Guard: external data sources (unsupported).
-		$unsupported_src = Dataviz_AI_Intent_Normalizer::get_unsupported_data_source( $question );
-		if ( false !== $unsupported_src ) {
-			return $this->feature_request_result( $result, $unsupported_src );
+		$guard_entity = $this->detect_unsupported_guard_entity( $question );
+		if ( false !== $guard_entity ) {
+			return $this->feature_request_result( $result, $guard_entity );
 		}
 
 		// Step 1: LLM intent parsing.
@@ -79,6 +63,7 @@ class Dataviz_AI_Intent_Pipeline {
 		if ( is_wp_error( $intent_parse ) ) {
 			if ( $intent_parse->get_error_code() === 'dataviz_ai_invalid_intent' ) {
 				$result['error_reason'] = $intent_parse->get_error_message();
+				$result['low_confidence'] = true;
 				return $result;
 			}
 			$result['error'] = $intent_parse;
@@ -184,7 +169,58 @@ class Dataviz_AI_Intent_Pipeline {
 			'entity'        => $entity,
 			'operation'     => 'feature_request',
 		);
-		$result['tool_calls'] = array( self::build_feature_request_tool_call( $entity ) );
+		$result['error_reason'] = $this->feature_request_reason( $entity );
+		$result['tool_calls']   = array();
 		return $result;
+	}
+
+	/**
+	 * Returns true when the question should still flow through the intent pipeline
+	 * even if generic requires-data classification says "no".
+	 *
+	 * @param string $question User question.
+	 * @return bool
+	 */
+	public function should_force_pipeline( $question ) {
+		return false !== $this->detect_unsupported_guard_entity( $question );
+	}
+
+	/**
+	 * @param string $question User question.
+	 * @return string|false Unsupported entity key when a guard applies; false otherwise.
+	 */
+	protected function detect_unsupported_guard_entity( $question ) {
+		if ( Dataviz_AI_Intent_Normalizer::is_comparison_question( $question ) ) {
+			return 'comparisons';
+		}
+		if ( Dataviz_AI_Intent_Normalizer::is_cross_entity_question( $question ) ) {
+			return 'cross_entity_analysis';
+		}
+		if ( Dataviz_AI_Intent_Normalizer::is_conversion_rate_question( $question ) ) {
+			return 'conversion_rate';
+		}
+		$unsupported_src = Dataviz_AI_Intent_Normalizer::get_unsupported_data_source( $question );
+		if ( false !== $unsupported_src ) {
+			return $unsupported_src;
+		}
+		return false;
+	}
+
+	/**
+	 * @param string $entity Unsupported capability key.
+	 * @return string
+	 */
+	protected function feature_request_reason( $entity ) {
+		$entity = sanitize_key( (string) $entity );
+		switch ( $entity ) {
+			case 'comparisons':
+				return __( 'Comparison queries are not currently supported.', 'dataviz-ai-for-woocommerce' );
+			case 'conversion_rate':
+				return __( 'Conversion-rate queries require traffic/session data, which is not currently available.', 'dataviz-ai-for-woocommerce' );
+			case 'cross_entity_analysis':
+				return __( 'Cross-entity analysis queries are not currently supported.', 'dataviz-ai-for-woocommerce' );
+			default:
+				return __( 'This capability is not currently supported.', 'dataviz-ai-for-woocommerce' );
+		}
 	}
 }

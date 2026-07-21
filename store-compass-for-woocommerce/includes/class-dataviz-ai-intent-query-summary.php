@@ -15,11 +15,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Dataviz_AI_Intent_Query_Summary {
 
 	/**
+	 * Internal trace lines should be hidden in normal UX.
+	 * Set DATAVIZ_AI_SHOW_INTENT_TRACE=true (or filter) to expose them.
+	 *
+	 * @return bool
+	 */
+	private static function should_expose_internal_trace() {
+		$enabled = defined( 'DATAVIZ_AI_SHOW_INTENT_TRACE' ) && DATAVIZ_AI_SHOW_INTENT_TRACE;
+		return (bool) apply_filters( 'dataviz_ai_show_intent_trace', $enabled );
+	}
+
+	/**
 	 * Non-data chat: clarify no DB query ran.
 	 *
 	 * @return string
 	 */
 	public static function conversational_preamble() {
+		if ( ! self::should_expose_internal_trace() ) {
+			return '';
+		}
 		return __( 'Answering conversationally (no WooCommerce data query was run).', 'dataviz-ai-for-woocommerce' );
 	}
 
@@ -29,6 +43,9 @@ class Dataviz_AI_Intent_Query_Summary {
 	 * @return string
 	 */
 	public static function custom_backend_preamble() {
+		if ( ! self::should_expose_internal_trace() ) {
+			return '';
+		}
 		return __( 'Answer via your configured Dataviz backend (your question and store context were sent to that service).', 'dataviz-ai-for-woocommerce' );
 	}
 
@@ -38,6 +55,9 @@ class Dataviz_AI_Intent_Query_Summary {
 	 * @return string
 	 */
 	public static function feature_request_confirmation_preamble() {
+		if ( ! self::should_expose_internal_trace() ) {
+			return '';
+		}
 		return __( 'Recording your feature request confirmation.', 'dataviz-ai-for-woocommerce' );
 	}
 
@@ -48,6 +68,10 @@ class Dataviz_AI_Intent_Query_Summary {
 	 * @return string Empty if not a data intent.
 	 */
 	public static function from_intent( array $intent ) {
+		if ( ! self::should_expose_internal_trace() ) {
+			return '';
+		}
+
 		$intent = self::strip_internal_keys( $intent );
 
 		if ( empty( $intent['requires_data'] ) ) {
