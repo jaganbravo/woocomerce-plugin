@@ -422,6 +422,21 @@ class Dataviz_AI_Tool_Executor {
 	}
 
 	protected function handle_stock_query( array $filters, $entity_type = 'stock' ) {
+		if ( isset( $filters['scope'] ) ) {
+			$scope = sanitize_text_field( (string) $filters['scope'] );
+			if ( $scope === 'all' ) {
+				$filters['limit'] = isset( $filters['limit'] ) ? (int) $filters['limit'] : -1;
+				return $this->data_fetcher->get_all_inventory_products( $filters );
+			}
+			if ( $scope === 'out_of_stock' ) {
+				return $this->data_fetcher->get_out_of_stock_products();
+			}
+			if ( $scope === 'low_stock' ) {
+				$threshold = isset( $filters['stock_threshold'] ) ? (int) $filters['stock_threshold'] : 10;
+				return $this->data_fetcher->get_low_stock_products( $threshold );
+			}
+		}
+
 		$entity_lower = strtolower( $entity_type );
 
 		if ( isset( $filters['stock_status'] ) && $filters['stock_status'] === 'outofstock' ) {
@@ -630,6 +645,12 @@ class Dataviz_AI_Tool_Executor {
 			$group_by = sanitize_text_field( $filters['group_by'] );
 			if ( in_array( $group_by, array( 'customer', 'category' ), true ) ) {
 				$sanitized['group_by'] = $group_by;
+			}
+		}
+		if ( isset( $filters['scope'] ) ) {
+			$scope = sanitize_text_field( $filters['scope'] );
+			if ( in_array( $scope, array( 'all', 'top_n', 'low_stock', 'out_of_stock' ), true ) ) {
+				$sanitized['scope'] = $scope;
 			}
 		}
 		if ( isset( $filters['min_orders'] ) ) {

@@ -26,8 +26,33 @@ class Dataviz_AI_Execution_Engine {
 		$metrics    = $validated_intent['metrics'] ?? array();
 		$dimensions = $validated_intent['dimensions'] ?? array();
 		$filters    = $validated_intent['filters'] ?? array();
+		$scope      = $validated_intent['scope'] ?? null;
 
 		$tool_calls = array();
+
+		// Canonicalize stock/inventory semantics by explicit scope.
+		if ( $entity === 'stock' || $entity === 'inventory' ) {
+			if ( $scope === 'all' ) {
+				$entity = 'inventory';
+				$filters['limit'] = -1;
+				unset( $filters['stock_status'], $filters['stock_threshold'] );
+			} elseif ( $scope === 'out_of_stock' ) {
+				$entity = 'stock';
+				$filters['stock_status'] = 'outofstock';
+				unset( $filters['stock_threshold'] );
+			} elseif ( $scope === 'low_stock' ) {
+				$entity = 'stock';
+				if ( ! isset( $filters['stock_threshold'] ) ) {
+					$filters['stock_threshold'] = 10;
+				}
+				unset( $filters['stock_status'] );
+			}
+		}
+
+		// Canonicalize "orders by status" as statistics.
+		if ( $entity === 'orders' && $operation === 'list' && in_array( 'status', $dimensions, true ) ) {
+			$operation = 'statistics';
+		}
 
 		// Special: top products metric.
 		if ( $entity === 'products' && in_array( 'top_products', $metrics, true ) ) {

@@ -498,7 +498,7 @@ class Dataviz_AI_Intent_Normalizer {
 
 	private static function try_order_by_status( $q, array $intent ) {
 		$s = 0;
-		if ( preg_match( '/\border\b/i', $q ) )                     $s += 20;
+		if ( preg_match( '/\borders?\b/i', $q ) )                   $s += 20;
 		if ( preg_match( '/\b(by\s+status|status(es)?)\b/i', $q ) ) $s += 40;
 		if ( $s < 50 ) return null;
 
@@ -629,6 +629,81 @@ class Dataviz_AI_Intent_Normalizer {
 	}
 
 	/**
+	 * Normalize scope semantics from filters and question text.
+	 *
+	 * @param string $question Question text.
+	 * @param array  $intent   Validated + normalized intent.
+	 * @return array
+	 */
+	private static function normalize_scope_from_question( $question, array $intent ) {
+		$q = strtolower( (string) $question );
+		$scope = isset( $intent['scope'] ) ? (string) $intent['scope'] : '';
+		$entity = isset( $intent['entity'] ) ? (string) $intent['entity'] : '';
+		$filters = isset( $intent['filters'] ) && is_array( $intent['filters'] ) ? $intent['filters'] : array();
+
+		// "orders by status" should be treated as statistics breakdown, not raw list.
+		if (
+			$entity === 'orders'
+			&& preg_match( '/\borders?\b/i', $q )
+			&& preg_match( '/\bby\s+status\b/i', $q )
+		) {
+			$intent['operation'] = 'statistics';
+			if ( ! in_array( 'status', $intent['dimensions'] ?? array(), true ) ) {
+				$intent['dimensions'][] = 'status';
+			}
+		}
+
+		if ( $entity !== 'stock' && $entity !== 'inventory' ) {
+			// Generic scope fallback for non-stock entities.
+			if ( $scope === '' && isset( $filters['limit'] ) && (int) $filters['limit'] === -1 ) {
+				$intent['scope'] = 'all';
+			} elseif ( $scope === '' && isset( $filters['limit'] ) && (int) $filters['limit'] > 0 ) {
+				$intent['scope'] = 'top_n';
+			}
+			return $intent;
+		}
+
+		// Stock/inventory scope normalization.
+		$wants_all = (bool) preg_match( '/\b(all|every|entire|complete|full)\b/i', $q );
+		$mentions_low = (bool) preg_match( '/\b(low stock|running low)\b/i', $q );
+		$mentions_out = (bool) preg_match( '/\bout of stock\b/i', $q );
+
+		if ( $mentions_out || ( isset( $filters['stock_status'] ) && $filters['stock_status'] === 'outofstock' ) ) {
+			$intent['scope'] = 'out_of_stock';
+			$intent['filters']['stock_status'] = 'outofstock';
+			unset( $intent['filters']['stock_threshold'] );
+			return $intent;
+		}
+
+		if ( $mentions_low || isset( $filters['stock_threshold'] ) ) {
+			$intent['scope'] = 'low_stock';
+			if ( ! isset( $intent['filters']['stock_threshold'] ) ) {
+				$intent['filters']['stock_threshold'] = 10;
+			}
+			unset( $intent['filters']['stock_status'] );
+			return $intent;
+		}
+
+		// Inventory entity defaults to "all"; explicit "all" on stock should also route to all.
+		if ( $entity === 'inventory' || $wants_all || ( isset( $filters['limit'] ) && (int) $filters['limit'] === -1 ) ) {
+			$intent['scope'] = 'all';
+			$intent['filters']['limit'] = -1;
+			unset( $intent['filters']['stock_status'], $intent['filters']['stock_threshold'] );
+			return $intent;
+		}
+
+		// Backward-compatible default for generic "stock level" wording.
+		if ( empty( $intent['scope'] ) ) {
+			$intent['scope'] = 'low_stock';
+			if ( ! isset( $intent['filters']['stock_threshold'] ) ) {
+				$intent['filters']['stock_threshold'] = 10;
+			}
+		}
+
+		return $intent;
+	}
+
+	/**
 	 * Detect questions that require external data sources not available in WooCommerce.
 	 *
 	 * @param string $question Question.
@@ -669,6 +744,7 @@ class Dataviz_AI_Intent_Normalizer {
 	public static function normalize( $question, array $validated_intent ) {
 		$validated_intent = self::normalize_relative_date_ranges( $question, $validated_intent );
 		$validated_intent = self::normalize_intent_from_question( $question, $validated_intent );
+		$validated_intent = self::normalize_scope_from_question( $question, $validated_intent );
 		return $validated_intent;
 	}
 }
