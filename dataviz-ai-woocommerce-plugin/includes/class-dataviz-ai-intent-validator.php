@@ -106,6 +106,11 @@ class Dataviz_AI_Intent_Validator {
 
 		$filters_in = isset( $intent['filters'] ) && is_array( $intent['filters'] ) ? $intent['filters'] : array();
 		$filters = array();
+		$scope = isset( $intent['scope'] ) ? strtolower( trim( (string) $intent['scope'] ) ) : '';
+		$allowed_scopes = array( 'all', 'top_n', 'low_stock', 'out_of_stock' );
+		if ( $scope !== '' && ! in_array( $scope, $allowed_scopes, true ) ) {
+			$scope = '';
+		}
 
 		// date_range: supports preset or explicit from/to.
 		$date_range = isset( $filters_in['date_range'] ) && is_array( $filters_in['date_range'] ) ? $filters_in['date_range'] : array();
@@ -189,6 +194,19 @@ class Dataviz_AI_Intent_Validator {
 			$filters['category_name'] = sanitize_text_field( (string) $filters_in['category_name'] );
 		}
 
+		// Derive scope when omitted by parser.
+		if ( $scope === '' ) {
+			if ( isset( $filters['stock_status'] ) && $filters['stock_status'] === 'outofstock' ) {
+				$scope = 'out_of_stock';
+			} elseif ( isset( $filters['stock_threshold'] ) ) {
+				$scope = 'low_stock';
+			} elseif ( isset( $filters['limit'] ) && (int) $filters['limit'] === -1 ) {
+				$scope = 'all';
+			} elseif ( isset( $filters['limit'] ) && (int) $filters['limit'] > 0 ) {
+				$scope = 'top_n';
+			}
+		}
+
 		$draft_answer = isset( $intent['draft_answer'] ) && is_string( $intent['draft_answer'] ) ? $intent['draft_answer'] : null;
 		if ( is_string( $draft_answer ) ) {
 			$draft_answer = trim( $draft_answer );
@@ -205,6 +223,7 @@ class Dataviz_AI_Intent_Validator {
 			'metrics'        => $metrics,
 			'dimensions'     => $dimensions,
 			'filters'        => $filters,
+			'scope'          => $scope !== '' ? $scope : null,
 			'confidence'     => $confidence,
 			'draft_answer'   => $draft_answer,
 		);
