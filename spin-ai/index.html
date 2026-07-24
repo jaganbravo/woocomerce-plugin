@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spin — AI with Speech</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-orb bg-orb--one" aria-hidden="true"></div>
+  <div class="bg-orb bg-orb--two" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="hero">
+      <p class="brand">Spin</p>
+      <h1 class="tagline">Talk to your AI.</h1>
+      <p class="sub">Speak or type — Spin searches Google and answers.</p>
+    </header>
+
+    <section class="chat" aria-label="Spin chat">
+      <div id="messages" class="messages" role="log" aria-live="polite">
+        <div class="bubble bubble--spin">
+          <span class="who">Spin</span>
+          <p>Hi — I’m Spin. Ask me anything. I search <strong>Google</strong>, open the top result pages, and compound that information into one clear answer. Links appear only at the end. Tap the mic to speak, or type below.</p>
+        </div>
+      </div>
+
+      <form id="composer" class="composer" autocomplete="off">
+        <button
+          type="button"
+          id="mic"
+          class="mic"
+          aria-label="Start speech to text"
+          title="Speech to text"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+          </svg>
+        </button>
+        <label class="sr-only" for="input">Message</label>
+        <textarea
+          id="input"
+          rows="1"
+          placeholder="Ask Spin anything…"
+          enterkeyhint="send"
+        ></textarea>
+        <button type="submit" class="send" aria-label="Send">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </form>
+
+      <p id="status" class="status" aria-live="polite"></p>
+    </section>
+
+    <details class="settings" open>
+      <summary>Settings</summary>
+      <p class="hint">Spin answers from <strong>Google</strong>. Add Google Custom Search keys (or a Serper key). Optional OpenAI key synthesizes a cleaner reply from those Google results.</p>
+
+      <p class="hint"><strong>Google Custom Search</strong> — <a href="https://developers.google.com/custom-search/v1/overview" target="_blank" rel="noopener">setup guide</a></p>
+      <label>
+        Google API key
+        <input id="googleApiKey" type="password" placeholder="AIza…" autocomplete="off" />
+      </label>
+      <label>
+        Google CSE ID (cx)
+        <input id="googleCseId" type="text" placeholder="Programmable Search Engine ID" autocomplete="off" />
+      </label>
+
+      <p class="hint"><strong>Or Serper (Google results)</strong> — <a href="https://serper.dev" target="_blank" rel="noopener">serper.dev</a></p>
+      <label>
+        Serper API key
+        <input id="serperApiKey" type="password" placeholder="Serper key" autocomplete="off" />
+      </label>
+
+      <p class="hint"><strong>Optional answer polish</strong></p>
+      <label>
+        OpenAI-compatible API key
+        <input id="apiKey" type="password" placeholder="sk-…" autocomplete="off" />
+      </label>
+      <label>
+        Base URL
+        <input id="apiBase" type="url" value="https://api.openai.com/v1" />
+      </label>
+      <label>
+        Model
+        <input id="apiModel" type="text" value="gpt-4o-mini" />
+      </label>
+    </details>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

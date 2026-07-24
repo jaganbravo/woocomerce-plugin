@@ -71,13 +71,23 @@ class Dataviz_AI_Admin {
 	 */
 	public function register_menu_page() {
 		add_menu_page(
-			__( 'Store Compass Insights', 'dataviz-ai-for-woocommerce' ),
+			__( 'Store Compass Home', 'dataviz-ai-for-woocommerce' ),
 			__( 'Store Compass', 'dataviz-ai-for-woocommerce' ),
 			'manage_woocommerce',
 			$this->menu_slug,
 			array( $this, 'render_admin_page' ),
 			'dashicons-admin-comments',
 			56
+		);
+
+		// Replace the auto-generated first submenu (duplicates parent title) with Home.
+		add_submenu_page(
+			$this->menu_slug,
+			__( 'Store Compass Home', 'dataviz-ai-for-woocommerce' ),
+			__( 'Home', 'dataviz-ai-for-woocommerce' ),
+			'manage_woocommerce',
+			$this->menu_slug,
+			array( $this, 'render_admin_page' )
 		);
 
 		add_submenu_page(
@@ -148,13 +158,13 @@ class Dataviz_AI_Admin {
 	}
 
 	/**
-	 * Hide WooCommerce incompatibility notice on Dataviz AI admin pages.
+	 * Hide WooCommerce incompatibility notice on Store Compass admin pages.
 	 *
 	 * @return void
 	 */
 	public function hide_woocommerce_incompatibility_notice() {
 		$screen = get_current_screen();
-		if ( ! $screen || strpos( $screen->id, 'dataviz-ai' ) === false ) {
+		if ( ! $screen || ( strpos( $screen->id, 'dataviz-ai' ) === false && strpos( $screen->id, 'store-compass' ) === false ) ) {
 			return;
 		}
 		?>
@@ -187,11 +197,13 @@ class Dataviz_AI_Admin {
 		}
 
 		// Enqueue admin styles for both pages.
+		$admin_css_path = DATAVIZ_AI_WC_PLUGIN_DIR . 'admin/css/admin.css';
+		$admin_css_ver  = file_exists( $admin_css_path ) ? (string) filemtime( $admin_css_path ) : $this->version;
 		wp_enqueue_style(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/admin.css',
 			array(),
-			$this->version
+			$admin_css_ver
 		);
 
 		// Only enqueue scripts for main page.
@@ -204,11 +216,13 @@ class Dataviz_AI_Admin {
 				false
 			);
 
+			$admin_js_path = DATAVIZ_AI_WC_PLUGIN_DIR . 'admin/js/admin.js';
+			$admin_js_ver  = file_exists( $admin_js_path ) ? (string) filemtime( $admin_js_path ) : $this->version;
 			wp_enqueue_script(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/admin.js',
 			array( 'jquery', 'dataviz-ai-chartjs' ),
-			$this->version,
+			$admin_js_ver,
 			true
 		);
 
@@ -255,6 +269,15 @@ class Dataviz_AI_Admin {
 					'userSessionId'       => $user_session_id, // Server-side session ID (persists across logins)
 					'suggestedQuestions'  => $this->get_suggested_chat_prompts(),
 					'feedbackI18n'         => $this->get_chat_feedback_i18n(),
+					'speechI18n'           => array(
+						'start'           => __( 'Start recording', 'dataviz-ai-for-woocommerce' ),
+						'stop'            => __( 'Stop recording', 'dataviz-ai-for-woocommerce' ),
+						'listening'       => __( 'Recording… speak now. Press Send to stop.', 'dataviz-ai-for-woocommerce' ),
+						'ready'           => __( 'Ready — press Send.', 'dataviz-ai-for-woocommerce' ),
+						'unsupported'     => __( 'Speech to text needs Chrome, Edge, or Safari.', 'dataviz-ai-for-woocommerce' ),
+						'micBlocked'      => __( 'Microphone permission blocked. Allow mic access and try again.', 'dataviz-ai-for-woocommerce' ),
+						'speechError'     => __( 'Speech recognition error. Try again.', 'dataviz-ai-for-woocommerce' ),
+					),
 				)
 			);
 		}
@@ -320,7 +343,7 @@ class Dataviz_AI_Admin {
 		$onboarding = new Dataviz_AI_Onboarding( $this->plugin_name, $this->version, $this->api_client );
 		?>
 		<div class="wrap dataviz-ai-admin">
-			<h1><?php esc_html_e( 'Store Compass for WooCommerce', 'dataviz-ai-for-woocommerce' ); ?></h1>
+			<h1><?php esc_html_e( 'Store Compass Home', 'dataviz-ai-for-woocommerce' ); ?></h1>
 
 			<div class="dataviz-ai-grid">
 				<section class="dataviz-ai-card dataviz-ai-card--wide dataviz-ai-chat-container">
@@ -348,9 +371,20 @@ class Dataviz_AI_Admin {
 									name="question" 
 									rows="1" 
 									class="dataviz-ai-chat-input" 
-									placeholder="<?php esc_attr_e( 'Message AI assistant...', 'dataviz-ai-for-woocommerce' ); ?>"
+									placeholder="<?php esc_attr_e( 'Message Store Compass… or tap the mic', 'dataviz-ai-for-woocommerce' ); ?>"
 									aria-label="<?php esc_attr_e( 'Type your message', 'dataviz-ai-for-woocommerce' ); ?>"
 								></textarea>
+								<button 
+									type="button" 
+									class="dataviz-ai-chat-mic" 
+									aria-label="<?php esc_attr_e( 'Start recording', 'dataviz-ai-for-woocommerce' ); ?>"
+									aria-pressed="false"
+									title="<?php esc_attr_e( 'Click to start recording. Press Send to stop.', 'dataviz-ai-for-woocommerce' ); ?>"
+								>
+									<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+										<path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" fill="currentColor"/>
+									</svg>
+								</button>
 								<button 
 									type="button" 
 									class="dataviz-ai-chat-stop" 
@@ -371,6 +405,7 @@ class Dataviz_AI_Admin {
 									</svg>
 								</button>
 							</div>
+							<p class="dataviz-ai-chat-mic-status" id="dataviz-ai-chat-mic-status" aria-live="polite"></p>
 							<div class="dataviz-ai-suggested-prompts" id="dataviz-ai-suggested-prompts" hidden></div>
 						</div>
 					</form>
