@@ -438,6 +438,57 @@
 	height: 16px;
 }
 
+/* Speech-to-text mic */
+.dataviz-ai-admin .dataviz-ai-chat-mic {
+	background: #eef4f8;
+	color: #2271b1;
+	border: none;
+	border-radius: 50%;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: background 0.2s, transform 0.1s, box-shadow 0.2s, color 0.2s;
+	flex-shrink: 0;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-mic:hover:not(:disabled) {
+	background: #dceaf5;
+	transform: scale(1.04);
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-mic:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-mic.is-listening {
+	background: #2271b1;
+	color: #fff;
+	box-shadow: 0 0 0 4px rgba(34, 113, 177, 0.2);
+	animation: dataviz-mic-pulse 1.2s ease infinite;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-mic svg {
+	width: 16px;
+	height: 16px;
+}
+
+.dataviz-ai-admin .dataviz-ai-chat-mic-status {
+	margin: 0.35rem 0 0;
+	min-height: 1.1em;
+	font-size: 12px;
+	color: #646970;
+	padding-left: 0.25rem;
+}
+
+@keyframes dataviz-mic-pulse {
+	0%, 100% { box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.18); }
+	50% { box-shadow: 0 0 0 8px rgba(34, 113, 177, 0.08); }
+}
+
 /* Stop button */
 .dataviz-ai-admin .dataviz-ai-chat-stop {
 	background: #dc3232;

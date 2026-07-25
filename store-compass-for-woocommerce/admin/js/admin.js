@@ -8,6 +8,181 @@
 	let currentStreamReader = null;
 	let streamStopped = false;
 	let sessionId = '';
+	let speechRecognition = null;
+	let speechListening = false;
+	let speechWantListening = false;
+	let speechBaseText = '';
+
+	function getSpeechI18n() {
+		return ( typeof DatavizAIAdmin !== 'undefined' && DatavizAIAdmin.speechI18n )
+			? DatavizAIAdmin.speechI18n
+			: {};
+	}
+
+	function setMicStatus( text ) {
+		$( '#dataviz-ai-chat-mic-status' ).text( text || '' );
+	}
+
+	function updateMicUi( isListening ) {
+		const $mic = $( '.dataviz-ai-chat-mic' );
+		const i18n = getSpeechI18n();
+		$mic.toggleClass( 'is-listening', !! isListening );
+		$mic.attr( 'aria-pressed', isListening ? 'true' : 'false' );
+		$mic.attr( 'aria-label', isListening ? ( i18n.stop || 'Stop listening' ) : ( i18n.start || 'Start speech to text' ) );
+	}
+
+	function stopSpeechListening() {
+		speechWantListening = false;
+		speechListening = false;
+		if ( speechRecognition ) {
+			try {
+				speechRecognition.onend = null;
+				speechRecognition.onerror = null;
+				speechRecognition.onresult = null;
+				speechRecognition.stop();
+			} catch ( e ) {
+				/* ignore */
+			}
+			try {
+				speechRecognition.abort();
+			} catch ( e2 ) {
+				/* ignore */
+			}
+			speechRecognition = null;
+		}
+		updateMicUi( false );
+	}
+
+	function startSpeechListening() {
+		const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+		const i18n = getSpeechI18n();
+		const $input = $( '#dataviz-ai-question' );
+
+		if ( ! SpeechRecognitionAPI ) {
+			setMicStatus( i18n.unsupported || 'Speech to text needs Chrome, Edge, or Safari.' );
+			return;
+		}
+
+		// Already recording — keep going.
+		if ( speechWantListening && speechListening ) {
+			setMicStatus( i18n.listening || 'Recording… speak now. Press Send to stop.' );
+			return;
+		}
+
+		stopSpeechListening();
+		speechWantListening = true;
+		speechBaseText = ( $input.val() || '' ).trim();
+
+		const recognition = new SpeechRecognitionAPI();
+		speechRecognition = recognition;
+		recognition.continuous = true;
+		recognition.interimResults = true;
+		recognition.lang = navigator.language || 'en-US';
+		recognition.maxAlternatives = 1;
+
+		recognition.onstart = function() {
+			if ( ! speechWantListening ) {
+				return;
+			}
+			speechListening = true;
+			updateMicUi( true );
+			setMicStatus( i18n.listening || 'Recording… speak now. Press Send to stop.' );
+		};
+
+		recognition.onresult = function( event ) {
+			if ( ! speechWantListening ) {
+				return;
+			}
+			let finalPart = '';
+			let interim = '';
+			for ( let i = 0; i < event.results.length; i++ ) {
+				const piece = event.results[ i ][ 0 ].transcript;
+				if ( event.results[ i ].isFinal ) {
+					finalPart += piece;
+				} else {
+					interim += piece;
+				}
+			}
+			const combined = [ speechBaseText, finalPart, interim ]
+				.map( function( part ) { return ( part || '' ).trim(); } )
+				.filter( Boolean )
+				.join( ' ' );
+			$input.val( combined );
+			autoResizeTextarea( $input );
+		};
+
+		recognition.onerror = function( event ) {
+			// Keep recording through benign errors in continuous mode.
+			if ( event.error === 'no-speech' || event.error === 'aborted' ) {
+				return;
+			}
+			if ( event.error === 'not-allowed' || event.error === 'service-not-allowed' ) {
+				speechWantListening = false;
+				speechListening = false;
+				updateMicUi( false );
+				setMicStatus( i18n.micBlocked || 'Microphone permission blocked. Allow mic access and try again.' );
+				return;
+			}
+			setMicStatus( ( i18n.speechError || 'Speech recognition error.' ) + ' (' + event.error + ')' );
+		};
+
+		recognition.onend = function() {
+			speechListening = false;
+			// Chrome often ends continuous sessions after a pause — restart until Send stops it.
+			if ( speechWantListening ) {
+				try {
+					recognition.start();
+					return;
+				} catch ( e ) {
+					setTimeout( function() {
+						if ( speechWantListening ) {
+							startSpeechListening();
+						}
+					}, 250 );
+					return;
+				}
+			}
+			updateMicUi( false );
+			if ( ( $input.val() || '' ).trim() ) {
+				setMicStatus( i18n.ready || 'Ready — press Send.' );
+			} else {
+				setMicStatus( '' );
+			}
+		};
+
+		try {
+			recognition.start();
+			updateMicUi( true );
+			setMicStatus( i18n.listening || 'Recording… speak now. Press Send to stop.' );
+		} catch ( e ) {
+			speechWantListening = false;
+			updateMicUi( false );
+			setMicStatus( i18n.speechError || 'Could not start microphone. Try again.' );
+		}
+	}
+
+	function initSpeechToText() {
+		// Click mic → start recording (toggle off only if already recording).
+		$( document ).off( 'click.datavizMic' ).on( 'click.datavizMic', '.dataviz-ai-chat-mic', function( e ) {
+			e.preventDefault();
+			e.stopPropagation();
+			if ( $( this ).prop( 'disabled' ) ) {
+				return;
+			}
+			if ( speechWantListening ) {
+				stopSpeechListening();
+				setMicStatus( '' );
+				return;
+			}
+			startSpeechListening();
+		} );
+
+		// Send button / Enter submit → always stop recording first.
+		$( document ).off( 'click.datavizMicSend' ).on( 'click.datavizMicSend', '.dataviz-ai-chat-send', function() {
+			stopSpeechListening();
+			setMicStatus( '' );
+		} );
+	}
 
 	// Auto-resize textarea
 	function autoResizeTextarea( $textarea ) {
@@ -521,12 +696,14 @@
 		setupScrollMonitoring();
 
 		setupSuggestedPrompts( $form, $input );
+		initSpeechToText();
 
 		// Enable/disable send button based on API key availability
 		if ( typeof DatavizAIAdmin !== 'undefined' ) {
 			if ( ! DatavizAIAdmin.hasApiKey ) {
 				$sendButton.prop( 'disabled', true );
 				$input.prop( 'disabled', true );
+				// Mic stays enabled so users can still dictate text.
 			}
 		}
 
@@ -568,6 +745,9 @@
 		if ( ! question ) {
 			return;
 		}
+
+		stopSpeechListening();
+		setMicStatus( '' );
 
 		// Reset scroll flags when user sends a new message
 		userScrolledUp = false;
