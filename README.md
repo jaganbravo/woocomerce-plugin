@@ -1,26 +1,61 @@
-# Dataviz AI for WooCommerce
+# Pirate Fighter - 2D Anime-Style Action Game
 
-Monorepo for **Dataviz AI for WooCommerce** — conversational AI analytics for WooCommerce: natural-language questions, answers, charts, and email digests. The shippable WordPress plugin lives in:
+A colorful anime-style pirate action fighting game built with Godot Engine 4.2.
 
-**[dataviz-ai-woocommerce-plugin/](dataviz-ai-woocommerce-plugin/)** (git source tree). Release builds install as **`dataviz-ai-for-woocommerce/`** in `wp-content/plugins/` (WordPress.org trademark rule; matches the plugin text domain).
+## Project Structure
 
-## Quick links
+```
+├── Scenes/           # All .tscn scene files
+│   ├── Main.tscn
+│   ├── CharacterSelection.tscn
+│   ├── Player.tscn
+│   ├── Enemy.tscn
+│   └── GameScene.tscn
+├── Scripts/          # All GDScript files
+│   ├── Main.gd
+│   ├── CharacterData.gd
+│   ├── CharacterSelection.gd
+│   ├── Player.gd
+│   ├── Enemy.gd
+│   ├── CameraFollow.gd
+│   └── GameManager.gd
+├── Assets/           # Game assets
+│   ├── Characters/   # 10 pirate character sprites
+│   ├── Accessories/  # Hats, Weapons, Coats
+│   └── Enemies/      # Enemy sprites
+└── UI/               # UI elements
 
-| Item | Path |
-|------|------|
-| Plugin source & activation | [dataviz-ai-woocommerce-plugin/](dataviz-ai-woocommerce-plugin/) |
-| WordPress.org–style description | [dataviz-ai-woocommerce-plugin/readme.txt](dataviz-ai-woocommerce-plugin/readme.txt) |
-| API key setup (end users) | [dataviz-ai-woocommerce-plugin/docs/API-KEY-MANAGEMENT.md](dataviz-ai-woocommerce-plugin/docs/API-KEY-MANAGEMENT.md) |
-| Architecture & monorepo dev docs | [developerDocs/](developerDocs/) — start with [developerDocs/ARCHITECTURE.md](developerDocs/ARCHITECTURE.md) |
-| WordPress.org submission (maintainers) | [dataviz-ai-woocommerce-plugin/developerDocs/WORDPRESS-ORG-SUBMISSION-STEPS.md](dataviz-ai-woocommerce-plugin/developerDocs/WORDPRESS-ORG-SUBMISSION-STEPS.md) |
-| Extra guides (data flow, plugin guide) | [documentation/](documentation/) |
+```
 
-## Requirements
+## Features
 
-- WordPress 6.0+
-- PHP 8.3+
-- WooCommerce 6.0+ (tested with WC up to 8.5 in plugin header)
+- 10 playable pirate characters with unique stats
+- Character selection screen
+- Accessory system (hat, weapon, coat) that changes character appearance
+- Core gameplay: movement, jump, basic attack, special attack
+- Health system
+- 3 enemy types with AI
+- Smooth follow camera
+- Colorful anime-style visuals with cel shading
 
-## License
+## Controls
 
-The plugin is licensed **GPL-2.0-or-later** — see [dataviz-ai-woocommerce-plugin/license.txt](dataviz-ai-woocommerce-plugin/license.txt).
+- **A/Left Arrow**: Move left
+- **D/Right Arrow**: Move right
+- **Space/W**: Jump
+- **X/Left Mouse**: Basic attack
+- **Z/Right Mouse**: Special attack
+
+## Setup
+
+- WordPress 5.8 or higher
+- PHP 8.3 or higher
+- WooCommerce 5.0 or higher
+
+## Character Data
+
+Each character has:
+- Unique health, speed, jump force
+- Unique attack and special attack damage
+- Unique cooldown timers
+- Unique sprite and accessories

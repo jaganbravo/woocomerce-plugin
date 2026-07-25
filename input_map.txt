@@ -1,0 +1,8 @@
+Input map configuration for Godot project.
+Add these to Project Settings > Input Map:
+
+move_left: A key or Left arrow key
+move_right: D key or Right arrow key
+jump: Space key or W key
+attack: Left mouse button or X key
+special_attack: Right mouse button or Z key

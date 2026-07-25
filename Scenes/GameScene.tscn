@@ -1,0 +1,32 @@
+[gd_scene load_steps=4 format=3 uid="uid://d3e4f5g6h7i8j9k0"]
+
+[ext_resource type="PackedScene" uid="uid://e3f4g5h6i7j8k9l0" path="res://Scenes/Player.tscn" id="1_1"]
+[ext_resource type="PackedScene" uid="uid://f4g5h6i7j8k9l0m1" path="res://Scenes/Enemy.tscn" id="1_2"]
+[ext_resource type="Script" path="res://Scripts/CameraFollow.gd" id="1_3"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(2000, 100)
+
+[node name="GameScene" type="Node2D" groups=["game_scene"]]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+script = ExtResource("1_3")
+follow_speed = 5.0
+
+[node name="Player" parent="." instance=ExtResource("1_1")]
+position = Vector2(640, 300)
+
+[node name="Ground" type="StaticBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+shape = SubResource("RectangleShape2D_1")
+position = Vector2(1000, 500)
+
+[node name="EnemySpawn1" type="Marker2D" parent="."]
+position = Vector2(400, 300)
+
+[node name="EnemySpawn2" type="Marker2D" parent="."]
+position = Vector2(800, 300)
+
+[node name="EnemySpawn3" type="Marker2D" parent="."]
+position = Vector2(1200, 300)

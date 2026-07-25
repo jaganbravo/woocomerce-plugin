@@ -1,0 +1,116 @@
+/* Dataviz AI — Email Digest Admin */
+
+.dataviz-digest-wrap {
+	max-width: 1100px;
+}
+
+/* Empty state */
+.dataviz-digest-empty {
+	text-align: center;
+	padding: 60px 20px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	margin-top: 20px;
+}
+.dataviz-digest-empty__icon {
+	font-size: 48px;
+	margin-bottom: 12px;
+}
+.dataviz-digest-empty h2 {
+	margin: 0 0 8px;
+	font-size: 20px;
+	color: #1d2327;
+}
+.dataviz-digest-empty p {
+	color: #646970;
+	max-width: 460px;
+	margin: 0 auto 20px;
+}
+
+/* Table tweaks */
+.dataviz-digest-table th,
+.dataviz-digest-table td {
+	vertical-align: middle;
+}
+.dataviz-digest-table .row-actions {
+	padding: 2px 0 0;
+}
+
+/* Frequency badges */
+.dataviz-digest-badge {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.6;
+}
+.dataviz-digest-badge--daily {
+	background: #fef3c7;
+	color: #92400e;
+}
+.dataviz-digest-badge--weekly {
+	background: #dbeafe;
+	color: #1e40af;
+}
+.dataviz-digest-badge--monthly {
+	background: #ede9fe;
+	color: #5b21b6;
+}
+
+/* Status */
+.dataviz-digest-status {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.6;
+}
+.dataviz-digest-status--active {
+	background: #d1fae5;
+	color: #065f46;
+}
+.dataviz-digest-status--paused {
+	background: #f3f4f6;
+	color: #6b7280;
+}
+
+/* Sections list in table */
+.dataviz-digest-sections {
+	font-size: 12px;
+	color: #6b7280;
+}
+
+/* Form */
+.dataviz-digest-form .form-table th {
+	width: 180px;
+}
+.dataviz-digest-form fieldset label {
+	cursor: pointer;
+}
+.dataviz-digest-form fieldset input[type="checkbox"] {
+	margin-right: 6px;
+}
+
+/* Preview */
+.dataviz-digest-preview {
+	margin-top: 16px;
+}
+.dataviz-digest-preview iframe {
+	display: block;
+}
+
+/* Mail error details from Send Now */
+.dataviz-digest-mail-detail {
+	display: block;
+	margin: 8px 0 0;
+	padding: 10px 12px;
+	background: #fcf0f1;
+	border: 1px solid #d63638;
+	border-radius: 4px;
+	font-size: 12px;
+	white-space: pre-wrap;
+	max-width: 720px;
+}
