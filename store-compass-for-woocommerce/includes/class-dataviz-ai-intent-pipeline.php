@@ -89,7 +89,7 @@ class Dataviz_AI_Intent_Pipeline {
 		// Low confidence: do not run tools; let the UI suggest clearer phrasings.
 		if ( isset( $validated['confidence'] ) && $validated['confidence'] === 'low' ) {
 			$result['low_confidence']  = true;
-			$result['error_reason']   = __( 'Parsed intent confidence is low; no WooCommerce data query was run.', 'dataviz-ai-for-woocommerce' );
+			$result['error_reason']   = __( 'Parsed intent confidence is low; no WooCommerce data query was run.', 'store-compass-for-woocommerce' );
 			$result['intent']        = $validated;
 			$result['tool_calls']     = array();
 			return $result;
@@ -214,13 +214,13 @@ class Dataviz_AI_Intent_Pipeline {
 		$entity = sanitize_key( (string) $entity );
 		switch ( $entity ) {
 			case 'comparisons':
-				return __( 'Comparison queries are not currently supported.', 'dataviz-ai-for-woocommerce' );
+				return __( 'Comparison queries are not currently supported.', 'store-compass-for-woocommerce' );
 			case 'conversion_rate':
-				return __( 'Conversion-rate queries require traffic/session data, which is not currently available.', 'dataviz-ai-for-woocommerce' );
+				return __( 'Conversion-rate queries require traffic/session data, which is not currently available.', 'store-compass-for-woocommerce' );
 			case 'cross_entity_analysis':
-				return __( 'Cross-entity analysis queries are not currently supported.', 'dataviz-ai-for-woocommerce' );
+				return __( 'Cross-entity analysis queries are not currently supported.', 'store-compass-for-woocommerce' );
 			default:
-				return __( 'This capability is not currently supported.', 'dataviz-ai-for-woocommerce' );
+				return __( 'This capability is not currently supported.', 'store-compass-for-woocommerce' );
 		}
 	}
 }

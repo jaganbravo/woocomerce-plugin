@@ -8,12 +8,12 @@
  * Author URI: https://compassforstore.com
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: dataviz-ai-for-woocommerce
+ * Text Domain: store-compass-for-woocommerce
  * Domain Path: /languages
  * Requires at least: 6.0
  * Requires PHP: 8.3
  * WC requires at least: 6.0
- * WC tested up to: 8.5
+ * WC tested up to: 10.7
  *
  * @package Dataviz_AI_WooCommerce
  */
@@ -73,8 +73,8 @@ function dataviz_ai_wc_activate() {
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		deactivate_plugins( plugin_basename( __FILE__ ) );
 		wp_die(
-			esc_html__( 'Dataviz AI for WooCommerce requires WooCommerce to be installed and active.', 'dataviz-ai-for-woocommerce' ),
-			esc_html__( 'Plugin activation error', 'dataviz-ai-for-woocommerce' ),
+			esc_html__( 'Store Compass for WooCommerce requires WooCommerce to be installed and active.', 'store-compass-for-woocommerce' ),
+			esc_html__( 'Plugin activation error', 'store-compass-for-woocommerce' ),
 			array( 'back_link' => true )
 		);
 	}
@@ -137,11 +137,11 @@ function dataviz_ai_wc_init() {
 			static function() {
 				printf(
 					'<div class="notice notice-error"><p><strong>%s</strong> %s</p></div>',
-					esc_html__( 'Dataviz AI for WooCommerce', 'dataviz-ai-for-woocommerce' ),
+					esc_html__( 'Store Compass for WooCommerce', 'store-compass-for-woocommerce' ),
 					wp_kses_post(
 						sprintf(
 							/* translators: %s link to WooCommerce plugin. */
-							__( 'requires WooCommerce to be installed and active. <a href="%s" target="_blank" rel="noopener noreferrer">Install WooCommerce</a>.', 'dataviz-ai-for-woocommerce' ),
+							__( 'requires WooCommerce to be installed and active. <a href="%s" target="_blank" rel="noopener noreferrer">Install WooCommerce</a>.', 'store-compass-for-woocommerce' ),
 							esc_url( 'https://woocommerce.com/' )
 						)
 					)
@@ -173,7 +173,7 @@ function dataviz_ai_wc_cleanup_chat_history() {
 	$chat_history = new Dataviz_AI_Chat_History();
 	$deleted = $chat_history->cleanup_old_messages();
 	
-	dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Cleaned up %d old chat history messages', $deleted ) );
+	dataviz_ai_wc_debug_log( sprintf( '[Store Compass] Cleaned up %d old chat history messages', $deleted ) );
 }
 
 add_action( 'plugins_loaded', 'dataviz_ai_wc_init', 20 );
@@ -186,11 +186,11 @@ add_action( 'plugins_loaded', 'dataviz_ai_wc_init', 20 );
  */
 function dataviz_ai_wc_register_personal_data_exporters( $exporters ) {
 	$exporters['dataviz-ai-chat-history'] = array(
-		'exporter_friendly_name' => __( 'Dataviz AI Chat History', 'dataviz-ai-for-woocommerce' ),
+		'exporter_friendly_name' => __( 'Store Compass Chat History', 'store-compass-for-woocommerce' ),
 		'callback'               => 'dataviz_ai_wc_chat_history_exporter',
 	);
 	$exporters['dataviz-ai-support-requests'] = array(
-		'exporter_friendly_name' => __( 'Dataviz AI Support Requests', 'dataviz-ai-for-woocommerce' ),
+		'exporter_friendly_name' => __( 'Store Compass Support Requests', 'store-compass-for-woocommerce' ),
 		'callback'               => 'dataviz_ai_wc_support_requests_exporter',
 	);
 	return $exporters;
@@ -205,11 +205,11 @@ add_filter( 'wp_privacy_personal_data_exporters', 'dataviz_ai_wc_register_person
  */
 function dataviz_ai_wc_register_personal_data_erasers( $erasers ) {
 	$erasers['dataviz-ai-chat-history'] = array(
-		'eraser_friendly_name' => __( 'Dataviz AI Chat History', 'dataviz-ai-for-woocommerce' ),
+		'eraser_friendly_name' => __( 'Store Compass Chat History', 'store-compass-for-woocommerce' ),
 		'callback'             => 'dataviz_ai_wc_chat_history_eraser',
 	);
 	$erasers['dataviz-ai-support-requests'] = array(
-		'eraser_friendly_name' => __( 'Dataviz AI Support Requests', 'dataviz-ai-for-woocommerce' ),
+		'eraser_friendly_name' => __( 'Store Compass Support Requests', 'store-compass-for-woocommerce' ),
 		'callback'             => 'dataviz_ai_wc_support_requests_eraser',
 	);
 	return $erasers;
@@ -243,13 +243,13 @@ function dataviz_ai_wc_chat_history_exporter( $email_address, $page = 1 ) {
 	foreach ( $rows as $row ) {
 		$data[] = array(
 			'group_id'    => 'dataviz_ai_chat_history',
-			'group_label' => __( 'Dataviz AI Chat History', 'dataviz-ai-for-woocommerce' ),
+			'group_label' => __( 'Store Compass Chat History', 'store-compass-for-woocommerce' ),
 			'item_id'     => 'dataviz-ai-chat-history-' . (int) $row['id'],
 			'data'        => array(
-				array( 'name' => __( 'Session ID', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['session_id'] ),
-				array( 'name' => __( 'Message Type', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['message_type'] ),
-				array( 'name' => __( 'Message', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['message_content'] ),
-				array( 'name' => __( 'Created At', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['created_at'] ),
+				array( 'name' => __( 'Session ID', 'store-compass-for-woocommerce' ), 'value' => (string) $row['session_id'] ),
+				array( 'name' => __( 'Message Type', 'store-compass-for-woocommerce' ), 'value' => (string) $row['message_type'] ),
+				array( 'name' => __( 'Message', 'store-compass-for-woocommerce' ), 'value' => (string) $row['message_content'] ),
+				array( 'name' => __( 'Created At', 'store-compass-for-woocommerce' ), 'value' => (string) $row['created_at'] ),
 			),
 		);
 	}
@@ -279,15 +279,15 @@ function dataviz_ai_wc_support_requests_exporter( $email_address, $page = 1 ) {
 	foreach ( $rows as $row ) {
 		$data[] = array(
 			'group_id'    => 'dataviz_ai_support_requests',
-			'group_label' => __( 'Dataviz AI Support Requests', 'dataviz-ai-for-woocommerce' ),
+			'group_label' => __( 'Store Compass Support Requests', 'store-compass-for-woocommerce' ),
 			'item_id'     => 'dataviz-ai-support-request-' . (int) $row['id'],
 			'data'        => array(
-				array( 'name' => __( 'Type', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['type'] ),
-				array( 'name' => __( 'Question', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['question'] ),
-				array( 'name' => __( 'Entity Type', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['entity_type'] ),
-				array( 'name' => __( 'Description', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['description'] ),
-				array( 'name' => __( 'Status', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['status'] ),
-				array( 'name' => __( 'Created At', 'dataviz-ai-for-woocommerce' ), 'value' => (string) $row['created_at'] ),
+				array( 'name' => __( 'Type', 'store-compass-for-woocommerce' ), 'value' => (string) $row['type'] ),
+				array( 'name' => __( 'Question', 'store-compass-for-woocommerce' ), 'value' => (string) $row['question'] ),
+				array( 'name' => __( 'Entity Type', 'store-compass-for-woocommerce' ), 'value' => (string) $row['entity_type'] ),
+				array( 'name' => __( 'Description', 'store-compass-for-woocommerce' ), 'value' => (string) $row['description'] ),
+				array( 'name' => __( 'Status', 'store-compass-for-woocommerce' ), 'value' => (string) $row['status'] ),
+				array( 'name' => __( 'Created At', 'store-compass-for-woocommerce' ), 'value' => (string) $row['created_at'] ),
 			),
 		);
 	}
@@ -365,12 +365,12 @@ function dataviz_ai_wc_add_privacy_policy_content() {
 		return;
 	}
 
-	$content  = '<p>' . esc_html__( 'Dataviz AI for WooCommerce stores chat history and support request data so administrators can review AI interactions and improve analytics workflows.', 'dataviz-ai-for-woocommerce' ) . '</p>';
-	$content .= '<p>' . esc_html__( 'When generating answers, prompts and selected store aggregates may be sent to your configured AI provider (for example, OpenAI). Review provider terms and privacy policies before enabling production use.', 'dataviz-ai-for-woocommerce' ) . '</p>';
-	$content .= '<p>' . esc_html__( 'The plugin integrates with WordPress personal data export and erasure tools for plugin-owned chat and support request records.', 'dataviz-ai-for-woocommerce' ) . '</p>';
+	$content  = '<p>' . esc_html__( 'Store Compass for WooCommerce stores chat history and support request data so administrators can review AI interactions and improve analytics workflows.', 'store-compass-for-woocommerce' ) . '</p>';
+	$content .= '<p>' . esc_html__( 'When generating answers, prompts and selected store aggregates may be sent to your configured AI provider (for example, OpenAI). Review provider terms and privacy policies before enabling production use.', 'store-compass-for-woocommerce' ) . '</p>';
+	$content .= '<p>' . esc_html__( 'The plugin integrates with WordPress personal data export and erasure tools for plugin-owned chat and support request records.', 'store-compass-for-woocommerce' ) . '</p>';
 
 	wp_add_privacy_policy_content(
-		__( 'Dataviz AI for WooCommerce', 'dataviz-ai-for-woocommerce' ),
+		__( 'Store Compass for WooCommerce', 'store-compass-for-woocommerce' ),
 		wp_kses_post( wpautop( $content, false ) )
 	);
 }

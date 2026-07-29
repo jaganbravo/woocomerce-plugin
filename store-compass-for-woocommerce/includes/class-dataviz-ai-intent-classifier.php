@@ -1,6 +1,6 @@
 <?php
 /**
- * Intent classification and query parsing utilities for Dataviz AI WooCommerce plugin.
+ * Intent classification and query parsing utilities for Store Compass WooCommerce plugin.
  *
  * @package Dataviz_AI_WooCommerce
  */

@@ -1,20 +1,20 @@
-# Dataviz AI for WooCommerce (Sample)
+# Store Compass for WooCommerce (Sample)
 
-Prototype plugin scaffold that demonstrates how the Dataviz AI architecture fits into a WordPress + WooCommerce environment.
+Prototype plugin scaffold that demonstrates how the Store Compass architecture fits into a WordPress + WooCommerce environment.
 
 ## Features
 
 - Admin dashboard page that surfaces recent orders, top products, and customer metrics.
-- Connection settings for storing the Dataviz AI backend URL and API key.
+- Connection settings for storing the Store Compass backend URL and API key.
 - Quick analysis form that ships order data to the backend sample endpoint.
 - Front-end `[dataviz_ai_chat]` shortcode for a lightweight AI chat widget.
 - AJAX handlers that normalise WooCommerce data before sending to the backend.
 
 ## Getting Started
 
-1. **Release / WordPress.org:** unzip so `wp-content/plugins/dataviz-ai-for-woocommerce/` contains the plugin (main file `dataviz-ai-woocommerce.php`). **From this repo:** copy `dataviz-ai-woocommerce-plugin/` into `wp-content/plugins/` and sync/rename to match your environment, or run `bash bin/sync-to-docker.sh` for Docker.
-2. Activate the **Dataviz AI for WooCommerce** plugin in the WordPress admin.
-3. Open **Dataviz AI** in the WordPress sidebar (admin URL uses `page=dataviz-ai-for-woocommerce`).
+1. **Release / WordPress.org:** unzip so `wp-content/plugins/store-compass-for-woocommerce/` contains the plugin (main file `dataviz-ai-woocommerce.php`). **From this repo:** copy `dataviz-ai-woocommerce-plugin/` into `wp-content/plugins/` and sync/rename to match your environment, or run `bash bin/sync-to-docker.sh` for Docker.
+2. Activate the **Store Compass for WooCommerce** plugin in the WordPress admin.
+3. Open **Store Compass** in the WordPress sidebar (admin URL uses `page=store-compass-for-woocommerce`).
 4. Enter your backend API base URL and key, then save.
 5. Use the quick analysis form or embed the `[dataviz_ai_chat]` shortcode on any page.
 

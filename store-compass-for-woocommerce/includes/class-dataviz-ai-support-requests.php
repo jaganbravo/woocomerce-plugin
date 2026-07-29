@@ -152,7 +152,7 @@ class Dataviz_AI_Support_Requests {
 
 		$user       = $user_id > 0 ? get_userdata( $user_id ) : null;
 		$user_email = $user ? $user->user_email : '';
-		$user_name  = $user ? $user->display_name : __( 'Guest', 'dataviz-ai-for-woocommerce' );
+		$user_name  = $user ? $user->display_name : __( 'Guest', 'store-compass-for-woocommerce' );
 
 		$result = $wpdb->insert(
 			self::table_name(),
@@ -404,25 +404,25 @@ class Dataviz_AI_Support_Requests {
 		if ( ! is_email( $to ) ) {
 			return new WP_Error(
 				'dataviz_sr_email_no_vendor',
-				__( 'Set a vendor support email on the Support & Requests page before sending.', 'dataviz-ai-for-woocommerce' )
+				__( 'Set a vendor support email on the Support & Requests page before sending.', 'store-compass-for-woocommerce' )
 			);
 		}
 
 		$row = self::get( $id );
 		if ( ! $row ) {
-			return new WP_Error( 'dataviz_sr_not_found', __( 'Request not found.', 'dataviz-ai-for-woocommerce' ) );
+			return new WP_Error( 'dataviz_sr_not_found', __( 'Request not found.', 'store-compass-for-woocommerce' ) );
 		}
 
 		if ( self::STATUS_PENDING !== ( $row['status'] ?? '' ) ) {
 			return new WP_Error(
 				'dataviz_sr_email_not_pending',
-				__( 'Only pending requests can be emailed to the vendor.', 'dataviz-ai-for-woocommerce' )
+				__( 'Only pending requests can be emailed to the vendor.', 'store-compass-for-woocommerce' )
 			);
 		}
 
 		$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		/* translators: 1: site name, 2: numeric request ID */
-		$subject = sprintf( __( '[%1$s] Dataviz AI pending request #%2$d', 'dataviz-ai-for-woocommerce' ), $site_name, (int) $id );
+		$subject = sprintf( __( '[%1$s] Store Compass pending request #%2$d', 'store-compass-for-woocommerce' ), $site_name, (int) $id );
 
 		$body = self::build_vendor_email_body( $row );
 
@@ -436,7 +436,7 @@ class Dataviz_AI_Support_Requests {
 		if ( ! $sent ) {
 			return new WP_Error(
 				'dataviz_sr_email_failed',
-				__( 'WordPress could not send email. Check your site mail configuration (SMTP plugin, host mail, etc.).', 'dataviz-ai-for-woocommerce' )
+				__( 'WordPress could not send email. Check your site mail configuration (SMTP plugin, host mail, etc.).', 'store-compass-for-woocommerce' )
 			);
 		}
 
@@ -451,38 +451,38 @@ class Dataviz_AI_Support_Requests {
 	 */
 	private static function build_vendor_email_body( array $row ) {
 		$lines   = array();
-		$lines[] = __( 'A store administrator forwarded this Dataviz AI support request from their WordPress admin.', 'dataviz-ai-for-woocommerce' );
+		$lines[] = __( 'A store administrator forwarded this Store Compass support request from their WordPress admin.', 'store-compass-for-woocommerce' );
 		$lines[] = '';
-		$lines[] = __( 'Site', 'dataviz-ai-for-woocommerce' ) . ': ' . home_url();
-		$lines[] = __( 'Request ID', 'dataviz-ai-for-woocommerce' ) . ': #' . absint( $row['id'] ?? 0 );
-		$lines[] = __( 'Type', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['type'] ?? '' );
-		$lines[] = __( 'Status', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['status'] ?? '' );
-		$lines[] = __( 'Votes', 'dataviz-ai-for-woocommerce' ) . ': ' . absint( $row['vote_count'] ?? 0 );
-		$lines[] = __( 'Created', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['created_at'] ?? '' );
+		$lines[] = __( 'Site', 'store-compass-for-woocommerce' ) . ': ' . home_url();
+		$lines[] = __( 'Request ID', 'store-compass-for-woocommerce' ) . ': #' . absint( $row['id'] ?? 0 );
+		$lines[] = __( 'Type', 'store-compass-for-woocommerce' ) . ': ' . sanitize_text_field( $row['type'] ?? '' );
+		$lines[] = __( 'Status', 'store-compass-for-woocommerce' ) . ': ' . sanitize_text_field( $row['status'] ?? '' );
+		$lines[] = __( 'Votes', 'store-compass-for-woocommerce' ) . ': ' . absint( $row['vote_count'] ?? 0 );
+		$lines[] = __( 'Created', 'store-compass-for-woocommerce' ) . ': ' . sanitize_text_field( $row['created_at'] ?? '' );
 		$lines[] = '';
-		$lines[] = __( 'User', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['user_name'] ?? '' );
+		$lines[] = __( 'User', 'store-compass-for-woocommerce' ) . ': ' . sanitize_text_field( $row['user_name'] ?? '' );
 		if ( ! empty( $row['user_email'] ) ) {
-			$lines[] = __( 'User email', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_email( $row['user_email'] );
+			$lines[] = __( 'User email', 'store-compass-for-woocommerce' ) . ': ' . sanitize_email( $row['user_email'] );
 		}
-		$lines[] = __( 'User ID', 'dataviz-ai-for-woocommerce' ) . ': ' . absint( $row['user_id'] ?? 0 );
+		$lines[] = __( 'User ID', 'store-compass-for-woocommerce' ) . ': ' . absint( $row['user_id'] ?? 0 );
 		$lines[] = '';
-		$lines[] = __( 'Question', 'dataviz-ai-for-woocommerce' ) . ':';
+		$lines[] = __( 'Question', 'store-compass-for-woocommerce' ) . ':';
 		$lines[] = wp_strip_all_tags( (string) ( $row['question'] ?? '' ) );
 		$lines[] = '';
-		$lines[] = __( 'Entity', 'dataviz-ai-for-woocommerce' ) . ': ' . sanitize_text_field( $row['entity_type'] ?? '' );
+		$lines[] = __( 'Entity', 'store-compass-for-woocommerce' ) . ': ' . sanitize_text_field( $row['entity_type'] ?? '' );
 		if ( ! empty( $row['error_reason'] ) ) {
 			$lines[] = '';
-			$lines[] = __( 'Error / reason', 'dataviz-ai-for-woocommerce' ) . ':';
+			$lines[] = __( 'Error / reason', 'store-compass-for-woocommerce' ) . ':';
 			$lines[] = wp_strip_all_tags( (string) $row['error_reason'] );
 		}
 		if ( ! empty( $row['description'] ) ) {
 			$lines[] = '';
-			$lines[] = __( 'Description', 'dataviz-ai-for-woocommerce' ) . ':';
+			$lines[] = __( 'Description', 'store-compass-for-woocommerce' ) . ':';
 			$lines[] = wp_strip_all_tags( (string) $row['description'] );
 		}
 		if ( ! empty( $row['raw_intent'] ) ) {
 			$lines[] = '';
-			$lines[] = __( 'Raw intent (JSON)', 'dataviz-ai-for-woocommerce' ) . ':';
+			$lines[] = __( 'Raw intent (JSON)', 'store-compass-for-woocommerce' ) . ':';
 			$lines[] = wp_strip_all_tags( (string) $row['raw_intent'] );
 		}
 

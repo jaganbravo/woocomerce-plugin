@@ -34,7 +34,7 @@ class Dataviz_AI_Intent_Query_Summary {
 		if ( ! self::should_expose_internal_trace() ) {
 			return '';
 		}
-		return __( 'Answering conversationally (no WooCommerce data query was run).', 'dataviz-ai-for-woocommerce' );
+		return __( 'Answering conversationally (no WooCommerce data query was run).', 'store-compass-for-woocommerce' );
 	}
 
 	/**
@@ -46,7 +46,7 @@ class Dataviz_AI_Intent_Query_Summary {
 		if ( ! self::should_expose_internal_trace() ) {
 			return '';
 		}
-		return __( 'Answer via your configured Dataviz backend (your question and store context were sent to that service).', 'dataviz-ai-for-woocommerce' );
+		return __( 'Answer via your configured Dataviz backend (your question and store context were sent to that service).', 'store-compass-for-woocommerce' );
 	}
 
 	/**
@@ -58,7 +58,7 @@ class Dataviz_AI_Intent_Query_Summary {
 		if ( ! self::should_expose_internal_trace() ) {
 			return '';
 		}
-		return __( 'Recording your feature request confirmation.', 'dataviz-ai-for-woocommerce' );
+		return __( 'Recording your feature request confirmation.', 'store-compass-for-woocommerce' );
 	}
 
 	/**
@@ -89,7 +89,7 @@ class Dataviz_AI_Intent_Query_Summary {
 		if ( ! empty( $filters['status'] ) ) {
 			$status = sprintf(
 				/* translators: %s: WooCommerce order status slug or label */
-				__( 'status “%s”', 'dataviz-ai-for-woocommerce' ),
+				__( 'status “%s”', 'store-compass-for-woocommerce' ),
 				sanitize_text_field( (string) $filters['status'] )
 			);
 		}
@@ -106,11 +106,11 @@ class Dataviz_AI_Intent_Query_Summary {
 
 		$chunks = array_filter( array( $metric_phrase, $entity, $op_label, $period, $status ) );
 		if ( empty( $chunks ) ) {
-			return __( 'Interpreting your question as: WooCommerce data analysis based on your question.', 'dataviz-ai-for-woocommerce' );
+			return __( 'Interpreting your question as: WooCommerce data analysis based on your question.', 'store-compass-for-woocommerce' );
 		}
 
 		/* translators: %s: comma-separated phrases (metrics, entity, operation, dates, status) */
-		return sprintf( __( 'Interpreting your question as: %s.', 'dataviz-ai-for-woocommerce' ), implode( ', ', $chunks ) );
+		return sprintf( __( 'Interpreting your question as: %s.', 'store-compass-for-woocommerce' ), implode( ', ', $chunks ) );
 	}
 
 	/**
@@ -143,8 +143,8 @@ class Dataviz_AI_Intent_Query_Summary {
 	 */
 	private static function operation_label( $operation ) {
 		$map = array(
-			'list'       => __( 'listing', 'dataviz-ai-for-woocommerce' ),
-			'statistics' => __( 'summary statistics', 'dataviz-ai-for-woocommerce' ),
+			'list'       => __( 'listing', 'store-compass-for-woocommerce' ),
+			'statistics' => __( 'summary statistics', 'store-compass-for-woocommerce' ),
 		);
 
 		if ( isset( $map[ $operation ] ) ) {
@@ -170,38 +170,38 @@ class Dataviz_AI_Intent_Query_Summary {
 			if ( preg_match( '/^last_(\d+)_days$/', $preset, $m ) ) {
 				return sprintf(
 					/* translators: %d: number of days */
-					__( 'last %d days', 'dataviz-ai-for-woocommerce' ),
+					__( 'last %d days', 'store-compass-for-woocommerce' ),
 					(int) $m[1]
 				);
 			}
 			if ( preg_match( '/^last_(\d+)_weeks$/', $preset, $m ) ) {
 				return sprintf(
 					/* translators: %d: number of weeks */
-					__( 'last %d weeks', 'dataviz-ai-for-woocommerce' ),
+					__( 'last %d weeks', 'store-compass-for-woocommerce' ),
 					(int) $m[1]
 				);
 			}
 			if ( preg_match( '/^last_(\d+)_months$/', $preset, $m ) ) {
 				return sprintf(
 					/* translators: %d: number of months */
-					__( 'last %d months', 'dataviz-ai-for-woocommerce' ),
+					__( 'last %d months', 'store-compass-for-woocommerce' ),
 					(int) $m[1]
 				);
 			}
 
 			$labels = array(
-				'today'        => __( 'today', 'dataviz-ai-for-woocommerce' ),
-				'yesterday'    => __( 'yesterday', 'dataviz-ai-for-woocommerce' ),
-				'this_week'    => __( 'this week', 'dataviz-ai-for-woocommerce' ),
-				'last_week'    => __( 'last week', 'dataviz-ai-for-woocommerce' ),
-				'this_month'   => __( 'this month', 'dataviz-ai-for-woocommerce' ),
-				'last_month'   => __( 'last month', 'dataviz-ai-for-woocommerce' ),
-				'this_year'    => __( 'this year', 'dataviz-ai-for-woocommerce' ),
-				'last_year'    => __( 'last year', 'dataviz-ai-for-woocommerce' ),
-				'last_quarter' => __( 'last quarter', 'dataviz-ai-for-woocommerce' ),
-				'all_time'     => __( 'all time', 'dataviz-ai-for-woocommerce' ),
-				'all'          => __( 'all time', 'dataviz-ai-for-woocommerce' ),
-				'lifetime'     => __( 'all time', 'dataviz-ai-for-woocommerce' ),
+				'today'        => __( 'today', 'store-compass-for-woocommerce' ),
+				'yesterday'    => __( 'yesterday', 'store-compass-for-woocommerce' ),
+				'this_week'    => __( 'this week', 'store-compass-for-woocommerce' ),
+				'last_week'    => __( 'last week', 'store-compass-for-woocommerce' ),
+				'this_month'   => __( 'this month', 'store-compass-for-woocommerce' ),
+				'last_month'   => __( 'last month', 'store-compass-for-woocommerce' ),
+				'this_year'    => __( 'this year', 'store-compass-for-woocommerce' ),
+				'last_year'    => __( 'last year', 'store-compass-for-woocommerce' ),
+				'last_quarter' => __( 'last quarter', 'store-compass-for-woocommerce' ),
+				'all_time'     => __( 'all time', 'store-compass-for-woocommerce' ),
+				'all'          => __( 'all time', 'store-compass-for-woocommerce' ),
+				'lifetime'     => __( 'all time', 'store-compass-for-woocommerce' ),
 			);
 
 			if ( isset( $labels[ $preset ] ) ) {
@@ -209,7 +209,7 @@ class Dataviz_AI_Intent_Query_Summary {
 			}
 
 			/* translators: %s: raw preset key */
-			return sprintf( __( 'period %s', 'dataviz-ai-for-woocommerce' ), self::humanize_token( $preset ) );
+			return sprintf( __( 'period %s', 'store-compass-for-woocommerce' ), self::humanize_token( $preset ) );
 		}
 
 		$from = isset( $dr['from'] ) ? (string) $dr['from'] : '';
@@ -217,7 +217,7 @@ class Dataviz_AI_Intent_Query_Summary {
 		if ( $from !== '' && $to !== '' ) {
 			return sprintf(
 				/* translators: 1: start date, 2: end date */
-				__( 'from %1$s to %2$s', 'dataviz-ai-for-woocommerce' ),
+				__( 'from %1$s to %2$s', 'store-compass-for-woocommerce' ),
 				$from,
 				$to
 			);

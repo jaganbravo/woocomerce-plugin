@@ -140,14 +140,14 @@ class Dataviz_AI_Tool_Executor {
 		try {
 			return $this->execute_tool( $function_name, $arguments );
 		} catch ( \Exception $e ) {
-			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Exception in tool %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
+			dataviz_ai_wc_debug_log( sprintf( '[Store Compass] Exception in tool %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
 			return array(
 				'error'      => true,
 				'error_type' => 'exception',
 				'message'    => 'An error occurred while executing the tool: ' . $e->getMessage(),
 			);
 		} catch ( \Error $e ) {
-			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Fatal error in tool %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
+			dataviz_ai_wc_debug_log( sprintf( '[Store Compass] Fatal error in tool %s: %s in %s:%d', $function_name, $e->getMessage(), $e->getFile(), $e->getLine() ) );
 			return array(
 				'error'      => true,
 				'error_type' => 'fatal_error',
@@ -205,13 +205,13 @@ class Dataviz_AI_Tool_Executor {
 				return $this->data_fetcher->get_customers( $limit );
 
 			default:
-				dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Unknown tool requested: %s', $function_name ) );
+				dataviz_ai_wc_debug_log( sprintf( '[Store Compass] Unknown tool requested: %s', $function_name ) );
 				return array(
 					'error'           => true,
 					'error_type'      => 'unknown_tool',
 					'message'         => sprintf(
 						/* translators: %s: internal tool name requested by the AI */
-						__( 'The tool "%1$s" is not available.', 'dataviz-ai-for-woocommerce' ),
+						__( 'The tool "%1$s" is not available.', 'store-compass-for-woocommerce' ),
 						esc_html( $function_name )
 					),
 					'requested_tool'  => $function_name,
@@ -239,14 +239,14 @@ class Dataviz_AI_Tool_Executor {
 		$original_entity_type = $entity_type;
 
 		$supported_entities = array(
-			'orders'     => __( 'orders', 'dataviz-ai-for-woocommerce' ),
-			'products'   => __( 'products', 'dataviz-ai-for-woocommerce' ),
-			'customers'  => __( 'customers', 'dataviz-ai-for-woocommerce' ),
-			'categories' => __( 'categories', 'dataviz-ai-for-woocommerce' ),
-			'tags'       => __( 'tags', 'dataviz-ai-for-woocommerce' ),
-			'coupons'    => __( 'coupons', 'dataviz-ai-for-woocommerce' ),
-			'refunds'    => __( 'refunds', 'dataviz-ai-for-woocommerce' ),
-			'stock'      => __( 'stock levels / inventory', 'dataviz-ai-for-woocommerce' ),
+			'orders'     => __( 'orders', 'store-compass-for-woocommerce' ),
+			'products'   => __( 'products', 'store-compass-for-woocommerce' ),
+			'customers'  => __( 'customers', 'store-compass-for-woocommerce' ),
+			'categories' => __( 'categories', 'store-compass-for-woocommerce' ),
+			'tags'       => __( 'tags', 'store-compass-for-woocommerce' ),
+			'coupons'    => __( 'coupons', 'store-compass-for-woocommerce' ),
+			'refunds'    => __( 'refunds', 'store-compass-for-woocommerce' ),
+			'stock'      => __( 'stock levels / inventory', 'store-compass-for-woocommerce' ),
 		);
 
 		$entity_type_normalized = Dataviz_AI_Intent_Classifier::normalize_entity_type( $entity_type );
@@ -271,13 +271,13 @@ class Dataviz_AI_Tool_Executor {
 			case 'inventory':
 				return $this->handle_stock_query( $filters, 'inventory' );
 			default:
-				dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] Unsupported entity type requested: %s', $entity_type ) );
+				dataviz_ai_wc_debug_log( sprintf( '[Store Compass] Unsupported entity type requested: %s', $entity_type ) );
 				return array(
 					'error'              => true,
 					'error_type'         => 'unsupported_entity',
 					'message'            => sprintf(
 						/* translators: 1: requested data type, 2: comma-separated list of supported types */
-						__( 'The "%1$s" data type is not currently supported. Available data types are: %2$s.', 'dataviz-ai-for-woocommerce' ),
+						__( 'The "%1$s" data type is not currently supported. Available data types are: %2$s.', 'store-compass-for-woocommerce' ),
 						esc_html( $entity_type ),
 						implode( ', ', $supported_entities )
 					),
@@ -285,13 +285,13 @@ class Dataviz_AI_Tool_Executor {
 					'available_entities' => array_keys( $supported_entities ),
 					'suggestion'         => sprintf(
 						/* translators: %s: comma-separated list of supported data types */
-						__( 'You can ask about: %1$s', 'dataviz-ai-for-woocommerce' ),
+						__( 'You can ask about: %1$s', 'store-compass-for-woocommerce' ),
 						implode( ', ', $supported_entities )
 					),
 					'can_submit_request' => true,
 					'submission_prompt'  => sprintf(
 						/* translators: %s: requested data type name */
-						__( 'Would you like to request this feature? Just say "yes" and I\'ll submit a feature request for "%1$s" to the administrators.', 'dataviz-ai-for-woocommerce' ),
+						__( 'Would you like to request this feature? Just say "yes" and I\'ll submit a feature request for "%1$s" to the administrators.', 'store-compass-for-woocommerce' ),
 						esc_html( $entity_type )
 					),
 				);
@@ -461,7 +461,7 @@ class Dataviz_AI_Tool_Executor {
 		$user_id     = get_current_user_id();
 
 		if ( empty( $entity_type ) ) {
-			return array( 'error' => true, 'message' => __( 'Entity type is required to submit a feature request.', 'dataviz-ai-for-woocommerce' ) );
+			return array( 'error' => true, 'message' => __( 'Entity type is required to submit a feature request.', 'store-compass-for-woocommerce' ) );
 		}
 
 		$feature_requests = new Dataviz_AI_Feature_Requests();
@@ -482,7 +482,7 @@ class Dataviz_AI_Tool_Executor {
 				'success'    => true,
 				'message'    => sprintf(
 					/* translators: 1: feature/data type name, 2: feature request database ID */
-					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d. The administrators have been notified.', 'dataviz-ai-for-woocommerce' ),
+					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d. The administrators have been notified.', 'store-compass-for-woocommerce' ),
 					esc_html( $entity_type ),
 					$request_id
 				),
@@ -490,38 +490,38 @@ class Dataviz_AI_Tool_Executor {
 			);
 		}
 
-		return array( 'error' => true, 'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-for-woocommerce' ) );
+		return array( 'error' => true, 'message' => __( 'Failed to submit feature request. Please try again later.', 'store-compass-for-woocommerce' ) );
 	}
 
 	protected function send_feature_request_email( $request_id, $entity_type, $user_id, $description = '' ) {
 		$user       = $user_id > 0 ? get_userdata( $user_id ) : null;
-		$user_email = $user ? $user->user_email : __( 'Guest', 'dataviz-ai-for-woocommerce' );
-		$user_name  = $user ? $user->display_name : __( 'Guest User', 'dataviz-ai-for-woocommerce' );
+		$user_email = $user ? $user->user_email : __( 'Guest', 'store-compass-for-woocommerce' );
+		$user_name  = $user ? $user->display_name : __( 'Guest User', 'store-compass-for-woocommerce' );
 		$admin_email = get_option( 'admin_email' );
 		$site_name   = get_bloginfo( 'name' );
 
 		$subject = sprintf(
 			/* translators: 1: site name, 2: requested feature/data type */
-			__( '[%1$s] New Feature Request: %2$s', 'dataviz-ai-for-woocommerce' ),
+			__( '[%1$s] New Feature Request: %2$s', 'store-compass-for-woocommerce' ),
 			$site_name,
 			ucfirst( $entity_type )
 		);
 
 		/* translators: %s: site name */
-		$message  = sprintf( __( 'A new feature request has been submitted on %1$s:', 'dataviz-ai-for-woocommerce' ), $site_name ) . "\n\n";
+		$message  = sprintf( __( 'A new feature request has been submitted on %1$s:', 'store-compass-for-woocommerce' ), $site_name ) . "\n\n";
 		/* translators: %d: feature request database ID */
-		$message .= sprintf( __( 'Request ID: #%1$d', 'dataviz-ai-for-woocommerce' ), $request_id ) . "\n";
+		$message .= sprintf( __( 'Request ID: #%1$d', 'store-compass-for-woocommerce' ), $request_id ) . "\n";
 		/* translators: %s: requested feature/data type */
-		$message .= sprintf( __( 'Feature Requested: %1$s', 'dataviz-ai-for-woocommerce' ), ucfirst( $entity_type ) ) . "\n";
+		$message .= sprintf( __( 'Feature Requested: %1$s', 'store-compass-for-woocommerce' ), ucfirst( $entity_type ) ) . "\n";
 		/* translators: 1: user display name, 2: user email address */
-		$message .= sprintf( __( 'Requested By: %1$s (%2$s)', 'dataviz-ai-for-woocommerce' ), $user_name, $user_email ) . "\n";
+		$message .= sprintf( __( 'Requested By: %1$s (%2$s)', 'store-compass-for-woocommerce' ), $user_name, $user_email ) . "\n";
 		/* translators: %s: date and time */
-		$message .= sprintf( __( 'Date: %1$s', 'dataviz-ai-for-woocommerce' ), current_time( 'mysql' ) ) . "\n";
+		$message .= sprintf( __( 'Date: %1$s', 'store-compass-for-woocommerce' ), current_time( 'mysql' ) ) . "\n";
 		if ( ! empty( $description ) ) {
-			$message .= "\n" . __( 'Description:', 'dataviz-ai-for-woocommerce' ) . "\n" . $description . "\n";
+			$message .= "\n" . __( 'Description:', 'store-compass-for-woocommerce' ) . "\n" . $description . "\n";
 		}
 		/* translators: %s: admin URL to the feature requests list */
-		$message .= "\n" . sprintf( __( 'View all feature requests: %1$s', 'dataviz-ai-for-woocommerce' ), admin_url( 'admin.php?page=dataviz-ai-feature-requests' ) ) . "\n";
+		$message .= "\n" . sprintf( __( 'View all feature requests: %1$s', 'store-compass-for-woocommerce' ), admin_url( 'admin.php?page=dataviz-ai-feature-requests' ) ) . "\n";
 
 		$admins = get_users( array( 'role' => 'administrator' ) );
 		foreach ( $admins as $admin ) {

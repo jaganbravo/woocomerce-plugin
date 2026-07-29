@@ -40,20 +40,22 @@ class Dataviz_AI_Chart_Descriptor {
 			return self::build_period_chart( $result, $dims, $intent );
 		}
 
+		$preferred_type = self::requested_chart_type( $question );
+
 		if ( $entity === 'orders' && $operation === 'statistics' ) {
 			if ( in_array( 'category', $dims, true ) || ( ( $intent['filters']['group_by'] ?? '' ) === 'category' ) ) {
-				return self::build_category_pie( $result );
+				return self::build_category_chart( $result, $preferred_type );
 			}
 			if ( in_array( 'status', $dims, true ) ) {
-				return self::build_status_pie( $result );
+				return self::build_status_chart( $result, $preferred_type );
 			}
 			if ( ! empty( $result['status_breakdown'] ) ) {
-				return self::build_status_pie( $result );
+				return self::build_status_chart( $result, $preferred_type );
 			}
 		}
 
 		if ( in_array( $entity, array( 'inventory', 'stock' ), true ) ) {
-			return self::build_inventory_chart( $result );
+			return self::build_inventory_chart( $result, $preferred_type );
 		}
 
 		if ( $entity === 'products' && in_array( 'top_products', $metrics, true ) ) {
@@ -149,10 +151,10 @@ class Dataviz_AI_Chart_Descriptor {
 	}
 
 	// ------------------------------------------------------------------
-	// Category pie
+	// Category chart (pie by default; bar/line when asked)
 	// ------------------------------------------------------------------
 
-	private static function build_category_pie( $result ) {
+	private static function build_category_chart( $result, $preferred_type = null ) {
 		$breakdown = $result['category_breakdown'] ?? array();
 		if ( empty( $breakdown ) ) {
 			return null;
@@ -176,8 +178,11 @@ class Dataviz_AI_Chart_Descriptor {
 			return null;
 		}
 
+		$chart_type = self::resolve_chart_type( $preferred_type, 'pie' );
+		$is_cartesian = in_array( $chart_type, array( 'bar', 'line' ), true );
+
 		return array(
-			'chart_type'   => 'pie',
+			'chart_type'   => $chart_type,
 			'title'        => 'Sales by Product Category',
 			'labels'       => $labels,
 			'datasets'     => array(
@@ -186,17 +191,17 @@ class Dataviz_AI_Chart_Descriptor {
 					'data'  => $values,
 				),
 			),
-			'x_axis_label' => null,
-			'y_axis_label' => null,
+			'x_axis_label' => $is_cartesian ? 'Product Category' : null,
+			'y_axis_label' => $is_cartesian ? 'Sales ($)' : null,
 			'format'       => 'currency',
 		);
 	}
 
 	// ------------------------------------------------------------------
-	// Status pie
+	// Status chart (pie by default; bar/line when asked)
 	// ------------------------------------------------------------------
 
-	private static function build_status_pie( $result ) {
+	private static function build_status_chart( $result, $preferred_type = null ) {
 		$breakdown = $result['status_breakdown'] ?? array();
 		if ( empty( $breakdown ) ) {
 			return null;
@@ -210,8 +215,11 @@ class Dataviz_AI_Chart_Descriptor {
 			$values[] = (int) ( $row['count'] ?? 0 );
 		}
 
+		$chart_type = self::resolve_chart_type( $preferred_type, 'pie' );
+		$is_cartesian = in_array( $chart_type, array( 'bar', 'line' ), true );
+
 		return array(
-			'chart_type'   => 'pie',
+			'chart_type'   => $chart_type,
 			'title'        => 'Order Status Distribution',
 			'labels'       => $labels,
 			'datasets'     => array(
@@ -220,17 +228,17 @@ class Dataviz_AI_Chart_Descriptor {
 					'data'  => $values,
 				),
 			),
-			'x_axis_label' => null,
-			'y_axis_label' => null,
+			'x_axis_label' => $is_cartesian ? 'Status' : null,
+			'y_axis_label' => $is_cartesian ? 'Orders' : null,
 			'format'       => 'number',
 		);
 	}
 
 	// ------------------------------------------------------------------
-	// Inventory pie (stock-level groups)
+	// Inventory chart (pie by default; bar when asked)
 	// ------------------------------------------------------------------
 
-	private static function build_inventory_chart( $result ) {
+	private static function build_inventory_chart( $result, $preferred_type = null ) {
 		$products = array();
 		if ( isset( $result['products'] ) && is_array( $result['products'] ) ) {
 			$products = $result['products'];
@@ -258,8 +266,11 @@ class Dataviz_AI_Chart_Descriptor {
 			$groups[ $group ] = ( $groups[ $group ] ?? 0 ) + 1;
 		}
 
+		$chart_type = self::resolve_chart_type( $preferred_type, 'pie' );
+		$is_cartesian = in_array( $chart_type, array( 'bar', 'line' ), true );
+
 		return array(
-			'chart_type'   => 'pie',
+			'chart_type'   => $chart_type,
 			'title'        => 'Inventory Distribution',
 			'labels'       => array_keys( $groups ),
 			'datasets'     => array(
@@ -268,8 +279,8 @@ class Dataviz_AI_Chart_Descriptor {
 					'data'  => array_values( $groups ),
 				),
 			),
-			'x_axis_label' => null,
-			'y_axis_label' => null,
+			'x_axis_label' => $is_cartesian ? 'Stock Level' : null,
+			'y_axis_label' => $is_cartesian ? 'Products' : null,
 			'format'       => 'number',
 		);
 	}
@@ -392,5 +403,48 @@ class Dataviz_AI_Chart_Descriptor {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Detect an explicit chart type from the question (bar / pie / line).
+	 *
+	 * @param string $question User question.
+	 * @return string|null One of bar|pie|line, or null when unspecified.
+	 */
+	private static function requested_chart_type( $question ) {
+		if ( empty( $question ) ) {
+			return null;
+		}
+		$lower = strtolower( $question );
+
+		// Prefer more specific phrases first.
+		if ( preg_match( '/\b(bar\s*chart|bar\s*graph|column\s*chart)\b/', $lower )
+			|| preg_match( '/\bas\s+a\s+bar\b/', $lower )
+			|| preg_match( '/\b(show|make|create|generate|draw)\b[^.?!]{0,40}\bbar\b/', $lower ) ) {
+			return 'bar';
+		}
+		if ( preg_match( '/\b(pie\s*chart|pie\s*graph|donut\s*chart|doughnut\s*chart)\b/', $lower )
+			|| preg_match( '/\bas\s+a\s+pie\b/', $lower ) ) {
+			return 'pie';
+		}
+		if ( preg_match( '/\b(line\s*chart|line\s*graph)\b/', $lower )
+			|| preg_match( '/\bas\s+a\s+line\b/', $lower ) ) {
+			return 'line';
+		}
+
+		return null;
+	}
+
+	/**
+	 * @param string|null $preferred Preferred type from the question.
+	 * @param string      $default  Fallback when none requested.
+	 * @return string
+	 */
+	private static function resolve_chart_type( $preferred, $default ) {
+		$allowed = array( 'bar', 'pie', 'line' );
+		if ( is_string( $preferred ) && in_array( $preferred, $allowed, true ) ) {
+			return $preferred;
+		}
+		return $default;
 	}
 }

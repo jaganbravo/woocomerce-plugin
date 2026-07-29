@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build a WordPress-installable ZIP (folder: dataviz-ai-for-woocommerce/).
+# Build a WordPress-installable ZIP (folder: store-compass-for-woocommerce/).
 # Slug and Text Domain header must both use "for-woocommerce" (trademark + Plugin Check).
 # Excludes paths listed in ../.distignore plus dist/ and this script.
 set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SLUG="dataviz-ai-for-woocommerce"
+SLUG="store-compass-for-woocommerce"
 MAIN_PHP="${PLUGIN_DIR}/dataviz-ai-woocommerce.php"
 
 if [[ ! -f "$MAIN_PHP" ]]; then

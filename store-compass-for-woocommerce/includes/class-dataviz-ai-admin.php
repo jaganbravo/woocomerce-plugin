@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin-facing functionality for Dataviz AI WooCommerce plugin.
+ * Admin-facing functionality for Store Compass WooCommerce plugin.
  *
  * @package Dataviz_AI_WooCommerce
  */
@@ -71,8 +71,8 @@ class Dataviz_AI_Admin {
 	 */
 	public function register_menu_page() {
 		add_menu_page(
-			__( 'Store Compass Insights', 'dataviz-ai-for-woocommerce' ),
-			__( 'Store Compass', 'dataviz-ai-for-woocommerce' ),
+			__( 'Store Compass Insights', 'store-compass-for-woocommerce' ),
+			__( 'Store Compass', 'store-compass-for-woocommerce' ),
 			'manage_woocommerce',
 			$this->menu_slug,
 			array( $this, 'render_admin_page' ),
@@ -82,8 +82,8 @@ class Dataviz_AI_Admin {
 
 		add_submenu_page(
 			$this->menu_slug,
-			__( 'FAQ', 'dataviz-ai-for-woocommerce' ),
-			__( 'FAQ', 'dataviz-ai-for-woocommerce' ),
+			__( 'FAQ', 'store-compass-for-woocommerce' ),
+			__( 'FAQ', 'store-compass-for-woocommerce' ),
 			'manage_woocommerce',
 			'dataviz-ai-faq',
 			array( $this, 'render_faq_page' )
@@ -91,8 +91,8 @@ class Dataviz_AI_Admin {
 
 		add_submenu_page(
 			$this->menu_slug,
-			__( 'Onboarding', 'dataviz-ai-for-woocommerce' ),
-			__( 'Onboarding', 'dataviz-ai-for-woocommerce' ),
+			__( 'Onboarding', 'store-compass-for-woocommerce' ),
+			__( 'Onboarding', 'store-compass-for-woocommerce' ),
 			'manage_woocommerce',
 			'dataviz-ai-onboarding',
 			array( $this, 'render_onboarding_page' )
@@ -108,14 +108,14 @@ class Dataviz_AI_Admin {
 		$faq_file = DATAVIZ_AI_WC_PLUGIN_DIR . 'admin/partials/faq-content.html';
 		?>
 		<div class="wrap dataviz-ai-admin dataviz-ai-faq">
-			<h1><?php esc_html_e( 'FAQ', 'dataviz-ai-for-woocommerce' ); ?></h1>
+			<h1><?php esc_html_e( 'FAQ', 'store-compass-for-woocommerce' ); ?></h1>
 			<div class="dataviz-ai-faq-content">
 				<?php
 				if ( file_exists( $faq_file ) ) {
 					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static HTML content from plugin
 					echo file_get_contents( $faq_file );
 				} else {
-					echo '<p>' . esc_html__( 'FAQ content not found.', 'dataviz-ai-for-woocommerce' ) . '</p>';
+					echo '<p>' . esc_html__( 'FAQ content not found.', 'store-compass-for-woocommerce' ) . '</p>';
 				}
 				?>
 			</div>
@@ -132,14 +132,14 @@ class Dataviz_AI_Admin {
 		$onboarding_file = DATAVIZ_AI_WC_PLUGIN_DIR . 'admin/partials/onboarding-content.html';
 		?>
 		<div class="wrap dataviz-ai-admin dataviz-ai-onboarding">
-			<h1><?php esc_html_e( 'Onboarding', 'dataviz-ai-for-woocommerce' ); ?></h1>
+			<h1><?php esc_html_e( 'Onboarding', 'store-compass-for-woocommerce' ); ?></h1>
 			<div class="dataviz-ai-onboarding-content">
 				<?php
 				if ( file_exists( $onboarding_file ) ) {
 					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static HTML content from plugin
 					echo file_get_contents( $onboarding_file );
 				} else {
-					echo '<p>' . esc_html__( 'Onboarding content not found.', 'dataviz-ai-for-woocommerce' ) . '</p>';
+					echo '<p>' . esc_html__( 'Onboarding content not found.', 'store-compass-for-woocommerce' ) . '</p>';
 				}
 				?>
 			</div>
@@ -148,7 +148,7 @@ class Dataviz_AI_Admin {
 	}
 
 	/**
-	 * Hide WooCommerce incompatibility notice on Dataviz AI admin pages.
+	 * Hide WooCommerce incompatibility notice on Store Compass admin pages.
 	 *
 	 * @return void
 	 */
@@ -267,11 +267,11 @@ class Dataviz_AI_Admin {
 	 */
 	protected function get_suggested_chat_prompts() {
 		return array(
-			__( 'What was my total revenue this month?', 'dataviz-ai-for-woocommerce' ),
-			__( 'How many pending orders do I have?', 'dataviz-ai-for-woocommerce' ),
-			__( 'Show me my top 10 best-selling products.', 'dataviz-ai-for-woocommerce' ),
-			__( 'Which products are low on stock?', 'dataviz-ai-for-woocommerce' ),
-			__( 'How many coupons were used last month?', 'dataviz-ai-for-woocommerce' ),
+			__( 'What was my total revenue this month?', 'store-compass-for-woocommerce' ),
+			__( 'How many pending orders do I have?', 'store-compass-for-woocommerce' ),
+			__( 'Show me my top 10 best-selling products.', 'store-compass-for-woocommerce' ),
+			__( 'Which products are low on stock?', 'store-compass-for-woocommerce' ),
+			__( 'How many coupons were used last month?', 'store-compass-for-woocommerce' ),
 		);
 	}
 
@@ -282,26 +282,26 @@ class Dataviz_AI_Admin {
 	 */
 	protected function get_chat_feedback_i18n() {
 		return array(
-			'helpfulLabel'    => __( 'Helpful', 'dataviz-ai-for-woocommerce' ),
-			'notHelpfulLabel' => __( 'Not helpful', 'dataviz-ai-for-woocommerce' ),
-			'thanks'          => __( 'Thanks for your feedback.', 'dataviz-ai-for-woocommerce' ),
-			'reasonLabel'     => __( 'What went wrong?', 'dataviz-ai-for-woocommerce' ),
-			'submit'          => __( 'Submit feedback', 'dataviz-ai-for-woocommerce' ),
-			'optionalNote'    => __( 'Optional details', 'dataviz-ai-for-woocommerce' ),
-			'saving'          => __( 'Saving…', 'dataviz-ai-for-woocommerce' ),
-			'errorGeneric'    => __( 'Could not save feedback. Try again.', 'dataviz-ai-for-woocommerce' ),
+			'helpfulLabel'    => __( 'Helpful', 'store-compass-for-woocommerce' ),
+			'notHelpfulLabel' => __( 'Not helpful', 'store-compass-for-woocommerce' ),
+			'thanks'          => __( 'Thanks for your feedback.', 'store-compass-for-woocommerce' ),
+			'reasonLabel'     => __( 'What went wrong?', 'store-compass-for-woocommerce' ),
+			'submit'          => __( 'Submit feedback', 'store-compass-for-woocommerce' ),
+			'optionalNote'    => __( 'Optional details', 'store-compass-for-woocommerce' ),
+			'saving'          => __( 'Saving…', 'store-compass-for-woocommerce' ),
+			'errorGeneric'    => __( 'Could not save feedback. Try again.', 'store-compass-for-woocommerce' ),
 			'reasons'         => array(
 				array(
 					'value' => 'inaccurate',
-					'label' => __( 'Inaccurate or wrong numbers', 'dataviz-ai-for-woocommerce' ),
+					'label' => __( 'Inaccurate or wrong numbers', 'store-compass-for-woocommerce' ),
 				),
 				array(
 					'value' => 'not_helpful',
-					'label' => __( 'Not helpful', 'dataviz-ai-for-woocommerce' ),
+					'label' => __( 'Not helpful', 'store-compass-for-woocommerce' ),
 				),
 				array(
 					'value' => 'other',
-					'label' => __( 'Other', 'dataviz-ai-for-woocommerce' ),
+					'label' => __( 'Other', 'store-compass-for-woocommerce' ),
 				),
 			),
 		);
@@ -320,23 +320,23 @@ class Dataviz_AI_Admin {
 		$onboarding = new Dataviz_AI_Onboarding( $this->plugin_name, $this->version, $this->api_client );
 		?>
 		<div class="wrap dataviz-ai-admin">
-			<h1><?php esc_html_e( 'Store Compass for WooCommerce', 'dataviz-ai-for-woocommerce' ); ?></h1>
+			<h1><?php esc_html_e( 'Store Compass for WooCommerce', 'store-compass-for-woocommerce' ); ?></h1>
 
 			<div class="dataviz-ai-grid">
 				<section class="dataviz-ai-card dataviz-ai-card--wide dataviz-ai-chat-container">
 					<?php if ( ! $api_key ) : ?>
 						<div class="dataviz-ai-chat-warning">
 							<p class="notice inline notice-warning">
-								<strong><?php esc_html_e( 'API key required.', 'dataviz-ai-for-woocommerce' ); ?></strong> 
-								<?php esc_html_e( 'Please configure your API key via environment variables (OPENAI_API_KEY or DATAVIZ_AI_API_KEY) or by editing the config.php file in the plugin directory.', 'dataviz-ai-for-woocommerce' ); ?>
+								<strong><?php esc_html_e( 'API key required.', 'store-compass-for-woocommerce' ); ?></strong> 
+								<?php esc_html_e( 'Please configure your API key via environment variables (OPENAI_API_KEY or DATAVIZ_AI_API_KEY) or by editing the config.php file in the plugin directory.', 'store-compass-for-woocommerce' ); ?>
 							</p>
 						</div>
 					<?php endif; ?>
 					
 					<div class="dataviz-ai-chat-messages" id="dataviz-ai-chat-messages" role="log" aria-live="polite" aria-atomic="false">
 						<div class="dataviz-ai-chat-welcome">
-							<h2><?php esc_html_e( 'Chat with me', 'dataviz-ai-for-woocommerce' ); ?></h2>
-							<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights.', 'dataviz-ai-for-woocommerce' ); ?></p>
+							<h2><?php esc_html_e( 'Chat with me', 'store-compass-for-woocommerce' ); ?></h2>
+							<p><?php esc_html_e( 'Ask questions about your WooCommerce store and get AI-powered insights.', 'store-compass-for-woocommerce' ); ?></p>
 						</div>
 					</div>
 					
@@ -348,13 +348,13 @@ class Dataviz_AI_Admin {
 									name="question" 
 									rows="1" 
 									class="dataviz-ai-chat-input" 
-									placeholder="<?php esc_attr_e( 'Message AI assistant...', 'dataviz-ai-for-woocommerce' ); ?>"
-									aria-label="<?php esc_attr_e( 'Type your message', 'dataviz-ai-for-woocommerce' ); ?>"
+									placeholder="<?php esc_attr_e( 'Message AI assistant...', 'store-compass-for-woocommerce' ); ?>"
+									aria-label="<?php esc_attr_e( 'Type your message', 'store-compass-for-woocommerce' ); ?>"
 								></textarea>
 								<button 
 									type="button" 
 									class="dataviz-ai-chat-stop" 
-									aria-label="<?php esc_attr_e( 'Stop generating', 'dataviz-ai-for-woocommerce' ); ?>"
+									aria-label="<?php esc_attr_e( 'Stop generating', 'store-compass-for-woocommerce' ); ?>"
 								>
 									<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
 										<rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor"/>
@@ -363,7 +363,7 @@ class Dataviz_AI_Admin {
 								<button 
 									type="submit" 
 									class="dataviz-ai-chat-send" 
-									aria-label="<?php esc_attr_e( 'Send message', 'dataviz-ai-for-woocommerce' ); ?>"
+									aria-label="<?php esc_attr_e( 'Send message', 'store-compass-for-woocommerce' ); ?>"
 									<?php disabled( ! $api_key ); ?>
 								>
 									<svg width="16" height="16" viewBox="0 0 16 16" fill="none">

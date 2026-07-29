@@ -81,9 +81,9 @@ class Dataviz_AI_Email_Digests {
 	 */
 	public static function frequencies() {
 		return array(
-			self::FREQ_DAILY   => __( 'Daily', 'dataviz-ai-for-woocommerce' ),
-			self::FREQ_WEEKLY  => __( 'Weekly', 'dataviz-ai-for-woocommerce' ),
-			self::FREQ_MONTHLY => __( 'Monthly', 'dataviz-ai-for-woocommerce' ),
+			self::FREQ_DAILY   => __( 'Daily', 'store-compass-for-woocommerce' ),
+			self::FREQ_WEEKLY  => __( 'Weekly', 'store-compass-for-woocommerce' ),
+			self::FREQ_MONTHLY => __( 'Monthly', 'store-compass-for-woocommerce' ),
 		);
 	}
 
@@ -94,12 +94,12 @@ class Dataviz_AI_Email_Digests {
 	 */
 	public static function available_sections() {
 		return array(
-			'revenue_summary'  => __( 'Revenue Summary', 'dataviz-ai-for-woocommerce' ),
-			'order_breakdown'  => __( 'Order Status Breakdown', 'dataviz-ai-for-woocommerce' ),
-			'top_products'     => __( 'Top-Selling Products', 'dataviz-ai-for-woocommerce' ),
-			'low_stock'        => __( 'Low-Stock Alerts', 'dataviz-ai-for-woocommerce' ),
-			'top_customers'    => __( 'Top Customers', 'dataviz-ai-for-woocommerce' ),
-			'refund_summary'   => __( 'Refund Summary', 'dataviz-ai-for-woocommerce' ),
+			'revenue_summary'  => __( 'Revenue Summary', 'store-compass-for-woocommerce' ),
+			'order_breakdown'  => __( 'Order Status Breakdown', 'store-compass-for-woocommerce' ),
+			'top_products'     => __( 'Top-Selling Products', 'store-compass-for-woocommerce' ),
+			'low_stock'        => __( 'Low-Stock Alerts', 'store-compass-for-woocommerce' ),
+			'top_customers'    => __( 'Top Customers', 'store-compass-for-woocommerce' ),
+			'refund_summary'   => __( 'Refund Summary', 'store-compass-for-woocommerce' ),
 		);
 	}
 
@@ -115,7 +115,7 @@ class Dataviz_AI_Email_Digests {
 
 		$defaults = array(
 			'user_id'      => get_current_user_id(),
-			'digest_name'  => __( 'Weekly Sales Digest', 'dataviz-ai-for-woocommerce' ),
+			'digest_name'  => __( 'Weekly Sales Digest', 'store-compass-for-woocommerce' ),
 			'frequency'    => self::FREQ_WEEKLY,
 			'day_of_week'  => 1,
 			'day_of_month' => 1,

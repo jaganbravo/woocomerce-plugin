@@ -45,7 +45,7 @@ class Dataviz_AI_Digest_Cron {
 		if ( ! isset( $schedules[ self::CRON_INTERVAL ] ) ) {
 			$schedules[ self::CRON_INTERVAL ] = array(
 				'interval' => 15 * MINUTE_IN_SECONDS,
-				'display'  => __( 'Every 15 minutes', 'dataviz-ai-for-woocommerce' ),
+				'display'  => __( 'Every 15 minutes', 'store-compass-for-woocommerce' ),
 			);
 		}
 		return $schedules;
@@ -103,7 +103,7 @@ class Dataviz_AI_Digest_Cron {
 
 		$subject = sprintf(
 			/* translators: 1: digest name 2: site name */
-			__( '[%2$s] %1$s', 'dataviz-ai-for-woocommerce' ),
+			__( '[%2$s] %1$s', 'store-compass-for-woocommerce' ),
 			$digest->digest_name,
 			get_bloginfo( 'name' )
 		);
@@ -152,6 +152,6 @@ class Dataviz_AI_Digest_Cron {
 	 * @param string $message Log message.
 	 */
 	private function log( $message ) {
-		dataviz_ai_wc_debug_log( '[Dataviz AI Digest] ' . $message );
+		dataviz_ai_wc_debug_log( '[Store Compass Digest] ' . $message );
 	}
 }

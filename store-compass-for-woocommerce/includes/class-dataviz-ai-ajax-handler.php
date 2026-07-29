@@ -1,6 +1,6 @@
 <?php
 /**
- * Thin AJAX endpoint handler for Dataviz AI WooCommerce plugin.
+ * Thin AJAX endpoint handler for Store Compass WooCommerce plugin.
  *
  * All business logic has been delegated to focused services:
  * - Dataviz_AI_Query_Orchestrator  (streaming + non-streaming analysis)
@@ -80,10 +80,10 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'store-compass-for-woocommerce' ) ), 403 );
 		}
 
-		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'dataviz-ai-for-woocommerce' );
+		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : __( 'Provide a quick performance summary.', 'store-compass-for-woocommerce' );
 		$stream = filter_var(
 			isset( $_POST['stream'] ) ? sanitize_text_field( wp_unslash( $_POST['stream'] ) ) : '',
 			FILTER_VALIDATE_BOOLEAN
@@ -128,12 +128,12 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_chat', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'store-compass-for-woocommerce' ) ), 403 );
 		}
 
 		$question = isset( $_POST['message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
 		if ( empty( $question ) ) {
-			wp_send_json_error( array( 'message' => __( 'Message cannot be empty.', 'dataviz-ai-for-woocommerce' ) ), 400 );
+			wp_send_json_error( array( 'message' => __( 'Message cannot be empty.', 'store-compass-for-woocommerce' ) ), 400 );
 		}
 
 		if ( $this->api_client->has_custom_backend() ) {
@@ -159,7 +159,7 @@ class Dataviz_AI_AJAX_Handler {
 
 		$content = isset( $result['choices'][0]['message']['content'] ) ? trim( (string) $result['choices'][0]['message']['content'] ) : '';
 		if ( empty( $content ) ) {
-			wp_send_json_error( array( 'message' => __( 'The AI response was empty. Try again.', 'dataviz-ai-for-woocommerce' ), 'data' => $result ), 400 );
+			wp_send_json_error( array( 'message' => __( 'The AI response was empty. Try again.', 'store-compass-for-woocommerce' ), 'data' => $result ), 400 );
 		}
 
 		wp_send_json_success( array( 'message' => $content ) );
@@ -178,7 +178,7 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'store-compass-for-woocommerce' ) ), 403 );
 		}
 
 		$session_id   = isset( $_GET['session_id'] ) ? sanitize_text_field( wp_unslash( $_GET['session_id'] ) ) : '';
@@ -211,7 +211,7 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'store-compass-for-woocommerce' ) ), 403 );
 		}
 
 		$entity_type = isset( $_POST['entity_type'] ) ? sanitize_text_field( wp_unslash( $_POST['entity_type'] ) ) : '';
@@ -219,7 +219,7 @@ class Dataviz_AI_AJAX_Handler {
 		$user_id     = get_current_user_id();
 
 		if ( empty( $entity_type ) ) {
-			wp_send_json_error( array( 'message' => __( 'Entity type is required.', 'dataviz-ai-for-woocommerce' ) ), 400 );
+			wp_send_json_error( array( 'message' => __( 'Entity type is required.', 'store-compass-for-woocommerce' ) ), 400 );
 		}
 
 		$feature_requests = new Dataviz_AI_Feature_Requests();
@@ -231,7 +231,7 @@ class Dataviz_AI_AJAX_Handler {
 			wp_send_json_success( array(
 				'message'    => sprintf(
 					/* translators: 1: feature/data type name, 2: feature request database ID */
-					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d.', 'dataviz-ai-for-woocommerce' ),
+					__( 'Feature request for "%1$s" has been submitted successfully! Request ID: #%2$d.', 'store-compass-for-woocommerce' ),
 					esc_html( $entity_type ),
 					$request_id
 				),
@@ -239,7 +239,7 @@ class Dataviz_AI_AJAX_Handler {
 			) );
 		}
 
-		wp_send_json_error( array( 'message' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-for-woocommerce' ) ), 500 );
+		wp_send_json_error( array( 'message' => __( 'Failed to submit feature request. Please try again later.', 'store-compass-for-woocommerce' ) ), 500 );
 	}
 
 	// ------------------------------------------------------------------
@@ -255,7 +255,7 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'store-compass-for-woocommerce' ) ), 403 );
 		}
 
 		$inventory_data = $this->data_fetcher->get_all_inventory_products( array( 'limit' => 100 ) );
@@ -279,16 +279,16 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! defined( 'DATAVIZ_AI_DEBUG_INTENT' ) || ! DATAVIZ_AI_DEBUG_INTENT ) {
-			wp_send_json_error( array( 'message' => __( 'Debug intent is disabled.', 'dataviz-ai-for-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Debug intent is disabled.', 'store-compass-for-woocommerce' ) ), 403 );
 		}
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'store-compass-for-woocommerce' ) ), 403 );
 		}
 
 		$question = isset( $_POST['question'] ) ? sanitize_text_field( wp_unslash( $_POST['question'] ) ) : '';
 		if ( $question === '' ) {
-			wp_send_json_error( array( 'message' => __( 'Question is required.', 'dataviz-ai-for-woocommerce' ) ), 400 );
+			wp_send_json_error( array( 'message' => __( 'Question is required.', 'store-compass-for-woocommerce' ) ), 400 );
 		}
 
 		$is_data_question = Dataviz_AI_Intent_Classifier::question_requires_data( $question );
@@ -329,7 +329,7 @@ class Dataviz_AI_AJAX_Handler {
 		check_ajax_referer( 'dataviz_ai_admin', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'dataviz-ai-for-woocommerce' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Unauthorized request.', 'store-compass-for-woocommerce' ) ), 403 );
 		}
 
 		$message_id = isset( $_POST['message_id'] ) ? (int) $_POST['message_id'] : 0;
@@ -401,14 +401,14 @@ class Dataviz_AI_AJAX_Handler {
 				'#%1$d — %2$s — %3$s — %4$s items',
 				$order->get_id(),
 				wc_price( $order->get_total() ),
-				$order->get_date_created() ? $order->get_date_created()->date_i18n( 'Y-m-d' ) : __( 'N/A', 'dataviz-ai-for-woocommerce' ),
+				$order->get_date_created() ? $order->get_date_created()->date_i18n( 'Y-m-d' ) : __( 'N/A', 'store-compass-for-woocommerce' ),
 				count( $order->get_items() )
 			);
 		}
-		$context_block = $orders_summary ? implode( "\n", $orders_summary ) : __( 'No recent orders available.', 'dataviz-ai-for-woocommerce' );
+		$context_block = $orders_summary ? implode( "\n", $orders_summary ) : __( 'No recent orders available.', 'store-compass-for-woocommerce' );
 
 		return array(
-			array( 'role' => 'system', 'content' => __( 'You are a helpful WooCommerce analytics assistant. Answer clearly and concisely based on the provided store data.', 'dataviz-ai-for-woocommerce' ) ),
+			array( 'role' => 'system', 'content' => __( 'You are a helpful WooCommerce analytics assistant. Answer clearly and concisely based on the provided store data.', 'store-compass-for-woocommerce' ) ),
 			array( 'role' => 'user', 'content' => sprintf( "%s\n\nRecent orders snapshot:\n%s", $question, $context_block ) ),
 		);
 	}

@@ -1,6 +1,6 @@
 <?php
 /**
- * Loader for Dataviz AI WooCommerce plugin.
+ * Loader for Store Compass WooCommerce plugin.
  *
  * @package Dataviz_AI_WooCommerce
  */
@@ -50,7 +50,7 @@ class Dataviz_AI_Loader {
 	 *
 	 * @var string
 	 */
-	protected $plugin_name = 'dataviz-ai-for-woocommerce';
+	protected $plugin_name = 'store-compass-for-woocommerce';
 
 	/**
 	 * Plugin version.
