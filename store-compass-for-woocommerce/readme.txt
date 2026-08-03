@@ -1,5 +1,5 @@
 === Store Compass for WooCommerce ===
-Contributors: aprinston
+Contributors: aprinston, jaganbravo
 Tags: woocommerce, analytics, artificial intelligence, chat, reports
 Requires at least: 6.0
 Tested up to: 7.0
