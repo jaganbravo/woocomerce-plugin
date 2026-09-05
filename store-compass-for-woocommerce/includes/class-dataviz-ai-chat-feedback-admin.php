@@ -35,13 +35,13 @@ class Dataviz_AI_Chat_Feedback_Table extends WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'              => '<input type="checkbox" />',
-			'id'              => __( 'ID', 'store-compass-for-woocommerce' ),
-			'feedback_vote'   => __( 'Vote', 'store-compass-for-woocommerce' ),
-			'user_id'         => __( 'User', 'store-compass-for-woocommerce' ),
-			'message_content' => __( 'Assistant reply', 'store-compass-for-woocommerce' ),
-			'feedback_reason' => __( 'Reason', 'store-compass-for-woocommerce' ),
-			'feedback_note'   => __( 'Note', 'store-compass-for-woocommerce' ),
-			'feedback_at'     => __( 'Feedback', 'store-compass-for-woocommerce' ),
+			'id'              => __( 'ID', 'unmai-analytix-for-woocommerce' ),
+			'feedback_vote'   => __( 'Vote', 'unmai-analytix-for-woocommerce' ),
+			'user_id'         => __( 'User', 'unmai-analytix-for-woocommerce' ),
+			'message_content' => __( 'Assistant reply', 'unmai-analytix-for-woocommerce' ),
+			'feedback_reason' => __( 'Reason', 'unmai-analytix-for-woocommerce' ),
+			'feedback_note'   => __( 'Note', 'unmai-analytix-for-woocommerce' ),
+			'feedback_at'     => __( 'Feedback', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 
@@ -70,7 +70,7 @@ class Dataviz_AI_Chat_Feedback_Table extends WP_List_Table {
 			'email_vendor' => sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( $url ),
-				esc_html__( 'Email to vendor', 'store-compass-for-woocommerce' )
+				esc_html__( 'Email to vendor', 'unmai-analytix-for-woocommerce' )
 			),
 		);
 		return '#' . $id . $this->row_actions( $actions );
@@ -79,10 +79,10 @@ class Dataviz_AI_Chat_Feedback_Table extends WP_List_Table {
 	protected function column_feedback_vote( $item ) {
 		$v = $item['feedback_vote'] ?? '';
 		if ( 'up' === $v ) {
-			return '<span class="dataviz-sr-status dataviz-sr-status--resolved">' . esc_html__( 'Helpful', 'store-compass-for-woocommerce' ) . '</span>';
+			return '<span class="dataviz-sr-status dataviz-sr-status--resolved">' . esc_html__( 'Helpful', 'unmai-analytix-for-woocommerce' ) . '</span>';
 		}
 		if ( 'down' === $v ) {
-			return '<span class="dataviz-sr-status dataviz-sr-status--wontfix">' . esc_html__( 'Not helpful', 'store-compass-for-woocommerce' ) . '</span>';
+			return '<span class="dataviz-sr-status dataviz-sr-status--wontfix">' . esc_html__( 'Not helpful', 'unmai-analytix-for-woocommerce' ) . '</span>';
 		}
 		return esc_html( $v );
 	}
@@ -128,7 +128,7 @@ class Dataviz_AI_Chat_Feedback_Table extends WP_List_Table {
 
 	protected function get_bulk_actions() {
 		return array(
-			'bulk_email_vendor' => __( 'Email to vendor', 'store-compass-for-woocommerce' ),
+			'bulk_email_vendor' => __( 'Email to vendor', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 
@@ -175,20 +175,20 @@ class Dataviz_AI_Chat_Feedback_Admin {
 	 */
 	protected static function email_error_message( $code ) {
 		$messages = array(
-			'dataviz_cf_email_no_vendor' => __( 'Set a vendor support email under Support & Requests first.', 'store-compass-for-woocommerce' ),
-			'dataviz_cf_not_found'       => __( 'Message not found.', 'store-compass-for-woocommerce' ),
-			'dataviz_cf_no_feedback'     => __( 'This row has no feedback to send.', 'store-compass-for-woocommerce' ),
-			'dataviz_cf_email_failed'    => __( 'WordPress could not send email.', 'store-compass-for-woocommerce' ),
+			'dataviz_cf_email_no_vendor' => __( 'Set a vendor support email under Support & Requests first.', 'unmai-analytix-for-woocommerce' ),
+			'dataviz_cf_not_found'       => __( 'Message not found.', 'unmai-analytix-for-woocommerce' ),
+			'dataviz_cf_no_feedback'     => __( 'This row has no feedback to send.', 'unmai-analytix-for-woocommerce' ),
+			'dataviz_cf_email_failed'    => __( 'WordPress could not send email.', 'unmai-analytix-for-woocommerce' ),
 		);
 
-		return $messages[ $code ] ?? __( 'Could not send email.', 'store-compass-for-woocommerce' );
+		return $messages[ $code ] ?? __( 'Could not send email.', 'unmai-analytix-for-woocommerce' );
 	}
 
 	public static function register_submenu() {
 		add_submenu_page(
-			'store-compass-for-woocommerce',
-			__( 'Chat feedback', 'store-compass-for-woocommerce' ),
-			__( 'Chat feedback', 'store-compass-for-woocommerce' ),
+			'unmai-analytix-for-woocommerce',
+			__( 'Chat feedback', 'unmai-analytix-for-woocommerce' ),
+			__( 'Chat feedback', 'unmai-analytix-for-woocommerce' ),
 			'manage_woocommerce',
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' )
@@ -290,12 +290,12 @@ class Dataviz_AI_Chat_Feedback_Admin {
 		$vendor_email = Dataviz_AI_Support_Requests::get_vendor_support_email();
 		?>
 		<div class="wrap dataviz-sr-wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Chat feedback', 'store-compass-for-woocommerce' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Chat feedback', 'unmai-analytix-for-woocommerce' ); ?></h1>
 			<hr class="wp-header-end">
 
 			<?php if ( isset( $_GET['cf_emailed'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
-					<p><?php esc_html_e( 'Feedback was emailed to the vendor address.', 'store-compass-for-woocommerce' ); ?></p>
+					<p><?php esc_html_e( 'Feedback was emailed to the vendor address.', 'unmai-analytix-for-woocommerce' ); ?></p>
 				</div>
 			<?php endif; ?>
 
@@ -316,7 +316,7 @@ class Dataviz_AI_Chat_Feedback_Admin {
 						echo esc_html(
 							sprintf(
 								/* translators: 1: emails sent, 2: failures */
-								__( 'Email to vendor: %1$d sent, %2$d failed.', 'store-compass-for-woocommerce' ),
+								__( 'Email to vendor: %1$d sent, %2$d failed.', 'unmai-analytix-for-woocommerce' ),
 								$ok,
 								$bad
 							)
@@ -327,31 +327,31 @@ class Dataviz_AI_Chat_Feedback_Admin {
 			<?php endif; ?>
 
 			<div class="dataviz-sr-vendor-email card" style="max-width: 720px; margin: 1rem 0 1.5rem; padding: 1rem 1.25rem;">
-				<h2 style="margin-top: 0;"><?php esc_html_e( 'Vendor inbox', 'store-compass-for-woocommerce' ); ?></h2>
+				<h2 style="margin-top: 0;"><?php esc_html_e( 'Vendor inbox', 'unmai-analytix-for-woocommerce' ); ?></h2>
 				<p class="description">
-					<?php esc_html_e( 'Thumbs feedback from the Store Compass admin chat is listed below. Use “Email to vendor” to forward entries to your plugin support team.', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Thumbs feedback from the Unmai Analytix admin chat is listed below. Use “Email to vendor” to forward entries to your plugin support team.', 'unmai-analytix-for-woocommerce' ); ?>
 				</p>
 				<p>
 					<?php
 					if ( is_email( $vendor_email ) ) {
 						printf(
 							/* translators: %s: email address */
-							esc_html__( 'Vendor address: %s', 'store-compass-for-woocommerce' ),
+							esc_html__( 'Vendor address: %s', 'unmai-analytix-for-woocommerce' ),
 							'<strong>' . esc_html( $vendor_email ) . '</strong>'
 						);
 					} else {
-						esc_html_e( 'No vendor email is set yet.', 'store-compass-for-woocommerce' );
+						esc_html_e( 'No vendor email is set yet.', 'unmai-analytix-for-woocommerce' );
 					}
 					?>
 					&nbsp;
-					<a href="<?php echo esc_url( $support_url ); ?>"><?php esc_html_e( 'Configure on Support & Requests →', 'store-compass-for-woocommerce' ); ?></a>
+					<a href="<?php echo esc_url( $support_url ); ?>"><?php esc_html_e( 'Configure on Support & Requests →', 'unmai-analytix-for-woocommerce' ); ?></a>
 				</p>
 			</div>
 
 			<form method="get">
 				<input type="hidden" name="page" value="<?php echo esc_attr( self::MENU_SLUG ); ?>" />
 				<?php
-				$table->search_box( __( 'Search feedback', 'store-compass-for-woocommerce' ), 'dataviz-cf-search' );
+				$table->search_box( __( 'Search feedback', 'unmai-analytix-for-woocommerce' ), 'dataviz-cf-search' );
 				$table->display();
 				?>
 			</form>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Feature request management for Store Compass WooCommerce plugin.
+ * Feature request management for Unmai Analytix WooCommerce plugin.
  *
  * @package Dataviz_AI_WooCommerce
  */
@@ -122,7 +122,7 @@ class Dataviz_AI_Feature_Requests {
 		// Get user info.
 		$user = $user_id > 0 ? get_userdata( $user_id ) : null;
 		$user_email = $user ? $user->user_email : '';
-		$user_name = $user ? $user->display_name : __( 'Guest', 'store-compass-for-woocommerce' );
+		$user_name = $user ? $user->display_name : __( 'Guest', 'unmai-analytix-for-woocommerce' );
 
 		$data = array(
 			'entity_type' => sanitize_text_field( $entity_type ),
@@ -149,7 +149,7 @@ class Dataviz_AI_Feature_Requests {
 
 		dataviz_ai_wc_debug_log(
 			sprintf(
-				'[Store Compass] Failed to insert feature request - DB Error: %s, Entity: %s, User: %d',
+				'[Unmai Analytix] Failed to insert feature request - DB Error: %s, Entity: %s, User: %d',
 				$wpdb->last_error ?: 'Unknown error',
 				$entity_type,
 				$user_id

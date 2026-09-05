@@ -1,12 +1,12 @@
-# Store Compass WooCommerce - Competitor Pricing Snapshot
+# Unmai Analytix WooCommerce - Competitor Pricing Snapshot
 
 Last updated: 2026-04-30
 
-This is a public-pricing snapshot of products that overlap with Store Compass for WooCommerce (AI analytics, reporting, profit analytics, attribution, and eCommerce intelligence).
+This is a public-pricing snapshot of products that overlap with Unmai Analytix for WooCommerce (AI analytics, reporting, profit analytics, attribution, and eCommerce intelligence).
 
 ## Competitor list and pricing
 
-| Competitor | Positioning vs Store Compass | Public pricing (starting point) | Notes |
+| Competitor | Positioning vs Unmai Analytix | Public pricing (starting point) | Notes |
 | --- | --- | --- | --- |
 | Metorik | WooCommerce-focused analytics + reports + lifecycle emails | Starts at **$25/month** (order-volume based) | 30-day free trial; pricing scales by monthly orders. |
 | Putler | Multi-source eCommerce analytics and customer insights | Starts at **$20/month** (revenue-based) | Metered billing by monthly revenue slabs; 14-day trial. |

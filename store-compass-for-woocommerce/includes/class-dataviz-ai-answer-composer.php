@@ -89,7 +89,7 @@ class Dataviz_AI_Answer_Composer {
 
 			// Unsupported entity short-circuit (feature request).
 			if ( is_array( $res ) && isset( $res['error'] ) && $res['error'] === true && ( $res['can_submit_request'] ?? false ) === true ) {
-				$message = isset( $res['message'] ) ? (string) $res['message'] : __( 'This request is not currently supported.', 'store-compass-for-woocommerce' );
+				$message = isset( $res['message'] ) ? (string) $res['message'] : __( 'This request is not currently supported.', 'unmai-analytix-for-woocommerce' );
 				$prompt  = isset( $res['submission_prompt'] ) ? (string) $res['submission_prompt'] : '';
 				return trim( $message . "\n\n" . $prompt );
 			}
@@ -100,7 +100,7 @@ class Dataviz_AI_Answer_Composer {
 
 			if ( $wants_out_of_stock && is_array( $res ) && ( empty( $res ) || isset( $res[0]['id'] ) ) ) {
 				if ( empty( $res ) ) {
-					return __( 'There are no out-of-stock products.', 'store-compass-for-woocommerce' );
+					return __( 'There are no out-of-stock products.', 'unmai-analytix-for-woocommerce' );
 				}
 
 				$lines = array();
@@ -108,18 +108,18 @@ class Dataviz_AI_Answer_Composer {
 					if ( ! is_array( $p ) ) {
 						continue;
 					}
-					$name = isset( $p['name'] ) ? (string) $p['name'] : __( '(Unnamed product)', 'store-compass-for-woocommerce' );
+					$name = isset( $p['name'] ) ? (string) $p['name'] : __( '(Unnamed product)', 'unmai-analytix-for-woocommerce' );
 					$sku  = isset( $p['sku'] ) ? (string) $p['sku'] : '';
 					$manage_stock = isset( $p['manage_stock'] ) ? (bool) $p['manage_stock'] : false;
 					$qty = array_key_exists( 'stock_quantity', $p ) ? $p['stock_quantity'] : null;
 
-					$qty_text = $manage_stock ? ( $qty === null ? '0' : (string) $qty ) : __( 'N/A', 'store-compass-for-woocommerce' );
+					$qty_text = $manage_stock ? ( $qty === null ? '0' : (string) $qty ) : __( 'N/A', 'unmai-analytix-for-woocommerce' );
 					$sku_text = $sku !== '' ? ' (SKU: ' . $sku . ')' : '';
 
 					$lines[] = sprintf( '%d. %s%s — Qty: %s', (int) ( $idx + 1 ), $name, $sku_text, $qty_text );
 				}
 
-				return __( 'Out-of-stock products:', 'store-compass-for-woocommerce' ) . "\n" . implode( "\n", $lines );
+				return __( 'Out-of-stock products:', 'unmai-analytix-for-woocommerce' ) . "\n" . implode( "\n", $lines );
 			}
 
 			if ( is_array( $res ) && ! isset( $res['error'] ) && isset( $res['orders'] ) && is_array( $res['orders'] ) && empty( $res['orders'] ) ) {
@@ -127,23 +127,23 @@ class Dataviz_AI_Answer_Composer {
 				if ( isset( $args['filters']['date_from'], $args['filters']['date_to'] ) ) {
 					$period_text = ' ' . sprintf(
 						/* translators: 1: start date, 2: end date */
-						__( 'in the period from %1$s to %2$s', 'store-compass-for-woocommerce' ),
+						__( 'in the period from %1$s to %2$s', 'unmai-analytix-for-woocommerce' ),
 						$args['filters']['date_from'],
 						$args['filters']['date_to']
 					);
 				} elseif ( isset( $validated_intent['filters']['date_from'], $validated_intent['filters']['date_to'] ) ) {
 					$period_text = ' ' . sprintf(
 						/* translators: 1: start date, 2: end date */
-						__( 'in the period from %1$s to %2$s', 'store-compass-for-woocommerce' ),
+						__( 'in the period from %1$s to %2$s', 'unmai-analytix-for-woocommerce' ),
 						$validated_intent['filters']['date_from'],
 						$validated_intent['filters']['date_to']
 					);
 				} else {
-					$period_text = ' ' . __( 'for the requested period', 'store-compass-for-woocommerce' );
+					$period_text = ' ' . __( 'for the requested period', 'unmai-analytix-for-woocommerce' );
 				}
 				return sprintf(
 					/* translators: %s: optional date-range phrase (may be empty) */
-					__( 'There are no orders%1$s.', 'store-compass-for-woocommerce' ),
+					__( 'There are no orders%1$s.', 'unmai-analytix-for-woocommerce' ),
 					$period_text
 				);
 			}
@@ -168,7 +168,7 @@ class Dataviz_AI_Answer_Composer {
 							' %s',
 							sprintf(
 								/* translators: 1: start date, 2: end date */
-								__( 'from %1$s to %2$s', 'store-compass-for-woocommerce' ),
+								__( 'from %1$s to %2$s', 'unmai-analytix-for-woocommerce' ),
 								$res['date_range']['from'],
 								$res['date_range']['to']
 							)
@@ -178,13 +178,13 @@ class Dataviz_AI_Answer_Composer {
 					if ( $is_how_many ) {
 						return sprintf(
 							/* translators: %s: optional date-range phrase (may be empty) */
-							__( '0 customers have placed orders%1$s.', 'store-compass-for-woocommerce' ),
+							__( '0 customers have placed orders%1$s.', 'unmai-analytix-for-woocommerce' ),
 							$period_text
 						);
 					}
 					return sprintf(
 						/* translators: %s: optional date-range phrase (may be empty) */
-						__( 'No customers found with orders%1$s.', 'store-compass-for-woocommerce' ),
+						__( 'No customers found with orders%1$s.', 'unmai-analytix-for-woocommerce' ),
 						$period_text
 					);
 				}
@@ -199,7 +199,7 @@ class Dataviz_AI_Answer_Composer {
 					$last  = isset( $c['last_name'] ) ? trim( (string) $c['last_name'] ) : '';
 					$name  = trim( $first . ' ' . $last );
 					if ( $name === '' ) {
-						$name = isset( $c['username'] ) ? (string) $c['username'] : __( '(Unknown customer)', 'store-compass-for-woocommerce' );
+						$name = isset( $c['username'] ) ? (string) $c['username'] : __( '(Unknown customer)', 'unmai-analytix-for-woocommerce' );
 					}
 
 					$total_spent = isset( $c['total_spent'] ) ? (float) $c['total_spent'] : 0.0;
@@ -213,7 +213,7 @@ class Dataviz_AI_Answer_Composer {
 					$lines[] = sprintf( '%d. %s — %s (%d orders)', (int) ( $idx + 1 ), $who, $spent_str, $order_count );
 				}
 
-				$header = __( 'Top customers by total spend:', 'store-compass-for-woocommerce' );
+				$header = __( 'Top customers by total spend:', 'unmai-analytix-for-woocommerce' );
 				return $header . "\n" . implode( "\n", $lines );
 			}
 
@@ -228,14 +228,14 @@ class Dataviz_AI_Answer_Composer {
 						$count = isset( $tag['count'] ) ? (int) $tag['count'] : 0;
 						return sprintf(
 							/* translators: %1$d: number of products, %2$s: tag name */
-							__( 'There are %1$d products with the tag "%2$s".', 'store-compass-for-woocommerce' ),
+							__( 'There are %1$d products with the tag "%2$s".', 'unmai-analytix-for-woocommerce' ),
 							$count,
 							$tag['name'] ?? $tag_query
 						);
 					}
 					return sprintf(
 						/* translators: %s: tag name */
-						__( 'I couldn’t find a product tag named "%1$s".', 'store-compass-for-woocommerce' ),
+						__( 'I couldn’t find a product tag named "%1$s".', 'unmai-analytix-for-woocommerce' ),
 						$tag_query
 					);
 				}
@@ -254,7 +254,7 @@ class Dataviz_AI_Answer_Composer {
 				if ( $date_from && $date_to ) {
 					$period = sprintf(
 						/* translators: 1: start date, 2: end date */
-						__( 'from %1$s to %2$s', 'store-compass-for-woocommerce' ),
+						__( 'from %1$s to %2$s', 'unmai-analytix-for-woocommerce' ),
 						$date_from,
 						$date_to
 					);
@@ -264,10 +264,10 @@ class Dataviz_AI_Answer_Composer {
 					return $period
 						? sprintf(
 							/* translators: %s: date-range phrase */
-							__( 'No coupons were used %1$s.', 'store-compass-for-woocommerce' ),
+							__( 'No coupons were used %1$s.', 'unmai-analytix-for-woocommerce' ),
 							$period
 						)
-						: __( 'No coupons were used in the requested period.', 'store-compass-for-woocommerce' );
+						: __( 'No coupons were used in the requested period.', 'unmai-analytix-for-woocommerce' );
 				}
 
 				$lines = array();
@@ -286,10 +286,10 @@ class Dataviz_AI_Answer_Composer {
 				$header = $period
 					? sprintf(
 						/* translators: %s: date-range phrase */
-						__( 'Coupons used %1$s:', 'store-compass-for-woocommerce' ),
+						__( 'Coupons used %1$s:', 'unmai-analytix-for-woocommerce' ),
 						$period
 					)
-					: __( 'Coupons used in the requested period:', 'store-compass-for-woocommerce' );
+					: __( 'Coupons used in the requested period:', 'unmai-analytix-for-woocommerce' );
 				return $header . "\n" . implode( "\n", $lines );
 			}
 
@@ -305,7 +305,7 @@ class Dataviz_AI_Answer_Composer {
 							' %s',
 							sprintf(
 								/* translators: 1: start date, 2: end date */
-								__( 'from %1$s to %2$s', 'store-compass-for-woocommerce' ),
+								__( 'from %1$s to %2$s', 'unmai-analytix-for-woocommerce' ),
 								$validated_intent['filters']['date_from'],
 								$validated_intent['filters']['date_to']
 							)
@@ -314,13 +314,13 @@ class Dataviz_AI_Answer_Composer {
 					if ( $is_how_many_refunds ) {
 						return sprintf(
 							/* translators: %s: optional date-range phrase (may be empty) */
-							__( 'There are 0 refunds%1$s.', 'store-compass-for-woocommerce' ),
+							__( 'There are 0 refunds%1$s.', 'unmai-analytix-for-woocommerce' ),
 							$period_text
 						);
 					}
 					return sprintf(
 						/* translators: %s: optional date-range phrase (may be empty) */
-						__( 'No refunds found%1$s.', 'store-compass-for-woocommerce' ),
+						__( 'No refunds found%1$s.', 'unmai-analytix-for-woocommerce' ),
 						$period_text
 					);
 				}
@@ -341,7 +341,7 @@ class Dataviz_AI_Answer_Composer {
 							' %s',
 							sprintf(
 								/* translators: 1: start date, 2: end date */
-								__( 'from %1$s to %2$s', 'store-compass-for-woocommerce' ),
+								__( 'from %1$s to %2$s', 'unmai-analytix-for-woocommerce' ),
 								$validated_intent['filters']['date_from'],
 								$validated_intent['filters']['date_to']
 							)
@@ -349,7 +349,7 @@ class Dataviz_AI_Answer_Composer {
 					}
 					return sprintf(
 						/* translators: 1: refund count, 2: optional date-range phrase, 3: formatted total amount */
-						__( 'There are %1$d refunds%2$s, totaling %3$s.', 'store-compass-for-woocommerce' ),
+						__( 'There are %1$d refunds%2$s, totaling %3$s.', 'unmai-analytix-for-woocommerce' ),
 						$count,
 						$period_text,
 						$amount_str
@@ -363,7 +363,7 @@ class Dataviz_AI_Answer_Composer {
 					}
 					$id     = isset( $r['id'] ) ? (int) $r['id'] : 0;
 					$amount = isset( $r['amount'] ) ? self::format_currency( (float) $r['amount'] ) : self::format_currency( 0 );
-					$reason = isset( $r['reason'] ) && $r['reason'] !== '' ? (string) $r['reason'] : __( 'No reason given', 'store-compass-for-woocommerce' );
+					$reason = isset( $r['reason'] ) && $r['reason'] !== '' ? (string) $r['reason'] : __( 'No reason given', 'unmai-analytix-for-woocommerce' );
 					$date   = isset( $r['date'] ) ? (string) $r['date'] : '';
 					$parent = isset( $r['parent_order'] ) ? (int) $r['parent_order'] : 0;
 
@@ -371,7 +371,7 @@ class Dataviz_AI_Answer_Composer {
 					if ( $parent ) {
 						$line .= sprintf( ' (Order #%d)', $parent );
 					}
-					if ( $reason !== __( 'No reason given', 'store-compass-for-woocommerce' ) ) {
+					if ( $reason !== __( 'No reason given', 'unmai-analytix-for-woocommerce' ) ) {
 						$line .= ' — ' . $reason;
 					}
 					if ( $date !== '' ) {
@@ -382,7 +382,7 @@ class Dataviz_AI_Answer_Composer {
 
 				$header = sprintf(
 					/* translators: %d: number of refunds */
-					__( '%1$d refunds found:', 'store-compass-for-woocommerce' ),
+					__( '%1$d refunds found:', 'unmai-analytix-for-woocommerce' ),
 					$count
 				);
 				return $header . "\n" . implode( "\n", $lines );
@@ -417,7 +417,7 @@ class Dataviz_AI_Answer_Composer {
 					if ( 0 === $count ) {
 						return sprintf(
 							/* translators: %s: order status label (e.g. pending) */
-							__( 'There are currently no %1$s orders.', 'store-compass-for-woocommerce' ),
+							__( 'There are currently no %1$s orders.', 'unmai-analytix-for-woocommerce' ),
 							strtolower( $status_label )
 						);
 					}
@@ -427,7 +427,7 @@ class Dataviz_AI_Answer_Composer {
 							'There is currently %1$d %2$s order.',
 							'There are currently %1$d %2$s orders.',
 							$count,
-							'store-compass-for-woocommerce'
+							'unmai-analytix-for-woocommerce'
 						),
 						$count,
 						strtolower( $status_label )
@@ -439,13 +439,13 @@ class Dataviz_AI_Answer_Composer {
 					if ( null !== $rev_for_status && $rev_for_status > 0 ) {
 						$answer .= ' ' . sprintf(
 							/* translators: %s: formatted currency amount */
-							__( 'Their total value is %1$s.', 'store-compass-for-woocommerce' ),
+							__( 'Their total value is %1$s.', 'unmai-analytix-for-woocommerce' ),
 							self::format_currency( $rev_for_status )
 						);
 					} elseif ( $total_revenue > 0 && ! empty( $status_filter ) ) {
 						$answer .= ' ' . sprintf(
 							/* translators: %s: formatted currency amount */
-							__( 'Their total value is %1$s.', 'store-compass-for-woocommerce' ),
+							__( 'Their total value is %1$s.', 'unmai-analytix-for-woocommerce' ),
 							self::format_currency( $total_revenue )
 						);
 					}
@@ -465,7 +465,7 @@ class Dataviz_AI_Answer_Composer {
 							if ( $df && $dt ) {
 								$period_text = ' ' . sprintf(
 									/* translators: 1: period start date, 2: period end date */
-									__( 'in the selected period (%1$s to %2$s)', 'store-compass-for-woocommerce' ),
+									__( 'in the selected period (%1$s to %2$s)', 'unmai-analytix-for-woocommerce' ),
 									$df,
 									$dt
 								);
@@ -473,7 +473,7 @@ class Dataviz_AI_Answer_Composer {
 						}
 						return sprintf(
 							/* translators: %s: optional date-range phrase (may be empty) */
-							__( 'There are no sales records by product category%1$s. This can happen when there are no completed orders, or when ordered products are not assigned to categories.', 'store-compass-for-woocommerce' ),
+							__( 'There are no sales records by product category%1$s. This can happen when there are no completed orders, or when ordered products are not assigned to categories.', 'unmai-analytix-for-woocommerce' ),
 							$period_text
 						);
 					}
@@ -495,7 +495,7 @@ class Dataviz_AI_Answer_Composer {
 								' %s',
 								sprintf(
 									/* translators: 1: period start date, 2: period end date */
-									__( 'from %1$s to %2$s', 'store-compass-for-woocommerce' ),
+									__( 'from %1$s to %2$s', 'unmai-analytix-for-woocommerce' ),
 									$from_formatted,
 									$to_formatted
 								)
@@ -507,7 +507,7 @@ class Dataviz_AI_Answer_Composer {
 				$amount_str = self::format_currency( $total_revenue );
 				$answer = sprintf(
 					/* translators: 1: optional date-range phrase (may be empty), 2: formatted revenue amount */
-					__( 'The total revenue generated%1$s is %2$s.', 'store-compass-for-woocommerce' ),
+					__( 'The total revenue generated%1$s is %2$s.', 'unmai-analytix-for-woocommerce' ),
 					$period_text ? ' ' . $period_text : '',
 					$amount_str
 				);
@@ -523,19 +523,19 @@ class Dataviz_AI_Answer_Composer {
 							if ( 0 === $bd_c ) {
 								$answer .= ' ' . sprintf(
 									/* translators: %s: order status label */
-									__( 'There are no %1$s orders in this period.', 'store-compass-for-woocommerce' ),
+									__( 'There are no %1$s orders in this period.', 'unmai-analytix-for-woocommerce' ),
 									$lbl
 								);
 							} elseif ( 1 === $bd_c ) {
 								$answer .= ' ' . sprintf(
 									/* translators: %s: order status label */
-									__( 'There is 1 %1$s order in this period.', 'store-compass-for-woocommerce' ),
+									__( 'There is 1 %1$s order in this period.', 'unmai-analytix-for-woocommerce' ),
 									$lbl
 								);
 							} else {
 								$answer .= ' ' . sprintf(
 									/* translators: 1: order count, 2: order status label */
-									__( 'There are %1$d %2$s orders in this period.', 'store-compass-for-woocommerce' ),
+									__( 'There are %1$d %2$s orders in this period.', 'unmai-analytix-for-woocommerce' ),
 									$bd_c,
 									$lbl
 								);
@@ -544,13 +544,13 @@ class Dataviz_AI_Answer_Composer {
 					}
 					if ( ! $used_status_line ) {
 						if ( $total_orders === 0 ) {
-							$answer .= ' ' . __( 'There are no orders in this period.', 'store-compass-for-woocommerce' );
+							$answer .= ' ' . __( 'There are no orders in this period.', 'unmai-analytix-for-woocommerce' );
 						} elseif ( 1 === $total_orders ) {
-							$answer .= ' ' . __( 'There is 1 order in this period.', 'store-compass-for-woocommerce' );
+							$answer .= ' ' . __( 'There is 1 order in this period.', 'unmai-analytix-for-woocommerce' );
 						} else {
 							$answer .= ' ' . sprintf(
 								/* translators: %d: order count */
-								__( 'There are %1$d orders in this period.', 'store-compass-for-woocommerce' ),
+								__( 'There are %1$d orders in this period.', 'unmai-analytix-for-woocommerce' ),
 								$total_orders
 							);
 						}
@@ -565,13 +565,13 @@ class Dataviz_AI_Answer_Composer {
 						if ( ! is_array( $sb ) ) {
 							continue;
 						}
-						$s_name  = isset( $sb['status'] ) ? ucfirst( (string) $sb['status'] ) : __( 'Unknown', 'store-compass-for-woocommerce' );
+						$s_name  = isset( $sb['status'] ) ? ucfirst( (string) $sb['status'] ) : __( 'Unknown', 'unmai-analytix-for-woocommerce' );
 						$s_count = isset( $sb['count'] ) ? (int) $sb['count'] : 0;
 						$s_rev   = isset( $sb['revenue'] ) ? self::format_currency( (float) $sb['revenue'] ) : self::format_currency( 0 );
 						$status_lines[] = sprintf( '- %s: %d orders (%s)', $s_name, $s_count, $s_rev );
 					}
 					if ( ! empty( $status_lines ) ) {
-						$answer .= "\n\n" . __( 'Breakdown by status:', 'store-compass-for-woocommerce' ) . "\n" . implode( "\n", $status_lines );
+						$answer .= "\n\n" . __( 'Breakdown by status:', 'unmai-analytix-for-woocommerce' ) . "\n" . implode( "\n", $status_lines );
 					}
 				}
 
@@ -648,7 +648,7 @@ class Dataviz_AI_Answer_Composer {
 			$lines[]    = sprintf(
 				'%d. %s — %s — %s — %s',
 				(int) ( $idx + 1 ),
-				sprintf( /* translators: %d: order ID */ __( 'Order #%1$d', 'store-compass-for-woocommerce' ), $id ),
+				sprintf( /* translators: %d: order ID */ __( 'Order #%1$d', 'unmai-analytix-for-woocommerce' ), $id ),
 				self::format_currency( $total_amt ),
 				$st !== '' ? $st : '—',
 				$date_short !== '' ? $date_short : '—'
@@ -658,14 +658,14 @@ class Dataviz_AI_Answer_Composer {
 		if ( $total > $shown ) {
 			$header = sprintf(
 				/* translators: 1: number shown, 2: total matching */
-				__( 'Showing %1$d of %2$d orders (newest first):', 'store-compass-for-woocommerce' ),
+				__( 'Showing %1$d of %2$d orders (newest first):', 'unmai-analytix-for-woocommerce' ),
 				$shown,
 				$total
 			);
 		} else {
 			$header = sprintf(
 				/* translators: %d order count */
-				_n( '%d order:', '%d orders:', $total, 'store-compass-for-woocommerce' ),
+				_n( '%d order:', '%d orders:', $total, 'unmai-analytix-for-woocommerce' ),
 				$total
 			);
 		}

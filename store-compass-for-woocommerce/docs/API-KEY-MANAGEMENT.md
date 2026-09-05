@@ -1,4 +1,4 @@
-# API key management (Store Compass for WooCommerce)
+# API key management (Unmai Analytix for WooCommerce)
 
 This document explains how **OpenAI‑compatible** credentials are loaded, and how a store owner (or developer) can supply them. It is written for people who are new to self‑hosted WordPress.
 
@@ -82,7 +82,7 @@ define( 'DATAVIZ_AI_API_KEY', 'sk-...' );
 
 **Best for:** deployments where you want secrets **next to the plugin** without touching core WordPress files.
 
-1. In the **plugin** folder (same place as the main `dataviz-ai-woocommerce.php` — typically `wp-content/plugins/store-compass-for-woocommerce/` when installed from the release ZIP), copy `config.php.example` → `config.php`.
+1. In the **plugin** folder (same place as the main `dataviz-ai-woocommerce.php` — typically `wp-content/plugins/unmai-analytix-for-woocommerce/` when installed from the release ZIP), copy `config.php.example` → `config.php`.
 2. Fill in:
    - `define( 'DATAVIZ_AI_API_KEY', 'sk-...' );`
    - optionally `DATAVIZ_AI_API_BASE_URL`
@@ -130,7 +130,7 @@ Access is not “any logged-in user.” The plugin code checks **WordPress capab
 
 | Area | Typical capability in code | Who usually has it |
 |------|----------------------------|--------------------|
-| **Store Compass** admin menu (chat, FAQ, Onboarding, submenus for digests / support) | `manage_woocommerce` | **Shop manager** and **Administrator** (on WooCommerce sites). |
+| **Unmai Analytix** admin menu (chat, FAQ, Onboarding, submenus for digests / support) | `manage_woocommerce` | **Shop manager** and **Administrator** (on WooCommerce sites). |
 | **Chat** shortcode, **analyze / chat** AJAX, support requests in admin (where gated) | `manage_woocommerce` | Same. |
 | **Onboarding reset** (AJAX) | `manage_options` | Usually **Administrator** only — **not** the Shop manager role in a default install. |
 

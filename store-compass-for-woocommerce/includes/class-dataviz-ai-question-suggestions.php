@@ -72,39 +72,39 @@ class Dataviz_AI_Question_Suggestions {
 		switch ( $entity ) {
 			case 'orders':
 				return array(
-					__( 'What was my total revenue this month?', 'store-compass-for-woocommerce' ),
-					__( 'How many pending orders do I have?', 'store-compass-for-woocommerce' ),
-					__( 'Show order totals for last week.', 'store-compass-for-woocommerce' ),
+					__( 'What was my total revenue this month?', 'unmai-analytix-for-woocommerce' ),
+					__( 'How many pending orders do I have?', 'unmai-analytix-for-woocommerce' ),
+					__( 'Show order totals for last week.', 'unmai-analytix-for-woocommerce' ),
 				);
 			case 'products':
 				return array(
-					__( 'What are my best-selling products?', 'store-compass-for-woocommerce' ),
-					__( 'List products in a specific category.', 'store-compass-for-woocommerce' ),
+					__( 'What are my best-selling products?', 'unmai-analytix-for-woocommerce' ),
+					__( 'List products in a specific category.', 'unmai-analytix-for-woocommerce' ),
 				);
 			case 'customers':
 				return array(
-					__( 'Who are my top customers by total spend?', 'store-compass-for-woocommerce' ),
-					__( 'How many customers placed an order this month?', 'store-compass-for-woocommerce' ),
+					__( 'Who are my top customers by total spend?', 'unmai-analytix-for-woocommerce' ),
+					__( 'How many customers placed an order this month?', 'unmai-analytix-for-woocommerce' ),
 				);
 			case 'categories':
 				return array(
-					__( 'List all product categories.', 'store-compass-for-woocommerce' ),
-					__( 'Show sales by product category.', 'store-compass-for-woocommerce' ),
+					__( 'List all product categories.', 'unmai-analytix-for-woocommerce' ),
+					__( 'Show sales by product category.', 'unmai-analytix-for-woocommerce' ),
 				);
 			case 'stock':
 			case 'inventory':
 				return array(
-					__( 'Which products are out of stock?', 'store-compass-for-woocommerce' ),
-					__( 'Show low-stock products.', 'store-compass-for-woocommerce' ),
+					__( 'Which products are out of stock?', 'unmai-analytix-for-woocommerce' ),
+					__( 'Show low-stock products.', 'unmai-analytix-for-woocommerce' ),
 				);
 			case 'coupons':
 				return array(
-					__( 'List active coupons.', 'store-compass-for-woocommerce' ),
-					__( 'How many times was a coupon used last month?', 'store-compass-for-woocommerce' ),
+					__( 'List active coupons.', 'unmai-analytix-for-woocommerce' ),
+					__( 'How many times was a coupon used last month?', 'unmai-analytix-for-woocommerce' ),
 				);
 			case 'refunds':
 				return array(
-					__( 'How many refunds were issued this year?', 'store-compass-for-woocommerce' ),
+					__( 'How many refunds were issued this year?', 'unmai-analytix-for-woocommerce' ),
 				);
 			default:
 				return array();
@@ -116,11 +116,11 @@ class Dataviz_AI_Question_Suggestions {
 	 */
 	protected static function generic_lines() {
 		return array(
-			__( 'What was my total revenue this month?', 'store-compass-for-woocommerce' ),
-			__( 'How many pending orders do I have?', 'store-compass-for-woocommerce' ),
-			__( 'What are my best-selling products?', 'store-compass-for-woocommerce' ),
-			__( 'List my product categories.', 'store-compass-for-woocommerce' ),
-			__( 'Which products are low on stock?', 'store-compass-for-woocommerce' ),
+			__( 'What was my total revenue this month?', 'unmai-analytix-for-woocommerce' ),
+			__( 'How many pending orders do I have?', 'unmai-analytix-for-woocommerce' ),
+			__( 'What are my best-selling products?', 'unmai-analytix-for-woocommerce' ),
+			__( 'List my product categories.', 'unmai-analytix-for-woocommerce' ),
+			__( 'Which products are low on stock?', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 }

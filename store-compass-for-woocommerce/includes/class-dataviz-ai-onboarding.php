@@ -1,6 +1,6 @@
 <?php
 /**
- * Onboarding flow for Store Compass WooCommerce plugin.
+ * Onboarding flow for Unmai Analytix WooCommerce plugin.
  *
  * @package Dataviz_AI_WooCommerce
  */
@@ -68,8 +68,8 @@ class Dataviz_AI_Onboarding {
 	 * @return void
 	 */
 	public function enqueue_assets( $hook ) {
-		// Only load on Store Compass admin page
-		if ( 'toplevel_page_store-compass-for-woocommerce' !== $hook ) {
+		// Only load on Unmai Analytix admin page
+		if ( 'toplevel_page_' . $this->plugin_name !== $hook ) {
 			return;
 		}
 
@@ -233,18 +233,18 @@ class Dataviz_AI_Onboarding {
 	 */
 	protected function get_strings() {
 		return array(
-			'welcome_title'       => __( 'Welcome to Store Compass for WooCommerce!', 'store-compass-for-woocommerce' ),
-			'welcome_message'     => __( 'Transform your store data into actionable insights with AI-powered analytics.', 'store-compass-for-woocommerce' ),
-			'get_started'         => __( 'Get Started', 'store-compass-for-woocommerce' ),
-			'skip'                => __( 'Skip', 'store-compass-for-woocommerce' ),
-			'continue'            => __( 'Continue', 'store-compass-for-woocommerce' ),
-			'next'                => __( 'Next', 'store-compass-for-woocommerce' ),
-			'previous'            => __( 'Previous', 'store-compass-for-woocommerce' ),
-			'complete'            => __( 'Complete Setup', 'store-compass-for-woocommerce' ),
-			'api_key_required'    => __( 'API Key Required', 'store-compass-for-woocommerce' ),
-			'api_key_configured'  => __( 'API Key Configured', 'store-compass-for-woocommerce' ),
-			'step'                => __( 'Step', 'store-compass-for-woocommerce' ),
-			'of'                  => __( 'of', 'store-compass-for-woocommerce' ),
+			'welcome_title'       => __( 'Welcome to Unmai Analytix for WooCommerce!', 'unmai-analytix-for-woocommerce' ),
+			'welcome_message'     => __( 'Transform your store data into actionable insights with AI-powered analytics.', 'unmai-analytix-for-woocommerce' ),
+			'get_started'         => __( 'Get Started', 'unmai-analytix-for-woocommerce' ),
+			'skip'                => __( 'Skip', 'unmai-analytix-for-woocommerce' ),
+			'continue'            => __( 'Continue', 'unmai-analytix-for-woocommerce' ),
+			'next'                => __( 'Next', 'unmai-analytix-for-woocommerce' ),
+			'previous'            => __( 'Previous', 'unmai-analytix-for-woocommerce' ),
+			'complete'            => __( 'Complete Setup', 'unmai-analytix-for-woocommerce' ),
+			'api_key_required'    => __( 'API Key Required', 'unmai-analytix-for-woocommerce' ),
+			'api_key_configured'  => __( 'API Key Configured', 'unmai-analytix-for-woocommerce' ),
+			'step'                => __( 'Step', 'unmai-analytix-for-woocommerce' ),
+			'of'                  => __( 'of', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 
@@ -307,28 +307,28 @@ class Dataviz_AI_Onboarding {
 		?>
 		<div class="dataviz-ai-onboarding-step" data-step="1">
 			<div class="dataviz-ai-onboarding-header">
-				<h2><?php esc_html_e( 'Welcome to Store Compass for WooCommerce!', 'store-compass-for-woocommerce' ); ?></h2>
+				<h2><?php esc_html_e( 'Welcome to Unmai Analytix for WooCommerce!', 'unmai-analytix-for-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
 				<?php $this->render_onboarding_screenshots(); ?>
 				<p class="dataviz-ai-onboarding-intro">
-					<?php esc_html_e( 'Transform your store data into actionable insights with AI-powered analytics.', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Transform your store data into actionable insights with AI-powered analytics.', 'unmai-analytix-for-woocommerce' ); ?>
 				</p>
 				<div class="dataviz-ai-onboarding-features">
 					<ul>
-						<li><?php esc_html_e( 'Ask questions about your store in natural language', 'store-compass-for-woocommerce' ); ?></li>
-						<li><?php esc_html_e( 'Get instant insights on orders, products, customers, and more', 'store-compass-for-woocommerce' ); ?></li>
-						<li><?php esc_html_e( 'Visualize data with interactive charts', 'store-compass-for-woocommerce' ); ?></li>
-						<li><?php esc_html_e( 'Track trends and patterns automatically', 'store-compass-for-woocommerce' ); ?></li>
+						<li><?php esc_html_e( 'Ask questions about your store in natural language', 'unmai-analytix-for-woocommerce' ); ?></li>
+						<li><?php esc_html_e( 'Get instant insights on orders, products, customers, and more', 'unmai-analytix-for-woocommerce' ); ?></li>
+						<li><?php esc_html_e( 'Visualize data with interactive charts', 'unmai-analytix-for-woocommerce' ); ?></li>
+						<li><?php esc_html_e( 'Track trends and patterns automatically', 'unmai-analytix-for-woocommerce' ); ?></li>
 					</ul>
 				</div>
 			</div>
 			<div class="dataviz-ai-onboarding-footer">
 				<button type="button" class="button button-secondary dataviz-ai-onboarding-skip">
-					<?php esc_html_e( 'Skip', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Skip', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 				<button type="button" class="button button-primary dataviz-ai-onboarding-next">
-					<?php esc_html_e( 'Get Started', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Get Started', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 			</div>
 		</div>
@@ -345,37 +345,37 @@ class Dataviz_AI_Onboarding {
 		?>
 		<div class="dataviz-ai-onboarding-step" data-step="2">
 			<div class="dataviz-ai-onboarding-header">
-				<h2><?php esc_html_e( 'API Configuration', 'store-compass-for-woocommerce' ); ?></h2>
+				<h2><?php esc_html_e( 'API Configuration', 'unmai-analytix-for-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
 				<?php $this->render_onboarding_step_screenshot( 2 ); ?>
 				<?php if ( $has_api_key ) : ?>
 					<div class="dataviz-ai-onboarding-success">
-						<p><?php esc_html_e( 'Great! Your API key is configured and ready to use.', 'store-compass-for-woocommerce' ); ?></p>
+						<p><?php esc_html_e( 'Great! Your API key is configured and ready to use.', 'unmai-analytix-for-woocommerce' ); ?></p>
 					</div>
 				<?php else : ?>
 					<div class="dataviz-ai-onboarding-warning">
-						<p><strong><?php esc_html_e( 'API Key Required', 'store-compass-for-woocommerce' ); ?></strong></p>
-						<p><?php esc_html_e( 'To use Store Compass, you need to configure your API key.', 'store-compass-for-woocommerce' ); ?></p>
+						<p><strong><?php esc_html_e( 'API Key Required', 'unmai-analytix-for-woocommerce' ); ?></strong></p>
+						<p><?php esc_html_e( 'To use Unmai Analytix, you need to configure your API key.', 'unmai-analytix-for-woocommerce' ); ?></p>
 						<div class="dataviz-ai-onboarding-instructions">
-							<p><strong><?php esc_html_e( 'Option 1: Environment Variable (Recommended)', 'store-compass-for-woocommerce' ); ?></strong></p>
-							<p><?php esc_html_e( 'Set one of these environment variables:', 'store-compass-for-woocommerce' ); ?></p>
-							<code>OPENAI_API_KEY</code> <?php esc_html_e( 'or', 'store-compass-for-woocommerce' ); ?> <code>DATAVIZ_AI_API_KEY</code>
-							<p><strong><?php esc_html_e( 'Option 2: Config File', 'store-compass-for-woocommerce' ); ?></strong></p>
-							<p><?php esc_html_e( 'Edit config.php in the plugin directory.', 'store-compass-for-woocommerce' ); ?></p>
+							<p><strong><?php esc_html_e( 'Option 1: Environment Variable (Recommended)', 'unmai-analytix-for-woocommerce' ); ?></strong></p>
+							<p><?php esc_html_e( 'Set one of these environment variables:', 'unmai-analytix-for-woocommerce' ); ?></p>
+							<code>OPENAI_API_KEY</code> <?php esc_html_e( 'or', 'unmai-analytix-for-woocommerce' ); ?> <code>DATAVIZ_AI_API_KEY</code>
+							<p><strong><?php esc_html_e( 'Option 2: Config File', 'unmai-analytix-for-woocommerce' ); ?></strong></p>
+							<p><?php esc_html_e( 'Edit config.php in the plugin directory.', 'unmai-analytix-for-woocommerce' ); ?></p>
 						</div>
 					</div>
 				<?php endif; ?>
 			</div>
 			<div class="dataviz-ai-onboarding-footer">
 				<button type="button" class="button button-secondary dataviz-ai-onboarding-prev">
-					<?php esc_html_e( 'Previous', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Previous', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 				<button type="button" class="button button-secondary dataviz-ai-onboarding-skip">
-					<?php esc_html_e( 'Skip for Now', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Skip for Now', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 				<button type="button" class="button button-primary dataviz-ai-onboarding-next">
-					<?php esc_html_e( 'Continue', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Continue', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 			</div>
 		</div>
@@ -392,31 +392,31 @@ class Dataviz_AI_Onboarding {
 		?>
 		<div class="dataviz-ai-onboarding-step" data-step="3">
 			<div class="dataviz-ai-onboarding-header">
-				<h2><?php esc_html_e( 'Settings Overview', 'store-compass-for-woocommerce' ); ?></h2>
+				<h2><?php esc_html_e( 'Settings Overview', 'unmai-analytix-for-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
 				<?php $this->render_onboarding_step_screenshot( 3 ); ?>
-				<p><?php esc_html_e( 'Your plugin is configured with the following settings:', 'store-compass-for-woocommerce' ); ?></p>
+				<p><?php esc_html_e( 'Your plugin is configured with the following settings:', 'unmai-analytix-for-woocommerce' ); ?></p>
 				<div class="dataviz-ai-onboarding-settings">
 					<ul>
-						<li><strong><?php esc_html_e( 'API Endpoint:', 'store-compass-for-woocommerce' ); ?></strong> 
-							<?php echo $api_url ? esc_html( $api_url ) : esc_html__( 'Default (OpenAI)', 'store-compass-for-woocommerce' ); ?>
+						<li><strong><?php esc_html_e( 'API Endpoint:', 'unmai-analytix-for-woocommerce' ); ?></strong> 
+							<?php echo $api_url ? esc_html( $api_url ) : esc_html__( 'Default (OpenAI)', 'unmai-analytix-for-woocommerce' ); ?>
 						</li>
-						<li><strong><?php esc_html_e( 'Features Enabled:', 'store-compass-for-woocommerce' ); ?></strong>
-							<?php esc_html_e( 'Chat Interface, Data Analysis, Charts, History', 'store-compass-for-woocommerce' ); ?>
+						<li><strong><?php esc_html_e( 'Features Enabled:', 'unmai-analytix-for-woocommerce' ); ?></strong>
+							<?php esc_html_e( 'Chat Interface, Data Analysis, Charts, History', 'unmai-analytix-for-woocommerce' ); ?>
 						</li>
 					</ul>
 				</div>
 			</div>
 			<div class="dataviz-ai-onboarding-footer">
 				<button type="button" class="button button-secondary dataviz-ai-onboarding-prev">
-					<?php esc_html_e( 'Previous', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Previous', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 				<button type="button" class="button button-secondary dataviz-ai-onboarding-skip">
-					<?php esc_html_e( 'Skip', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Skip', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 				<button type="button" class="button button-primary dataviz-ai-onboarding-next">
-					<?php esc_html_e( 'Continue', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Continue', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 			</div>
 		</div>
@@ -432,29 +432,29 @@ class Dataviz_AI_Onboarding {
 		?>
 		<div class="dataviz-ai-onboarding-step" data-step="4">
 			<div class="dataviz-ai-onboarding-header">
-				<h2><?php esc_html_e( 'Try Your First Question!', 'store-compass-for-woocommerce' ); ?></h2>
+				<h2><?php esc_html_e( 'Try Your First Question!', 'unmai-analytix-for-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
 				<?php $this->render_onboarding_step_screenshot( 4 ); ?>
-				<p><?php esc_html_e( 'The AI assistant is ready to help you understand your store data.', 'store-compass-for-woocommerce' ); ?></p>
-				<p><strong><?php esc_html_e( 'Try asking:', 'store-compass-for-woocommerce' ); ?></strong></p>
+				<p><?php esc_html_e( 'The AI assistant is ready to help you understand your store data.', 'unmai-analytix-for-woocommerce' ); ?></p>
+				<p><strong><?php esc_html_e( 'Try asking:', 'unmai-analytix-for-woocommerce' ); ?></strong></p>
 				<div class="dataviz-ai-onboarding-examples">
 					<ul>
-						<li>"<?php esc_html_e( 'What are my top-selling products?', 'store-compass-for-woocommerce' ); ?>"</li>
-						<li>"<?php esc_html_e( 'Show me orders from last week', 'store-compass-for-woocommerce' ); ?>"</li>
-						<li>"<?php esc_html_e( 'How many customers did I get this month?', 'store-compass-for-woocommerce' ); ?>"</li>
+						<li>"<?php esc_html_e( 'What are my top-selling products?', 'unmai-analytix-for-woocommerce' ); ?>"</li>
+						<li>"<?php esc_html_e( 'Show me orders from last week', 'unmai-analytix-for-woocommerce' ); ?>"</li>
+						<li>"<?php esc_html_e( 'How many customers did I get this month?', 'unmai-analytix-for-woocommerce' ); ?>"</li>
 					</ul>
 				</div>
 			</div>
 			<div class="dataviz-ai-onboarding-footer">
 				<button type="button" class="button button-secondary dataviz-ai-onboarding-prev">
-					<?php esc_html_e( 'Previous', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Previous', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 				<button type="button" class="button button-secondary dataviz-ai-onboarding-skip">
-					<?php esc_html_e( 'Skip Tutorial', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Skip Tutorial', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 				<button type="button" class="button button-primary dataviz-ai-onboarding-next">
-					<?php esc_html_e( 'Continue', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Continue', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 			</div>
 		</div>
@@ -470,35 +470,35 @@ class Dataviz_AI_Onboarding {
 		?>
 		<div class="dataviz-ai-onboarding-step" data-step="5">
 			<div class="dataviz-ai-onboarding-header">
-				<h2><?php esc_html_e( 'Discover Features', 'store-compass-for-woocommerce' ); ?></h2>
+				<h2><?php esc_html_e( 'Discover Features', 'unmai-analytix-for-woocommerce' ); ?></h2>
 			</div>
 			<div class="dataviz-ai-onboarding-content">
 				<?php $this->render_onboarding_step_screenshot( 5 ); ?>
 				<div class="dataviz-ai-onboarding-features-list">
 					<div class="dataviz-ai-onboarding-feature">
-						<strong>📊 <?php esc_html_e( 'Charts & Visualizations', 'store-compass-for-woocommerce' ); ?></strong>
-						<p><?php esc_html_e( 'Ask for charts to visualize your data. Example: "Show me a pie chart of order status"', 'store-compass-for-woocommerce' ); ?></p>
+						<strong>📊 <?php esc_html_e( 'Charts & Visualizations', 'unmai-analytix-for-woocommerce' ); ?></strong>
+						<p><?php esc_html_e( 'Ask for charts to visualize your data. Example: "Show me a pie chart of order status"', 'unmai-analytix-for-woocommerce' ); ?></p>
 					</div>
 					<div class="dataviz-ai-onboarding-feature">
-						<strong>📈 <?php esc_html_e( 'Data Analysis', 'store-compass-for-woocommerce' ); ?></strong>
-						<p><?php esc_html_e( 'Get insights on orders, products, customers. Example: "What are my best-selling products?"', 'store-compass-for-woocommerce' ); ?></p>
+						<strong>📈 <?php esc_html_e( 'Data Analysis', 'unmai-analytix-for-woocommerce' ); ?></strong>
+						<p><?php esc_html_e( 'Get insights on orders, products, customers. Example: "What are my best-selling products?"', 'unmai-analytix-for-woocommerce' ); ?></p>
 					</div>
 					<div class="dataviz-ai-onboarding-feature">
-						<strong>💬 <?php esc_html_e( 'Chat History', 'store-compass-for-woocommerce' ); ?></strong>
-						<p><?php esc_html_e( 'Your conversations are saved automatically. Access history anytime from the chat interface.', 'store-compass-for-woocommerce' ); ?></p>
+						<strong>💬 <?php esc_html_e( 'Chat History', 'unmai-analytix-for-woocommerce' ); ?></strong>
+						<p><?php esc_html_e( 'Your conversations are saved automatically. Access history anytime from the chat interface.', 'unmai-analytix-for-woocommerce' ); ?></p>
 					</div>
 					<div class="dataviz-ai-onboarding-feature">
-						<strong>📝 <?php esc_html_e( 'Feature Requests', 'store-compass-for-woocommerce' ); ?></strong>
-						<p><?php esc_html_e( 'Request new features directly from the chat. Example: "I\'d like to see product reviews analysis"', 'store-compass-for-woocommerce' ); ?></p>
+						<strong>📝 <?php esc_html_e( 'Feature Requests', 'unmai-analytix-for-woocommerce' ); ?></strong>
+						<p><?php esc_html_e( 'Request new features directly from the chat. Example: "I\'d like to see product reviews analysis"', 'unmai-analytix-for-woocommerce' ); ?></p>
 					</div>
 				</div>
 			</div>
 			<div class="dataviz-ai-onboarding-footer">
 				<button type="button" class="button button-secondary dataviz-ai-onboarding-prev">
-					<?php esc_html_e( 'Previous', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Previous', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 				<button type="button" class="button button-primary dataviz-ai-onboarding-complete">
-					<?php esc_html_e( 'Start Using', 'store-compass-for-woocommerce' ); ?>
+					<?php esc_html_e( 'Start Using', 'unmai-analytix-for-woocommerce' ); ?>
 				</button>
 			</div>
 		</div>
@@ -519,7 +519,7 @@ class Dataviz_AI_Onboarding {
 		?>
 		<div class="dataviz-ai-onboarding-screenshots">
 			<p class="dataviz-ai-onboarding-screenshots-title">
-				<?php esc_html_e( 'Preview the onboarding experience', 'store-compass-for-woocommerce' ); ?>
+				<?php esc_html_e( 'Preview the onboarding experience', 'unmai-analytix-for-woocommerce' ); ?>
 			</p>
 			<div class="dataviz-ai-onboarding-screenshots-grid">
 				<?php foreach ( $screenshots as $screenshot ) : ?>
@@ -540,11 +540,11 @@ class Dataviz_AI_Onboarding {
 	 */
 	protected function get_bundled_onboarding_screenshot_map() {
 		return array(
-			'step-1-welcome.svg'   => __( 'Welcome', 'store-compass-for-woocommerce' ),
-			'step-2-api.svg'       => __( 'API configuration', 'store-compass-for-woocommerce' ),
-			'step-3-settings.svg'  => __( 'Settings overview', 'store-compass-for-woocommerce' ),
-			'step-4-chat.svg'      => __( 'Chat with your business', 'store-compass-for-woocommerce' ),
-			'step-5-features.svg'  => __( 'Feature discovery', 'store-compass-for-woocommerce' ),
+			'step-1-welcome.svg'   => __( 'Welcome', 'unmai-analytix-for-woocommerce' ),
+			'step-2-api.svg'       => __( 'API configuration', 'unmai-analytix-for-woocommerce' ),
+			'step-3-settings.svg'  => __( 'Settings overview', 'unmai-analytix-for-woocommerce' ),
+			'step-4-chat.svg'      => __( 'Chat with your business', 'unmai-analytix-for-woocommerce' ),
+			'step-5-features.svg'  => __( 'Feature discovery', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 
@@ -597,7 +597,7 @@ class Dataviz_AI_Onboarding {
 				'url'   => $url,
 				'alt'   => sprintf(
 					/* translators: %s: screenshot label. */
-					__( 'Store Compass onboarding screenshot: %s', 'store-compass-for-woocommerce' ),
+					__( 'Unmai Analytix onboarding screenshot: %s', 'unmai-analytix-for-woocommerce' ),
 					$label
 				),
 				'label' => $label,
@@ -608,10 +608,10 @@ class Dataviz_AI_Onboarding {
 		$uploads = wp_upload_dir();
 		if ( ! empty( $uploads['basedir'] ) && ! empty( $uploads['baseurl'] ) ) {
 			$extras = array(
-				'dataviz-ai-screenshot-1.png' => __( 'Store dashboard', 'store-compass-for-woocommerce' ),
-				'dataviz-ai-screenshot-2.png' => __( 'Insights', 'store-compass-for-woocommerce' ),
-				'dataviz-ai-screenshot-3.png' => __( 'Charts', 'store-compass-for-woocommerce' ),
-				'dataviz-ai-screenshot.png'   => __( 'Plugin interface', 'store-compass-for-woocommerce' ),
+				'dataviz-ai-screenshot-1.png' => __( 'Store dashboard', 'unmai-analytix-for-woocommerce' ),
+				'dataviz-ai-screenshot-2.png' => __( 'Insights', 'unmai-analytix-for-woocommerce' ),
+				'dataviz-ai-screenshot-3.png' => __( 'Charts', 'unmai-analytix-for-woocommerce' ),
+				'dataviz-ai-screenshot.png'   => __( 'Plugin interface', 'unmai-analytix-for-woocommerce' ),
 			);
 			foreach ( $extras as $file => $label ) {
 				$path = trailingslashit( $uploads['basedir'] ) . $file;
@@ -625,7 +625,7 @@ class Dataviz_AI_Onboarding {
 					'url'   => $url,
 					'alt'   => sprintf(
 						/* translators: %s: screenshot label. */
-						__( 'Store Compass onboarding screenshot: %s', 'store-compass-for-woocommerce' ),
+						__( 'Unmai Analytix onboarding screenshot: %s', 'unmai-analytix-for-woocommerce' ),
 						$label
 					),
 					'label' => $label,
@@ -666,7 +666,7 @@ class Dataviz_AI_Onboarding {
 		$label = $labels[ $file ];
 		$alt   = sprintf(
 			/* translators: %s: screenshot label. */
-			__( 'Store Compass onboarding screenshot: %s', 'store-compass-for-woocommerce' ),
+			__( 'Unmai Analytix onboarding screenshot: %s', 'unmai-analytix-for-woocommerce' ),
 			$label
 		);
 		?>
@@ -687,7 +687,7 @@ class Dataviz_AI_Onboarding {
 		$this->complete_onboarding();
 
 		wp_send_json_success( array(
-			'message' => __( 'Onboarding completed successfully.', 'store-compass-for-woocommerce' ),
+			'message' => __( 'Onboarding completed successfully.', 'unmai-analytix-for-woocommerce' ),
 		) );
 	}
 
@@ -702,7 +702,7 @@ class Dataviz_AI_Onboarding {
 		$this->skip_onboarding();
 
 		wp_send_json_success( array(
-			'message' => __( 'Onboarding skipped.', 'store-compass-for-woocommerce' ),
+			'message' => __( 'Onboarding skipped.', 'unmai-analytix-for-woocommerce' ),
 		) );
 	}
 
@@ -716,14 +716,14 @@ class Dataviz_AI_Onboarding {
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array(
-				'message' => __( 'Insufficient permissions.', 'store-compass-for-woocommerce' ),
+				'message' => __( 'Insufficient permissions.', 'unmai-analytix-for-woocommerce' ),
 			) );
 		}
 
 		$this->reset_onboarding();
 
 		wp_send_json_success( array(
-			'message' => __( 'Onboarding reset successfully.', 'store-compass-for-woocommerce' ),
+			'message' => __( 'Onboarding reset successfully.', 'unmai-analytix-for-woocommerce' ),
 		) );
 	}
 
@@ -755,12 +755,12 @@ class Dataviz_AI_Onboarding {
 		if ( $step >= 1 && $step <= 5 ) {
 			$this->set_current_step( $step );
 			wp_send_json_success( array(
-				'message' => __( 'Step saved.', 'store-compass-for-woocommerce' ),
+				'message' => __( 'Step saved.', 'unmai-analytix-for-woocommerce' ),
 			) );
 		}
 
 		wp_send_json_error( array(
-			'message' => __( 'Invalid step number.', 'store-compass-for-woocommerce' ),
+			'message' => __( 'Invalid step number.', 'unmai-analytix-for-woocommerce' ),
 		) );
 	}
 }

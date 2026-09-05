@@ -4,7 +4,7 @@ Store owners get automated HTML email reports without logging in.
 
 ## Where to configure
 
-**WordPress Admin → Store Compass → Email Digests**
+**WordPress Admin → Unmai Analytix → Email Digests**
 
 - Create digests with **daily**, **weekly**, or **monthly** frequency.
 - Choose **day of week** (weekly), **day of month** (monthly, capped at 28), and **send hour** (server timezone).
@@ -39,7 +39,7 @@ WordPress cron is **triggered by visits**. For reliable delivery on low-traffic 
 
 4. **Scheduled digests** — They only run when WP-Cron runs (usually on a page load). Ensure someone/something hits the site, or set up a real cron.
 
-5. **Debug log** — With `WP_DEBUG` and `WP_DEBUG_LOG` enabled, failures are logged as `[Store Compass Digest] ...` in `wp-content/debug.log`.
+5. **Debug log** — With `WP_DEBUG` and `WP_DEBUG_LOG` enabled, failures are logged as `[Unmai Analytix Digest] ...` in `wp-content/debug.log`.
 
 ### Error: “Could not instantiate mail function”
 

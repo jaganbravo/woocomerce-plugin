@@ -41,12 +41,12 @@ class Dataviz_AI_Digest_Mailer {
 
 		$msg = $captured
 			? $captured
-			: __( 'The server could not send email. On local or Docker installs, PHP mail() is usually disabled — install an SMTP plugin (e.g. WP Mail SMTP) or configure your host’s mail.', 'store-compass-for-woocommerce' );
+			: __( 'The server could not send email. On local or Docker installs, PHP mail() is usually disabled — install an SMTP plugin (e.g. WP Mail SMTP) or configure your host’s mail.', 'unmai-analytix-for-woocommerce' );
 
 		// PHPMailer when PHP mail() is missing/broken (typical on Docker/local).
 		if ( is_string( $msg ) && stripos( $msg, 'instantiate mail' ) !== false ) {
-			$msg .= "\n\n" . __( 'What this means: WordPress tried to use PHP’s mail() function, but this server cannot run it.', 'store-compass-for-woocommerce' )
-				. ' ' . __( 'Fix: Install “WP Mail SMTP” (free), choose “Other SMTP”, and enter Gmail (app password), Mailtrap, SendGrid, or your host’s SMTP. Then digests will send like any other WordPress email.', 'store-compass-for-woocommerce' );
+			$msg .= "\n\n" . __( 'What this means: WordPress tried to use PHP’s mail() function, but this server cannot run it.', 'unmai-analytix-for-woocommerce' )
+				. ' ' . __( 'Fix: Install “WP Mail SMTP” (free), choose “Other SMTP”, and enter Gmail (app password), Mailtrap, SendGrid, or your host’s SMTP. Then digests will send like any other WordPress email.', 'unmai-analytix-for-woocommerce' );
 		}
 
 		return new WP_Error( 'dataviz_digest_mail_failed', $msg );

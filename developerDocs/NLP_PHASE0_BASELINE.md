@@ -34,7 +34,7 @@ npm run test:nlp:phase0:headless
 If needed, force URL explicitly:
 
 ```bash
-PLUGIN_URL="http://localhost:8080/wp-admin/admin.php?page=store-compass-for-woocommerce" npm run test:nlp:phase0
+PLUGIN_URL="http://localhost:8080/wp-admin/admin.php?page=unmai-analytix-for-woocommerce" npm run test:nlp:phase0
 ```
 
 ## What to Capture During Baseline

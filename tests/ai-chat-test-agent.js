@@ -1,5 +1,5 @@
 /**
- * AI Chat Test Agent for Store Compass WooCommerce Plugin
+ * AI Chat Test Agent for Unmai Analytix WooCommerce Plugin
  * 
  * This script uses Playwright for browser automation and OpenAI for:
  * - Generating natural test questions
@@ -54,7 +54,7 @@ const openai = new OpenAI({
 
 // Configuration
 const CONFIG = {
-    pluginUrl: process.env.PLUGIN_URL || 'http://localhost:8080/wp-admin/admin.php?page=store-compass-for-woocommerce',
+    pluginUrl: process.env.PLUGIN_URL || 'http://localhost:8080/wp-admin/admin.php?page=unmai-analytix-for-woocommerce',
     adminUser: process.env.WP_ADMIN_USER || 'admin',
     adminPass: process.env.WP_ADMIN_PASS || 'admin',
     headless: false, // Set to true for CI/CD

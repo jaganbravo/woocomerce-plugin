@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-labelledby="t5">
-  <title id="t5">Dataviz AI  Feature discovery</title>
+  <title id="t5">Unmai Analytix  Feature discovery</title>
   <rect width="640" height="360" fill="#f6f7f7"/>
   <rect width="640" height="44" fill="#1d2327"/>
-  <text x="16" y="29" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="15" font-weight="600">Dataviz AI  Features</text>
+  <text x="16" y="29" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="15" font-weight="600">Unmai Analytix  Features</text>
   <rect x="24" y="68" width="280" height="120" rx="6" fill="#fff" stroke="#dcdcde"/>
   <text x="40" y="100" fill="#1d2327" font-family="system-ui,Segoe UI,sans-serif" font-size="14" font-weight="600">Charts</text>
   <rect x="40" y="112" width="200" height="8" rx="2" fill="#dcdcde"/>
