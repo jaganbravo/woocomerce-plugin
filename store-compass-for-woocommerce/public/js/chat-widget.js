@@ -11,12 +11,12 @@
 		$container.scrollTop( $container[0].scrollHeight );
 	}
 
-	$( document ).on( 'submit', '.dataviz-ai-chat-form', function( event ) {
+	$( document ).on( 'submit', '.unmai-analytix-chat-form, .dataviz-ai-chat-form', function( event ) {
 		event.preventDefault();
 
 		const $form = $( this );
-		const $widget = $form.closest( '.dataviz-ai-chat-widget' );
-		const $messages = $widget.find( '.dataviz-ai-chat-messages' );
+		const $widget = $form.closest( '.unmai-analytix-chat-widget, .dataviz-ai-chat-widget' );
+		const $messages = $widget.find( '.unmai-analytix-chat-messages, .dataviz-ai-chat-messages' );
 		const $textarea = $form.find( 'textarea[name="message"]' );
 		const message = $textarea.val().trim();
 

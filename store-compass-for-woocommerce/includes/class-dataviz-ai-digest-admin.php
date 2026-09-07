@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Dataviz_AI_Digest_Admin {
 
+	const PAGE_SLUG = 'unmai-analytix-digests';
+
 	/**
 	 * @var Dataviz_AI_Digest_Generator
 	 */
@@ -29,7 +31,7 @@ class Dataviz_AI_Digest_Admin {
 			__( 'Email Digests', 'unmai-analytix-for-woocommerce' ),
 			__( 'Email Digests', 'unmai-analytix-for-woocommerce' ),
 			'manage_woocommerce',
-			'dataviz-ai-digests',
+			self::PAGE_SLUG,
 			array( $this, 'render_page' )
 		);
 	}
@@ -40,17 +42,17 @@ class Dataviz_AI_Digest_Admin {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public function enqueue_assets( $hook_suffix ) {
-		if ( false === strpos( $hook_suffix, 'dataviz-ai-digests' ) ) {
+		if ( false === strpos( $hook_suffix, self::PAGE_SLUG ) ) {
 			return;
 		}
 		wp_enqueue_style(
-			'dataviz-ai-digest-admin',
+			'unmai-analytix-digest-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/digest-admin.css',
 			array(),
 			DATAVIZ_AI_WC_VERSION
 		);
 		wp_enqueue_script(
-			'dataviz-ai-digest-admin',
+			'unmai-analytix-digest-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/digest-admin.js',
 			array(),
 			DATAVIZ_AI_WC_VERSION,
@@ -221,7 +223,7 @@ class Dataviz_AI_Digest_Admin {
 	private function redirect_with_notice( $notice ) {
 		wp_safe_redirect( add_query_arg(
 			array(
-				'page'   => 'dataviz-ai-digests',
+				'page'   => self::PAGE_SLUG,
 				'notice' => $notice,
 			),
 			admin_url( 'admin.php' )
@@ -240,7 +242,7 @@ class Dataviz_AI_Digest_Admin {
 		<div class="wrap dataviz-digest-wrap">
 			<?php $this->render_email_delivery_help(); ?>
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Email Digests', 'unmai-analytix-for-woocommerce' ); ?></h1>
-			<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'dataviz-ai-digests', 'digest_action' => 'new' ), admin_url( 'admin.php' ) ) ); ?>" class="page-title-action"><?php esc_html_e( 'Add New Digest', 'unmai-analytix-for-woocommerce' ); ?></a>
+			<a href="<?php echo esc_url( add_query_arg( array( 'page' => self::PAGE_SLUG, 'digest_action' => 'new' ), admin_url( 'admin.php' ) ) ); ?>" class="page-title-action"><?php esc_html_e( 'Add New Digest', 'unmai-analytix-for-woocommerce' ); ?></a>
 			<hr class="wp-header-end">
 
 			<?php $this->render_notices(); ?>
@@ -250,7 +252,7 @@ class Dataviz_AI_Digest_Admin {
 					<div class="dataviz-digest-empty__icon">&#128236;</div>
 					<h2><?php esc_html_e( 'No digests configured yet', 'unmai-analytix-for-woocommerce' ); ?></h2>
 					<p><?php esc_html_e( 'Schedule automated email reports to stay on top of your store performance without logging in.', 'unmai-analytix-for-woocommerce' ); ?></p>
-					<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'dataviz-ai-digests', 'digest_action' => 'new' ), admin_url( 'admin.php' ) ) ); ?>" class="button button-primary button-hero"><?php esc_html_e( 'Create Your First Digest', 'unmai-analytix-for-woocommerce' ); ?></a>
+					<a href="<?php echo esc_url( add_query_arg( array( 'page' => self::PAGE_SLUG, 'digest_action' => 'new' ), admin_url( 'admin.php' ) ) ); ?>" class="button button-primary button-hero"><?php esc_html_e( 'Create Your First Digest', 'unmai-analytix-for-woocommerce' ); ?></a>
 				</div>
 			<?php else : ?>
 				<table class="wp-list-table widefat fixed striped dataviz-digest-table">
@@ -268,13 +270,13 @@ class Dataviz_AI_Digest_Admin {
 				<tbody>
 				<?php foreach ( $digests as $d ) : ?>
 					<?php
-					$edit_url    = add_query_arg( array( 'page' => 'dataviz-ai-digests', 'digest_action' => 'edit', 'digest_id' => $d->id ), admin_url( 'admin.php' ) );
-					$preview_url = add_query_arg( array( 'page' => 'dataviz-ai-digests', 'digest_action' => 'preview', 'digest_id' => $d->id ), admin_url( 'admin.php' ) );
-					$delete_url  = wp_nonce_url( add_query_arg( array( 'page' => 'dataviz-ai-digests', 'digest_action' => 'delete', 'digest_id' => $d->id ), admin_url( 'admin.php' ) ), 'dataviz_digest_delete_' . $d->id );
+					$edit_url    = add_query_arg( array( 'page' => self::PAGE_SLUG, 'digest_action' => 'edit', 'digest_id' => $d->id ), admin_url( 'admin.php' ) );
+					$preview_url = add_query_arg( array( 'page' => self::PAGE_SLUG, 'digest_action' => 'preview', 'digest_id' => $d->id ), admin_url( 'admin.php' ) );
+					$delete_url  = wp_nonce_url( add_query_arg( array( 'page' => self::PAGE_SLUG, 'digest_action' => 'delete', 'digest_id' => $d->id ), admin_url( 'admin.php' ) ), 'dataviz_digest_delete_' . $d->id );
 					$toggle_action = $d->status === 'active' ? 'pause' : 'activate';
 					$toggle_label  = $d->status === 'active' ? __( 'Pause', 'unmai-analytix-for-woocommerce' ) : __( 'Activate', 'unmai-analytix-for-woocommerce' );
-					$toggle_url    = wp_nonce_url( add_query_arg( array( 'page' => 'dataviz-ai-digests', 'digest_action' => $toggle_action, 'digest_id' => $d->id ), admin_url( 'admin.php' ) ), 'dataviz_digest_' . $toggle_action . '_' . $d->id );
-					$send_now_url  = wp_nonce_url( add_query_arg( array( 'page' => 'dataviz-ai-digests', 'digest_action' => 'send_now', 'digest_id' => $d->id ), admin_url( 'admin.php' ) ), 'dataviz_digest_send_now_' . $d->id );
+					$toggle_url    = wp_nonce_url( add_query_arg( array( 'page' => self::PAGE_SLUG, 'digest_action' => $toggle_action, 'digest_id' => $d->id ), admin_url( 'admin.php' ) ), 'dataviz_digest_' . $toggle_action . '_' . $d->id );
+					$send_now_url  = wp_nonce_url( add_query_arg( array( 'page' => self::PAGE_SLUG, 'digest_action' => 'send_now', 'digest_id' => $d->id ), admin_url( 'admin.php' ) ), 'dataviz_digest_send_now_' . $d->id );
 
 					$schedule_label = '';
 					$send_time      = sprintf( '%02d:00', (int) $d->send_hour );
@@ -460,7 +462,7 @@ class Dataviz_AI_Digest_Admin {
 		$data = $this->generator->build( $digest );
 		$html = Dataviz_AI_Digest_Email_Template::render( $data );
 
-		$back_url = add_query_arg( array( 'page' => 'dataviz-ai-digests' ), admin_url( 'admin.php' ) );
+		$back_url = add_query_arg( array( 'page' => self::PAGE_SLUG ), admin_url( 'admin.php' ) );
 		?>
 		<div class="wrap dataviz-digest-wrap">
 			<h1>

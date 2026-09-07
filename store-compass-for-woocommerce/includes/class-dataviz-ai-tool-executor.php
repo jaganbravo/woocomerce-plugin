@@ -521,7 +521,7 @@ class Dataviz_AI_Tool_Executor {
 			$message .= "\n" . __( 'Description:', 'unmai-analytix-for-woocommerce' ) . "\n" . $description . "\n";
 		}
 		/* translators: %s: admin URL to the feature requests list */
-		$message .= "\n" . sprintf( __( 'View all feature requests: %1$s', 'unmai-analytix-for-woocommerce' ), admin_url( 'admin.php?page=dataviz-ai-feature-requests' ) ) . "\n";
+		$message .= "\n" . sprintf( __( 'View all feature requests: %1$s', 'unmai-analytix-for-woocommerce' ), admin_url( 'admin.php?page=unmai-analytix-support-requests' ) ) . "\n";
 
 		$admins = get_users( array( 'role' => 'administrator' ) );
 		foreach ( $admins as $admin ) {

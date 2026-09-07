@@ -50,6 +50,20 @@ class Dataviz_AI_Admin {
 	protected $menu_slug = 'unmai-analytix-for-woocommerce';
 
 	/**
+	 * FAQ submenu slug.
+	 *
+	 * @var string
+	 */
+	protected $faq_slug = 'unmai-analytix-faq';
+
+	/**
+	 * Onboarding submenu slug.
+	 *
+	 * @var string
+	 */
+	protected $onboarding_slug = 'unmai-analytix-onboarding';
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string                  $plugin_name  Plugin slug.
@@ -85,7 +99,7 @@ class Dataviz_AI_Admin {
 			__( 'FAQ', 'unmai-analytix-for-woocommerce' ),
 			__( 'FAQ', 'unmai-analytix-for-woocommerce' ),
 			'manage_woocommerce',
-			'dataviz-ai-faq',
+			$this->faq_slug,
 			array( $this, 'render_faq_page' )
 		);
 
@@ -94,7 +108,7 @@ class Dataviz_AI_Admin {
 			__( 'Onboarding', 'unmai-analytix-for-woocommerce' ),
 			__( 'Onboarding', 'unmai-analytix-for-woocommerce' ),
 			'manage_woocommerce',
-			'dataviz-ai-onboarding',
+			$this->onboarding_slug,
 			array( $this, 'render_onboarding_page' )
 		);
 	}
@@ -156,8 +170,8 @@ class Dataviz_AI_Admin {
 	 */
 	public function enqueue_assets( $hook ) {
 		$is_main_page       = 'toplevel_page_' . $this->menu_slug === $hook;
-		$is_faq_page        = $this->menu_slug . '_page_dataviz-ai-faq' === $hook;
-		$is_onboarding_page = $this->menu_slug . '_page_dataviz-ai-onboarding' === $hook;
+		$is_faq_page        = $this->menu_slug . '_page_' . $this->faq_slug === $hook;
+		$is_onboarding_page = $this->menu_slug . '_page_' . $this->onboarding_slug === $hook;
 
 		if ( ! $is_main_page && ! $is_faq_page && ! $is_onboarding_page ) {
 			return;
@@ -174,7 +188,7 @@ class Dataviz_AI_Admin {
 		// Only enqueue scripts for main page.
 		if ( $is_main_page ) {
 			wp_enqueue_script(
-				'dataviz-ai-chartjs',
+				'unmai-analytix-chartjs',
 				DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/vendor/chart.umd.min.js',
 				array(),
 				'4.5.1',
@@ -184,7 +198,7 @@ class Dataviz_AI_Admin {
 			wp_enqueue_script(
 			$this->plugin_name . '-admin',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/admin.js',
-			array( 'jquery', 'dataviz-ai-chartjs' ),
+			array( 'jquery', 'unmai-analytix-chartjs' ),
 			$this->version,
 			true
 		);
@@ -305,7 +319,7 @@ class Dataviz_AI_Admin {
 						<div class="dataviz-ai-chat-warning">
 							<p class="notice inline notice-warning">
 								<strong><?php esc_html_e( 'API key required.', 'unmai-analytix-for-woocommerce' ); ?></strong> 
-								<?php esc_html_e( 'Please configure your API key via environment variables (OPENAI_API_KEY or DATAVIZ_AI_API_KEY) or by editing the config.php file in the plugin directory.', 'unmai-analytix-for-woocommerce' ); ?>
+								<?php esc_html_e( 'Please configure your API key via environment variables (OPENAI_API_KEY or UNMAI_ANALYTIX_API_KEY) or by editing the config.php file in the plugin directory.', 'unmai-analytix-for-woocommerce' ); ?>
 							</p>
 						</div>
 					<?php endif; ?>

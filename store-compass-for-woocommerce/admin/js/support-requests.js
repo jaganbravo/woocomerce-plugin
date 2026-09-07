@@ -2,7 +2,7 @@
  * Support request detail modal.
  */
 (function () {
-	var i18n = window.datavizSrModal || {};
+	var i18n = window.unmaiAnalytixSrModal || window.datavizSrModal || {};
 
 	function escHtml(s) {
 		var d = document.createElement('div');

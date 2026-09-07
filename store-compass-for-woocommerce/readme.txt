@@ -50,7 +50,7 @@ Optional thumbs up/down feedback on admin chat assistant messages may be stored 
 1. Upload the plugin files to `/wp-content/plugins/unmai-analytix-for-woocommerce/`, or install the ZIP via **Plugins → Add New → Upload Plugin**.
 2. Activate the plugin through the **Plugins** menu in WordPress.
 3. Ensure **WooCommerce** is installed and active.
-4. **Configure your API key** — same precedence as the FAQ below (env → `DATAVIZ_AI_API_KEY` in `wp-config.php` / `config.php` → optional future Settings/DB). Details: `docs/API-KEY-MANAGEMENT.md`.
+4. **Configure your API key** — same precedence as the FAQ below (env → `UNMAI_ANALYTIX_API_KEY` in `wp-config.php` / `config.php` → optional future Settings/DB). Legacy `DATAVIZ_AI_API_KEY` still works. Details: `docs/API-KEY-MANAGEMENT.md`.
 5. Open **Unmai Analytix** from the admin menu and start chatting.
 
 == Frequently Asked Questions ==
@@ -61,7 +61,7 @@ No. WooCommerce must be installed and active.
 
 = Where do I set the API key? =
 
-**Precedence (first match wins):** (1) **Environment** — `OPENAI_API_KEY` or `DATAVIZ_AI_API_KEY` (optional `DATAVIZ_AI_API_BASE_URL`). (2) **Constant** — `define( 'DATAVIZ_AI_API_KEY', '...' );` in `wp-config.php` *or* `config.php` (from `config.php.example`). (3) **Database** — only if your installed version provides a **Settings** screen; ignored when (1) or (2) is set. Full walkthrough: `docs/API-KEY-MANAGEMENT.md` inside the plugin package (path on server: `wp-content/plugins/…/docs/`).
+**Precedence (first match wins):** (1) **Environment** — `OPENAI_API_KEY` or `UNMAI_ANALYTIX_API_KEY` (optional `UNMAI_ANALYTIX_API_BASE_URL`). Legacy names `DATAVIZ_AI_API_KEY` / `DATAVIZ_AI_API_BASE_URL` still work. (2) **Constant** — `define( 'UNMAI_ANALYTIX_API_KEY', '...' );` in `wp-config.php` *or* `config.php` (from `config.php.example`). (3) **Database** — only if your installed version provides a **Settings** screen; ignored when (1) or (2) is set. Full walkthrough: `docs/API-KEY-MANAGEMENT.md` inside the plugin package (path on server: `wp-content/plugins/…/docs/`).
 
 = Why don’t I receive digest emails? =
 

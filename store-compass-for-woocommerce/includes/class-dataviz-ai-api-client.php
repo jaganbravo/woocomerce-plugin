@@ -50,27 +50,25 @@ class Dataviz_AI_API_Client {
 
 	/**
 	 * Return configured API URL.
-	 * 
+	 *
 	 * Priority order:
-	 * 1. Environment variable: DATAVIZ_AI_API_BASE_URL
-	 * 2. Config constant: DATAVIZ_AI_API_BASE_URL
+	 * 1. Environment: UNMAI_ANALYTIX_API_BASE_URL, then DATAVIZ_AI_API_BASE_URL (legacy)
+	 * 2. Constant: UNMAI_ANALYTIX_API_BASE_URL, then DATAVIZ_AI_API_BASE_URL (legacy)
 	 * 3. WordPress option (for backward compatibility)
 	 *
 	 * @return string
 	 */
 	public function get_api_url() {
-		// Check environment variable first
-		$env_url = getenv( 'DATAVIZ_AI_API_BASE_URL' );
-		if ( false !== $env_url && ! empty( $env_url ) ) {
+		$env_url = $this->first_nonempty_env( array( 'UNMAI_ANALYTIX_API_BASE_URL', 'DATAVIZ_AI_API_BASE_URL' ) );
+		if ( '' !== $env_url ) {
 			return esc_url_raw( $env_url );
 		}
 
-		// Check config constant
-		if ( defined( 'DATAVIZ_AI_API_BASE_URL' ) && ! empty( DATAVIZ_AI_API_BASE_URL ) ) {
-			return esc_url_raw( DATAVIZ_AI_API_BASE_URL );
+		$const_url = $this->first_nonempty_constant( array( 'UNMAI_ANALYTIX_API_BASE_URL', 'DATAVIZ_AI_API_BASE_URL' ) );
+		if ( '' !== $const_url ) {
+			return esc_url_raw( $const_url );
 		}
 
-		// Fall back to WordPress option (backward compatibility)
 		$settings = $this->get_settings();
 		return isset( $settings['api_url'] ) ? esc_url_raw( $settings['api_url'] ) : '';
 	}
@@ -86,32 +84,61 @@ class Dataviz_AI_API_Client {
 
 	/**
 	 * Return configured API key.
-	 * 
+	 *
 	 * Priority order:
-	 * 1. Environment variable: OPENAI_API_KEY or DATAVIZ_AI_API_KEY
-	 * 2. Config constant: DATAVIZ_AI_API_KEY
+	 * 1. Environment: OPENAI_API_KEY, UNMAI_ANALYTIX_API_KEY, then DATAVIZ_AI_API_KEY (legacy)
+	 * 2. Constant: UNMAI_ANALYTIX_API_KEY, then DATAVIZ_AI_API_KEY (legacy)
 	 * 3. WordPress option (for backward compatibility)
 	 *
 	 * @return string
 	 */
 	public function get_api_key() {
-		// Check environment variables first (OpenAI standard, then custom)
-		$env_key = getenv( 'OPENAI_API_KEY' );
-		if ( false === $env_key || empty( $env_key ) ) {
-			$env_key = getenv( 'DATAVIZ_AI_API_KEY' );
-		}
-		if ( false !== $env_key && ! empty( $env_key ) ) {
+		$env_key = $this->first_nonempty_env( array( 'OPENAI_API_KEY', 'UNMAI_ANALYTIX_API_KEY', 'DATAVIZ_AI_API_KEY' ) );
+		if ( '' !== $env_key ) {
 			return sanitize_text_field( $env_key );
 		}
 
-		// Check config constant
-		if ( defined( 'DATAVIZ_AI_API_KEY' ) && ! empty( DATAVIZ_AI_API_KEY ) ) {
-			return sanitize_text_field( DATAVIZ_AI_API_KEY );
+		$const_key = $this->first_nonempty_constant( array( 'UNMAI_ANALYTIX_API_KEY', 'DATAVIZ_AI_API_KEY' ) );
+		if ( '' !== $const_key ) {
+			return sanitize_text_field( $const_key );
 		}
 
-		// Fall back to WordPress option (backward compatibility)
 		$settings = $this->get_settings();
 		return isset( $settings['api_key'] ) ? (string) $settings['api_key'] : '';
+	}
+
+	/**
+	 * First non-empty environment variable from a list of names.
+	 *
+	 * @param string[] $names Environment variable names.
+	 * @return string
+	 */
+	protected function first_nonempty_env( array $names ) {
+		foreach ( $names as $name ) {
+			$val = getenv( $name );
+			if ( false !== $val && '' !== $val ) {
+				return $val;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * First non-empty defined PHP constant from a list of names.
+	 *
+	 * @param string[] $names Constant names.
+	 * @return string
+	 */
+	protected function first_nonempty_constant( array $names ) {
+		foreach ( $names as $name ) {
+			if ( defined( $name ) ) {
+				$val = constant( $name );
+				if ( is_string( $val ) && '' !== $val ) {
+					return $val;
+				}
+			}
+		}
+		return '';
 	}
 
 	/**

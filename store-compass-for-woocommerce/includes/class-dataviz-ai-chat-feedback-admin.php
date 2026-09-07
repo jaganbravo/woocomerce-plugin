@@ -165,7 +165,7 @@ class Dataviz_AI_Chat_Feedback_Table extends WP_List_Table {
  */
 class Dataviz_AI_Chat_Feedback_Admin {
 
-	const MENU_SLUG = 'dataviz-ai-chat-feedback';
+	const MENU_SLUG = 'unmai-analytix-chat-feedback';
 
 	/**
 	 * Error code → message (mirrors Support & Requests pattern).
@@ -200,7 +200,7 @@ class Dataviz_AI_Chat_Feedback_Admin {
 			return;
 		}
 		wp_enqueue_style(
-			'dataviz-ai-support-requests',
+			'unmai-analytix-support-requests',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/support-requests.css',
 			array(),
 			DATAVIZ_AI_WC_VERSION

@@ -26,7 +26,7 @@ These items block a safe public release and will draw plugin-review feedback if 
 ## Phase 2 — Repository & legal metadata
 
 - [x] Add a **GPLv2 (or later)** file to the plugin root, e.g. `license.txt`, with the standard license text (same as `readme.txt` claims).
-- [x] Replace **placeholder URLs** in `dataviz-ai-woocommerce.php`: `Plugin URI`, `Author URI` (no `example.com` for final submit).
+- [x] Replace **placeholder URLs** in `unmai-analytix-for-woocommerce.php`: `Plugin URI`, `Author URI` (no `example.com` for final submit).
 - [ ] Set **`Contributors:`** in `readme.txt` to your **real** WordPress.org username(s) (comma-separated; must match an existing account, e.g. `https://profiles.wordpress.org/*yourname*/`). *Removed a bad placeholder (`datavizai`); add this line when you have registered on WordPress.org. Until then the readme omits the field; keep **`Author URI`** in the main plugin file pointed at a valid URL (currently the plugin’s directory URL — you may change `Author URI` to your profile if you prefer).*
 - [x] Align **`Stable tag`** in `readme.txt` with the **`Version:`** header in the main plugin file.
 
@@ -97,7 +97,7 @@ Always verify WooCommerce + your plugin on whichever environment matches your ne
 | `nopriv` AJAX | `includes/class-dataviz-ai-loader.php` |
 | Chat capability | `includes/class-dataviz-ai-ajax-handler.php` → `handle_chat_request()` |
 | Shortcode | `includes/class-dataviz-ai-chat-widget.php` |
-| Headers & version | `dataviz-ai-woocommerce.php` |
+| Headers & version | `unmai-analytix-for-woocommerce.php` |
 | Directory readme | `readme.txt` |
 | Uninstall | `uninstall.php` |
 

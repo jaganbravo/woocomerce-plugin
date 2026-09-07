@@ -226,7 +226,7 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 
 class Dataviz_AI_Support_Requests_Admin {
 
-	const MENU_SLUG = 'dataviz-ai-support-requests';
+	const MENU_SLUG = 'unmai-analytix-support-requests';
 
 	/**
 	 * Human-readable message for wp_mail error codes.
@@ -288,21 +288,21 @@ class Dataviz_AI_Support_Requests_Admin {
 			return;
 		}
 		wp_enqueue_style(
-			'dataviz-ai-support-requests',
+			'unmai-analytix-support-requests',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/support-requests.css',
 			array(),
 			DATAVIZ_AI_WC_VERSION
 		);
 		wp_enqueue_script(
-			'dataviz-ai-support-requests',
+			'unmai-analytix-support-requests',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/support-requests.js',
 			array(),
 			DATAVIZ_AI_WC_VERSION,
 			true
 		);
 		wp_localize_script(
-			'dataviz-ai-support-requests',
-			'datavizSrModal',
+			'unmai-analytix-support-requests',
+			'unmaiAnalytixSrModal',
 			array(
 				'question'     => __( 'Question', 'unmai-analytix-for-woocommerce' ),
 				'errorReason'  => __( 'Error / Reason', 'unmai-analytix-for-woocommerce' ),

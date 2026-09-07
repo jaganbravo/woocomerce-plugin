@@ -360,7 +360,7 @@ class Dataviz_AI_Onboarding {
 						<div class="dataviz-ai-onboarding-instructions">
 							<p><strong><?php esc_html_e( 'Option 1: Environment Variable (Recommended)', 'unmai-analytix-for-woocommerce' ); ?></strong></p>
 							<p><?php esc_html_e( 'Set one of these environment variables:', 'unmai-analytix-for-woocommerce' ); ?></p>
-							<code>OPENAI_API_KEY</code> <?php esc_html_e( 'or', 'unmai-analytix-for-woocommerce' ); ?> <code>DATAVIZ_AI_API_KEY</code>
+							<code>OPENAI_API_KEY</code> <?php esc_html_e( 'or', 'unmai-analytix-for-woocommerce' ); ?> <code>UNMAI_ANALYTIX_API_KEY</code>
 							<p><strong><?php esc_html_e( 'Option 2: Config File', 'unmai-analytix-for-woocommerce' ); ?></strong></p>
 							<p><?php esc_html_e( 'Edit config.php in the plugin directory.', 'unmai-analytix-for-woocommerce' ); ?></p>
 						</div>

@@ -46,7 +46,7 @@ This document records a **static code review** against common WordPress.org, Woo
 
 | Item | Notes |
 |------|--------|
-| WooCommerce required | Activation checks `class_exists( 'WooCommerce' )` and fails cleanly; runtime admin notice if inactive (`dataviz-ai-woocommerce.php`). |
+| WooCommerce required | Activation checks `class_exists( 'WooCommerce' )` and fails cleanly; runtime admin notice if inactive (`unmai-analytix-for-woocommerce.php`). |
 | HPOS declared | `FeaturesUtil::declare_compatibility( 'custom_order_tables', … )` on `before_woocommerce_init`. |
 | Admin AJAX: nonce + capability | e.g. `handle_analysis_request()`: `check_ajax_referer( 'dataviz_ai_admin', 'nonce' )` and `current_user_can( 'manage_woocommerce' )` (`class-dataviz-ai-ajax-handler.php`). Similar pattern on history, feature request, inventory, debug intent. |
 | Input sanitization (admin paths) | `sanitize_text_field` / `sanitize_textarea_field` with `wp_unslash` on request data. |

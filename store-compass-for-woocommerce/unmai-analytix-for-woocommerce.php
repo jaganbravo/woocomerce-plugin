@@ -16,6 +16,10 @@
  * WC requires at least: 6.0
  * WC tested up to: 10.7
  *
+ * Internal identifiers (PHP classes Dataviz_AI_*, AJAX actions/nonces dataviz_ai_*,
+ * constants DATAVIZ_AI_WC_*, option/table prefixes dataviz_ai_*) are frozen so
+ * existing installs, stored data, and client scripts keep working.
+ *
  * @package Dataviz_AI_WooCommerce
  */
 
@@ -178,6 +182,37 @@ function dataviz_ai_wc_cleanup_chat_history() {
 }
 
 add_action( 'plugins_loaded', 'dataviz_ai_wc_init', 20 );
+add_action( 'admin_init', 'dataviz_ai_wc_redirect_legacy_admin_pages' );
+
+/**
+ * Redirect old dataviz-ai-* admin page slugs to unmai-analytix-* equivalents.
+ *
+ * @return void
+ */
+function dataviz_ai_wc_redirect_legacy_admin_pages() {
+	if ( ! is_admin() || ! isset( $_GET['page'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return;
+	}
+
+	$page = sanitize_key( wp_unslash( $_GET['page'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$map  = array(
+		'dataviz-ai-faq'              => 'unmai-analytix-faq',
+		'dataviz-ai-onboarding'       => 'unmai-analytix-onboarding',
+		'dataviz-ai-digests'          => 'unmai-analytix-digests',
+		'dataviz-ai-support-requests' => 'unmai-analytix-support-requests',
+		'dataviz-ai-chat-feedback'    => 'unmai-analytix-chat-feedback',
+		'dataviz-ai-feature-requests' => 'unmai-analytix-support-requests',
+	);
+
+	if ( ! isset( $map[ $page ] ) ) {
+		return;
+	}
+
+	$query         = wp_unslash( $_GET ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$query['page'] = $map[ $page ];
+	wp_safe_redirect( admin_url( 'admin.php?' . http_build_query( $query ) ) );
+	exit;
+}
 
 /**
  * Register personal data exporters.

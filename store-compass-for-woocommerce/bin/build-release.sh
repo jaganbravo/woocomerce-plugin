@@ -6,7 +6,7 @@ set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SLUG="unmai-analytix-for-woocommerce"
-MAIN_PHP="${PLUGIN_DIR}/dataviz-ai-woocommerce.php"
+MAIN_PHP="${PLUGIN_DIR}/unmai-analytix-for-woocommerce.php"
 
 if [[ ! -f "$MAIN_PHP" ]]; then
 	echo "ERROR: Expected main file at $MAIN_PHP" >&2

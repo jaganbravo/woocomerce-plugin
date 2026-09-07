@@ -3,9 +3,11 @@
  * Configuration file for Unmai Analytix WooCommerce Plugin
  *
  * Copy this file to config.php and update the values below.
- * 
+ *
  * IMPORTANT: Never commit config.php to version control!
- * 
+ *
+ * Legacy aliases still work: DATAVIZ_AI_API_KEY and DATAVIZ_AI_API_BASE_URL.
+ *
  * @package Dataviz_AI_WooCommerce
  */
 
@@ -15,22 +17,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * API Base URL
- * 
+ *
  * Leave empty to use OpenAI directly.
  * Set to your custom backend URL (e.g., 'https://api.yourdomain.com')
- * 
+ *
  * @var string
  */
-define( 'DATAVIZ_AI_API_BASE_URL', '' );
+define( 'UNMAI_ANALYTIX_API_BASE_URL', '' );
 
 /**
  * API Key
- * 
+ *
  * Your OpenAI API key or custom backend API key.
  * Format: 'sk-...' for OpenAI
- * 
+ *
  * @var string
  */
-define( 'DATAVIZ_AI_API_KEY', '' );
-
-
+define( 'UNMAI_ANALYTIX_API_KEY', '' );

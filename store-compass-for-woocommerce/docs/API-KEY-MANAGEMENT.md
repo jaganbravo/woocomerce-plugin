@@ -36,8 +36,8 @@ The plugin uses `Dataviz_AI_API_Client::get_api_key()`. The **first** non‑empt
 
 | Priority | Source | Details |
 |----------|--------|---------|
-| **1** | **Environment** | `OPENAI_API_KEY`, or if empty `DATAVIZ_AI_API_KEY` |
-| **2** | **PHP constant** | `define( 'DATAVIZ_AI_API_KEY', 'sk-...' );` — must be defined *before* the plugin needs it (e.g. in `wp-config.php` or `config.php` loaded by the plugin) |
+| **1** | **Environment** | `OPENAI_API_KEY`, or if empty `UNMAI_ANALYTIX_API_KEY`, then legacy `DATAVIZ_AI_API_KEY` |
+| **2** | **PHP constant** | `define( 'UNMAI_ANALYTIX_API_KEY', 'sk-...' );` — must be defined *before* the plugin needs it (e.g. in `wp-config.php` or `config.php` loaded by the plugin). Legacy `DATAVIZ_AI_API_KEY` still works. |
 | **3** | **WordPress options** | Option key `dataviz_ai_wc_settings`, array key `api_key` — for backward compatibility; a **Settings** page in the admin can save here if you add one |
 
 **If** priority 1 or 2 is set, it **overrides** the value stored in the database. That is intentional: production sites often use env/constant and keep secrets out of the options table.
@@ -46,8 +46,8 @@ The plugin uses `Dataviz_AI_API_Client::get_api_key()`. The **first** non‑empt
 
 For a **non‑default** API endpoint (e.g. custom proxy), the plugin uses the same kind of order for **URL**:
 
-1. `DATAVIZ_AI_API_BASE_URL` (environment)
-2. `define( 'DATAVIZ_AI_API_BASE_URL', 'https://...' );`
+1. `UNMAI_ANALYTIX_API_BASE_URL` (environment), then legacy `DATAVIZ_AI_API_BASE_URL`
+2. `define( 'UNMAI_ANALYTIX_API_BASE_URL', 'https://...' );` (legacy `DATAVIZ_AI_API_BASE_URL`)
 3. `dataviz_ai_wc_settings['api_url']` in the database
 
 If no custom base URL is set, direct OpenAI chat uses the default OpenAI URL in code.
@@ -60,8 +60,8 @@ If no custom base URL is set, direct OpenAI chat uses the default OpenAI URL in 
 
 **Best for:** Docker, PaaS, and many **managed** hosts with an “Environment variables” (or similar) screen.
 
-- Set `OPENAI_API_KEY` = your secret key, **or** `DATAVIZ_AI_API_KEY` if you prefer a namespaced name.
-- Optional: `DATAVIZ_AI_API_BASE_URL` for a custom base URL.
+- Set `OPENAI_API_KEY` = your secret key, **or** `UNMAI_ANALYTIX_API_KEY` if you prefer a namespaced name (legacy: `DATAVIZ_AI_API_KEY`).
+- Optional: `UNMAI_ANALYTIX_API_BASE_URL` for a custom base URL (legacy: `DATAVIZ_AI_API_BASE_URL`).
 - **How** you set them depends on the host (panel, `docker-compose`, Kubernetes secrets, etc.) — not on WordPress itself.
 
 ### B. `wp-config.php` (root of the WordPress install)
@@ -71,21 +71,21 @@ If no custom base URL is set, direct OpenAI chat uses the default OpenAI URL in 
 Add **above** the line that says to stop editing (or follow your host’s doc):
 
 ```php
-define( 'DATAVIZ_AI_API_KEY', 'sk-...' );
+define( 'UNMAI_ANALYTIX_API_KEY', 'sk-...' );
 // Optional:
-// define( 'DATAVIZ_AI_API_BASE_URL', 'https://your-proxy.example.com' );
+// define( 'UNMAI_ANALYTIX_API_BASE_URL', 'https://your-proxy.example.com' );
 ```
 
-**Note:** uses the **constant** `DATAVIZ_AI_API_KEY` (not the env var `OPENAI_API_KEY` in PHP — that one is only read from the environment in this plugin’s client).
+**Note:** uses the **constant** `UNMAI_ANALYTIX_API_KEY` (not the env var `OPENAI_API_KEY` in PHP — that one is only read from the environment in this plugin’s client). Legacy `DATAVIZ_AI_API_KEY` / `DATAVIZ_AI_API_BASE_URL` constants are still accepted.
 
 ### C. `config.php` in the plugin directory (copy from `config.php.example`)
 
 **Best for:** deployments where you want secrets **next to the plugin** without touching core WordPress files.
 
-1. In the **plugin** folder (same place as the main `dataviz-ai-woocommerce.php` — typically `wp-content/plugins/unmai-analytix-for-woocommerce/` when installed from the release ZIP), copy `config.php.example` → `config.php`.
+1. In the **plugin** folder (same place as the main `unmai-analytix-for-woocommerce.php` — typically `wp-content/plugins/unmai-analytix-for-woocommerce/` when installed from the release ZIP), copy `config.php.example` → `config.php`.
 2. Fill in:
-   - `define( 'DATAVIZ_AI_API_KEY', 'sk-...' );`
-   - optionally `DATAVIZ_AI_API_BASE_URL`
+   - `define( 'UNMAI_ANALYTIX_API_KEY', 'sk-...' );`
+   - optionally `UNMAI_ANALYTIX_API_BASE_URL`
 3. **Do not commit** `config.php` to public Git — the repo’s `.gitignore` usually excludes it. Ship only `config.php.example` in the distributed ZIP.
 
 The main plugin file **loads** `config.php` automatically if the file exists.
@@ -95,7 +95,7 @@ The main plugin file **loads** `config.php` automatically if the file exists.
 **Best for:** a future **Settings** page in **wp-admin** where the user pastes the key and you call `update_option( 'dataviz_ai_wc_settings', $merged )`, merging with any existing `api_url` / other keys so you do not overwrite unrelated data.
 
 - Easiest for **non‑technical** merchants.
-- **Lower priority** than env/constant: if env or `DATAVIZ_AI_API_KEY` is set, the stored option is **not** used for outbound calls.
+- **Lower priority** than env/constant: if env or `UNMAI_ANALYTIX_API_KEY` (or legacy `DATAVIZ_AI_API_KEY`) is set, the stored option is **not** used for outbound calls.
 - **Hardening (optional):** you can store the value **encrypted in the options table** (e.g. with PHP OpenSSL) and decrypt only at runtime. Derive a site-specific secret from **`wp-config.php`** (`AUTH_KEY` + salts, or a dedicated `define( 'DATAVIZ_AI_ENCRYPTION_KEY', '...' )`) so a raw database dump is not a plaintext key. Rotating those salts/keys may require the user to **re‑enter** the API key if you do not add a migration.
 
 ### E. What does *not* apply here
