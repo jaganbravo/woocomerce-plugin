@@ -1,3 +1,4 @@
+.unmai-analytix-chat-widget,
 .dataviz-ai-chat-widget {
 	border: 1px solid #e2e4e7;
 	border-radius: 8px;
@@ -8,6 +9,8 @@
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.unmai-analytix-chat-widget .unmai-analytix-chat-messages,
+.unmai-analytix-chat-widget .dataviz-ai-chat-messages,
 .dataviz-ai-chat-widget .dataviz-ai-chat-messages {
 	min-height: 200px;
 	max-height: 320px;
@@ -19,28 +22,33 @@
 	background: #fbfbfc;
 }
 
+.unmai-analytix-chat-widget .unmai-analytix-chat-form,
+.unmai-analytix-chat-widget .dataviz-ai-chat-form,
 .dataviz-ai-chat-widget .dataviz-ai-chat-form {
 	display: flex;
 	flex-direction: column;
 	gap: 0.5rem;
 }
 
+.unmai-analytix-chat-widget textarea,
 .dataviz-ai-chat-widget textarea {
 	min-height: 80px;
 	resize: vertical;
 }
 
+.unmai-analytix-chat-widget .message,
 .dataviz-ai-chat-widget .message {
 	margin-bottom: 0.75rem;
 }
 
+.unmai-analytix-chat-widget .message--user,
 .dataviz-ai-chat-widget .message--user {
 	text-align: right;
 	color: #1d4ed8;
 }
 
+.unmai-analytix-chat-widget .message--assistant,
 .dataviz-ai-chat-widget .message--assistant {
 	text-align: left;
 	color: #111827;
 }
-

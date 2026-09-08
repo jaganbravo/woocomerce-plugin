@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build a WordPress-installable ZIP (folder: dataviz-ai-for-woocommerce/).
+# Build a WordPress-installable ZIP (folder: unmai-analytix-for-woocommerce/).
 # Slug and Text Domain header must both use "for-woocommerce" (trademark + Plugin Check).
 # Excludes paths listed in ../.distignore plus dist/ and this script.
 set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SLUG="dataviz-ai-for-woocommerce"
-MAIN_PHP="${PLUGIN_DIR}/dataviz-ai-woocommerce.php"
+SLUG="unmai-analytix-for-woocommerce"
+MAIN_PHP="${PLUGIN_DIR}/unmai-analytix-for-woocommerce.php"
 
 if [[ ! -f "$MAIN_PHP" ]]; then
 	echo "ERROR: Expected main file at $MAIN_PHP" >&2

@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_SOURCE="$SCRIPT_DIR/../store-compass-for-woocommerce"
-PLUGIN_DEST="$SCRIPT_DIR/wordpress/wp-content/plugins/store-compass-for-woocommerce"
+PLUGIN_DEST="$SCRIPT_DIR/wordpress/wp-content/plugins/unmai-analytix-for-woocommerce"
 
 echo "🔄 Syncing plugin files to Docker..."
 echo "   Source: $PLUGIN_SOURCE"

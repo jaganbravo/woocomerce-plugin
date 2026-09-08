@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-labelledby="t2">
-  <title id="t2">Dataviz AI  API configuration</title>
+  <title id="t2">Unmai Analytix  API configuration</title>
   <rect width="640" height="360" fill="#f6f7f7"/>
   <rect width="640" height="44" fill="#1d2327"/>
-  <text x="16" y="29" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="15" font-weight="600">Dataviz AI  API setup</text>
+  <text x="16" y="29" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="15" font-weight="600">Unmai Analytix  API setup</text>
   <rect x="24" y="68" width="592" height="268" rx="6" fill="#fff8e5" stroke="#dba617"/>
   <text x="48" y="112" fill="#1d2327" font-family="system-ui,Segoe UI,sans-serif" font-size="18" font-weight="600">API Key Required</text>
   <rect x="48" y="132" width="520" height="10" rx="2" fill="#dba617" opacity=".35"/>

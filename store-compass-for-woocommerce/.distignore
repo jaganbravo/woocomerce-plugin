@@ -1,6 +1,7 @@
 # Files excluded from release ZIP (see bin/build-release.sh).
 # Patterns work with rsync --exclude-from (paths relative to plugin root).
 developerDocs/
+.wordpress-org/
 .git/
 .gitignore
 .distignore

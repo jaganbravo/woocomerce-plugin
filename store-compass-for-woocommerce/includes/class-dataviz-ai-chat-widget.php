@@ -1,6 +1,6 @@
 <?php
 /**
- * Public-facing shortcode and scripts for Dataviz AI chat widget.
+ * Public-facing shortcode and scripts for Unmai Analytix chat widget.
  *
  * @package Dataviz_AI_WooCommerce
  */
@@ -47,7 +47,8 @@ class Dataviz_AI_Chat_Widget {
 		self::$version     = $version;
 		$this->api_client  = $api_client;
 
-		add_shortcode( 'dataviz_ai_chat', array( $this, 'render_shortcode' ) );
+		add_shortcode( 'unmai_analytix_chat', array( $this, 'render_shortcode' ) );
+		add_shortcode( 'dataviz_ai_chat', array( $this, 'render_shortcode' ) ); // Legacy alias.
 	}
 
 	/**
@@ -81,7 +82,7 @@ class Dataviz_AI_Chat_Widget {
 	 */
 	public function render_shortcode( $atts = array() ) {
 		if ( ! is_user_logged_in() || ! current_user_can( 'manage_woocommerce' ) ) {
-			return '<p class="dataviz-ai-chat-widget dataviz-ai-chat-widget--restricted">' . esc_html__( 'Store analytics chat is only available to shop managers. Use Dataviz AI from the WordPress admin.', 'dataviz-ai-for-woocommerce' ) . '</p>';
+			return '<p class="unmai-analytix-chat-widget unmai-analytix-chat-widget--restricted dataviz-ai-chat-widget dataviz-ai-chat-widget--restricted">' . esc_html__( 'Store analytics chat is only available to shop managers. Use Unmai Analytix from the WordPress admin.', 'unmai-analytix-for-woocommerce' ) . '</p>';
 		}
 
 		wp_enqueue_style( self::$plugin_name . '-chat' );
@@ -95,22 +96,22 @@ class Dataviz_AI_Chat_Widget {
 				'nonce'     => wp_create_nonce( 'dataviz_ai_chat' ),
 				'connected' => $this->api_client->get_api_url() && $this->api_client->get_api_key(),
 				'strings'   => array(
-					'send'           => __( 'Send', 'dataviz-ai-for-woocommerce' ),
-					'placeholder'    => __( 'Ask about your store performance…', 'dataviz-ai-for-woocommerce' ),
-					'disconnected'   => __( 'Configure the Dataviz AI API credentials in the admin panel to enable chat.', 'dataviz-ai-for-woocommerce' ),
-					'error_generic'  => __( 'Something went wrong. Please try again.', 'dataviz-ai-for-woocommerce' ),
+					'send'           => __( 'Send', 'unmai-analytix-for-woocommerce' ),
+					'placeholder'    => __( 'Ask about your store performance…', 'unmai-analytix-for-woocommerce' ),
+					'disconnected'   => __( 'Configure the Unmai Analytix API credentials in the admin panel to enable chat.', 'unmai-analytix-for-woocommerce' ),
+					'error_generic'  => __( 'Something went wrong. Please try again.', 'unmai-analytix-for-woocommerce' ),
 				),
 			)
 		);
 
 		ob_start();
 		?>
-		<div class="dataviz-ai-chat-widget" data-connected="<?php echo esc_attr( $this->api_client->get_api_url() ? '1' : '0' ); ?>">
-			<div class="dataviz-ai-chat-messages" role="log" aria-live="polite"></div>
-			<form class="dataviz-ai-chat-form">
-				<label for="dataviz-ai-chat-input" class="screen-reader-text"><?php esc_html_e( 'Message', 'dataviz-ai-for-woocommerce' ); ?></label>
-				<textarea id="dataviz-ai-chat-input" name="message" placeholder="<?php esc_attr_e( 'Ask about your store performance…', 'dataviz-ai-for-woocommerce' ); ?>" required></textarea>
-				<button type="submit" class="button button-primary"><?php esc_html_e( 'Send', 'dataviz-ai-for-woocommerce' ); ?></button>
+		<div class="unmai-analytix-chat-widget dataviz-ai-chat-widget" data-connected="<?php echo esc_attr( $this->api_client->get_api_url() ? '1' : '0' ); ?>">
+			<div class="unmai-analytix-chat-messages dataviz-ai-chat-messages" role="log" aria-live="polite"></div>
+			<form class="unmai-analytix-chat-form dataviz-ai-chat-form">
+				<label for="unmai-analytix-chat-input" class="screen-reader-text"><?php esc_html_e( 'Message', 'unmai-analytix-for-woocommerce' ); ?></label>
+				<textarea id="unmai-analytix-chat-input" name="message" placeholder="<?php esc_attr_e( 'Ask about your store performance…', 'unmai-analytix-for-woocommerce' ); ?>" required></textarea>
+				<button type="submit" class="button button-primary"><?php esc_html_e( 'Send', 'unmai-analytix-for-woocommerce' ); ?></button>
 			</form>
 		</div>
 		<?php

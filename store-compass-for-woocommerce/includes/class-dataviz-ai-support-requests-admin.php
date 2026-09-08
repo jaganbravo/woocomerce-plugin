@@ -28,15 +28,15 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'           => '<input type="checkbox" />',
-			'id'           => __( 'ID', 'dataviz-ai-for-woocommerce' ),
-			'type'         => __( 'Type', 'dataviz-ai-for-woocommerce' ),
-			'question'     => __( 'Question', 'dataviz-ai-for-woocommerce' ),
-			'entity_type'  => __( 'Entity', 'dataviz-ai-for-woocommerce' ),
-			'error_reason' => __( 'Error / Reason', 'dataviz-ai-for-woocommerce' ),
-			'user_name'    => __( 'User', 'dataviz-ai-for-woocommerce' ),
-			'status'       => __( 'Status', 'dataviz-ai-for-woocommerce' ),
-			'vote_count'   => __( 'Votes', 'dataviz-ai-for-woocommerce' ),
-			'created_at'   => __( 'Created', 'dataviz-ai-for-woocommerce' ),
+			'id'           => __( 'ID', 'unmai-analytix-for-woocommerce' ),
+			'type'         => __( 'Type', 'unmai-analytix-for-woocommerce' ),
+			'question'     => __( 'Question', 'unmai-analytix-for-woocommerce' ),
+			'entity_type'  => __( 'Entity', 'unmai-analytix-for-woocommerce' ),
+			'error_reason' => __( 'Error / Reason', 'unmai-analytix-for-woocommerce' ),
+			'user_name'    => __( 'User', 'unmai-analytix-for-woocommerce' ),
+			'status'       => __( 'Status', 'unmai-analytix-for-woocommerce' ),
+			'vote_count'   => __( 'Votes', 'unmai-analytix-for-woocommerce' ),
+			'created_at'   => __( 'Created', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 
@@ -64,8 +64,8 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 
 	protected function column_type( $item ) {
 		$labels = array(
-			'feature_request' => '<span class="dataviz-sr-badge dataviz-sr-badge--feature">' . esc_html__( 'Feature Request', 'dataviz-ai-for-woocommerce' ) . '</span>',
-			'failed_question' => '<span class="dataviz-sr-badge dataviz-sr-badge--failed">' . esc_html__( 'Failed Question', 'dataviz-ai-for-woocommerce' ) . '</span>',
+			'feature_request' => '<span class="dataviz-sr-badge dataviz-sr-badge--feature">' . esc_html__( 'Feature Request', 'unmai-analytix-for-woocommerce' ) . '</span>',
+			'failed_question' => '<span class="dataviz-sr-badge dataviz-sr-badge--failed">' . esc_html__( 'Failed Question', 'unmai-analytix-for-woocommerce' ) . '</span>',
 		);
 		return $labels[ $item['type'] ] ?? esc_html( $item['type'] );
 	}
@@ -88,7 +88,7 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 			'<a href="#" class="dataviz-sr-view-details" data-id="%d" data-detail="%s">%s</a>',
 			$item['id'],
 			esc_attr( wp_json_encode( $detail_data ) ),
-			esc_html__( 'View Details', 'dataviz-ai-for-woocommerce' )
+			esc_html__( 'View Details', 'unmai-analytix-for-woocommerce' )
 		);
 
 		if ( $item['status'] === 'pending' ) {
@@ -99,7 +99,7 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 			$actions['email_vendor'] = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( $email_vendor_url ),
-				esc_html__( 'Email to vendor', 'dataviz-ai-for-woocommerce' )
+				esc_html__( 'Email to vendor', 'unmai-analytix-for-woocommerce' )
 			);
 			$resolve_url = wp_nonce_url(
 				add_query_arg( array( 'action' => 'resolve', 'request_id' => $item['id'] ) ),
@@ -109,14 +109,14 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 				add_query_arg( array( 'action' => 'wont_fix', 'request_id' => $item['id'] ) ),
 				'dataviz_sr_action'
 			);
-			$actions['resolve']  = sprintf( '<a href="%s">%s</a>', esc_url( $resolve_url ), esc_html__( 'Resolve', 'dataviz-ai-for-woocommerce' ) );
-			$actions['wont_fix'] = sprintf( '<a href="%s" class="dataviz-sr-wontfix">%s</a>', esc_url( $wontfix_url ), esc_html__( "Won't Fix", 'dataviz-ai-for-woocommerce' ) );
+			$actions['resolve']  = sprintf( '<a href="%s">%s</a>', esc_url( $resolve_url ), esc_html__( 'Resolve', 'unmai-analytix-for-woocommerce' ) );
+			$actions['wont_fix'] = sprintf( '<a href="%s" class="dataviz-sr-wontfix">%s</a>', esc_url( $wontfix_url ), esc_html__( "Won't Fix", 'unmai-analytix-for-woocommerce' ) );
 		} elseif ( $item['status'] !== 'pending' ) {
 			$reopen_url = wp_nonce_url(
 				add_query_arg( array( 'action' => 'reopen', 'request_id' => $item['id'] ) ),
 				'dataviz_sr_action'
 			);
-			$actions['reopen'] = sprintf( '<a href="%s">%s</a>', esc_url( $reopen_url ), esc_html__( 'Re-open', 'dataviz-ai-for-woocommerce' ) );
+			$actions['reopen'] = sprintf( '<a href="%s">%s</a>', esc_url( $reopen_url ), esc_html__( 'Re-open', 'unmai-analytix-for-woocommerce' ) );
 		}
 
 		return $question . $this->row_actions( $actions );
@@ -132,9 +132,9 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 
 	protected function column_status( $item ) {
 		$map = array(
-			'pending'  => '<span class="dataviz-sr-status dataviz-sr-status--pending">' . esc_html__( 'Pending', 'dataviz-ai-for-woocommerce' ) . '</span>',
-			'resolved' => '<span class="dataviz-sr-status dataviz-sr-status--resolved">' . esc_html__( 'Resolved', 'dataviz-ai-for-woocommerce' ) . '</span>',
-			'wont_fix' => '<span class="dataviz-sr-status dataviz-sr-status--wontfix">' . esc_html__( "Won't Fix", 'dataviz-ai-for-woocommerce' ) . '</span>',
+			'pending'  => '<span class="dataviz-sr-status dataviz-sr-status--pending">' . esc_html__( 'Pending', 'unmai-analytix-for-woocommerce' ) . '</span>',
+			'resolved' => '<span class="dataviz-sr-status dataviz-sr-status--resolved">' . esc_html__( 'Resolved', 'unmai-analytix-for-woocommerce' ) . '</span>',
+			'wont_fix' => '<span class="dataviz-sr-status dataviz-sr-status--wontfix">' . esc_html__( "Won't Fix", 'unmai-analytix-for-woocommerce' ) . '</span>',
 		);
 		return $map[ $item['status'] ] ?? esc_html( $item['status'] );
 	}
@@ -149,10 +149,10 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 
 	protected function get_bulk_actions() {
 		return array(
-			'bulk_email_vendor' => __( 'Email to vendor', 'dataviz-ai-for-woocommerce' ),
-			'bulk_resolve'      => __( 'Mark Resolved', 'dataviz-ai-for-woocommerce' ),
-			'bulk_wont_fix'     => __( "Mark Won't Fix", 'dataviz-ai-for-woocommerce' ),
-			'bulk_reopen'       => __( 'Re-open', 'dataviz-ai-for-woocommerce' ),
+			'bulk_email_vendor' => __( 'Email to vendor', 'unmai-analytix-for-woocommerce' ),
+			'bulk_resolve'      => __( 'Mark Resolved', 'unmai-analytix-for-woocommerce' ),
+			'bulk_wont_fix'     => __( "Mark Won't Fix", 'unmai-analytix-for-woocommerce' ),
+			'bulk_reopen'       => __( 'Re-open', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 
@@ -167,19 +167,19 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 		echo '<div class="alignleft actions">';
 
 		echo '<select name="req_type">';
-		printf( '<option value="all" %s>%s</option>', selected( $current_type, 'all', false ), esc_html__( 'All Types', 'dataviz-ai-for-woocommerce' ) );
-		printf( '<option value="feature_request" %s>%s</option>', selected( $current_type, 'feature_request', false ), esc_html__( 'Feature Requests', 'dataviz-ai-for-woocommerce' ) );
-		printf( '<option value="failed_question" %s>%s</option>', selected( $current_type, 'failed_question', false ), esc_html__( 'Failed Questions', 'dataviz-ai-for-woocommerce' ) );
+		printf( '<option value="all" %s>%s</option>', selected( $current_type, 'all', false ), esc_html__( 'All Types', 'unmai-analytix-for-woocommerce' ) );
+		printf( '<option value="feature_request" %s>%s</option>', selected( $current_type, 'feature_request', false ), esc_html__( 'Feature Requests', 'unmai-analytix-for-woocommerce' ) );
+		printf( '<option value="failed_question" %s>%s</option>', selected( $current_type, 'failed_question', false ), esc_html__( 'Failed Questions', 'unmai-analytix-for-woocommerce' ) );
 		echo '</select>';
 
 		echo '<select name="req_status">';
-		printf( '<option value="all" %s>%s</option>', selected( $current_status, 'all', false ), esc_html__( 'All Statuses', 'dataviz-ai-for-woocommerce' ) );
-		printf( '<option value="pending" %s>%s</option>', selected( $current_status, 'pending', false ), esc_html__( 'Pending', 'dataviz-ai-for-woocommerce' ) );
-		printf( '<option value="resolved" %s>%s</option>', selected( $current_status, 'resolved', false ), esc_html__( 'Resolved', 'dataviz-ai-for-woocommerce' ) );
-		printf( '<option value="wont_fix" %s>%s</option>', selected( $current_status, 'wont_fix', false ), esc_html__( "Won't Fix", 'dataviz-ai-for-woocommerce' ) );
+		printf( '<option value="all" %s>%s</option>', selected( $current_status, 'all', false ), esc_html__( 'All Statuses', 'unmai-analytix-for-woocommerce' ) );
+		printf( '<option value="pending" %s>%s</option>', selected( $current_status, 'pending', false ), esc_html__( 'Pending', 'unmai-analytix-for-woocommerce' ) );
+		printf( '<option value="resolved" %s>%s</option>', selected( $current_status, 'resolved', false ), esc_html__( 'Resolved', 'unmai-analytix-for-woocommerce' ) );
+		printf( '<option value="wont_fix" %s>%s</option>', selected( $current_status, 'wont_fix', false ), esc_html__( "Won't Fix", 'unmai-analytix-for-woocommerce' ) );
 		echo '</select>';
 
-		submit_button( __( 'Filter', 'dataviz-ai-for-woocommerce' ), '', 'filter_action', false );
+		submit_button( __( 'Filter', 'unmai-analytix-for-woocommerce' ), '', 'filter_action', false );
 		echo '</div>';
 	}
 
@@ -226,7 +226,7 @@ class Dataviz_AI_Support_Requests_Table extends WP_List_Table {
 
 class Dataviz_AI_Support_Requests_Admin {
 
-	const MENU_SLUG = 'dataviz-ai-support-requests';
+	const MENU_SLUG = 'unmai-analytix-support-requests';
 
 	/**
 	 * Human-readable message for wp_mail error codes.
@@ -236,13 +236,13 @@ class Dataviz_AI_Support_Requests_Admin {
 	 */
 	protected static function vendor_email_error_message( $code ) {
 		$messages = array(
-			'dataviz_sr_email_no_vendor'   => __( 'Add a vendor support email in the box below before sending.', 'dataviz-ai-for-woocommerce' ),
-			'dataviz_sr_not_found'         => __( 'Request not found.', 'dataviz-ai-for-woocommerce' ),
-			'dataviz_sr_email_not_pending' => __( 'Only pending requests can be emailed to the vendor.', 'dataviz-ai-for-woocommerce' ),
-			'dataviz_sr_email_failed'      => __( 'WordPress could not send email. Check your site mail configuration.', 'dataviz-ai-for-woocommerce' ),
+			'dataviz_sr_email_no_vendor'   => __( 'Add a vendor support email in the box below before sending.', 'unmai-analytix-for-woocommerce' ),
+			'dataviz_sr_not_found'         => __( 'Request not found.', 'unmai-analytix-for-woocommerce' ),
+			'dataviz_sr_email_not_pending' => __( 'Only pending requests can be emailed to the vendor.', 'unmai-analytix-for-woocommerce' ),
+			'dataviz_sr_email_failed'      => __( 'WordPress could not send email. Check your site mail configuration.', 'unmai-analytix-for-woocommerce' ),
 		);
 
-		return $messages[ $code ] ?? __( 'Could not send email.', 'dataviz-ai-for-woocommerce' );
+		return $messages[ $code ] ?? __( 'Could not send email.', 'unmai-analytix-for-woocommerce' );
 	}
 
 	/**
@@ -274,9 +274,9 @@ class Dataviz_AI_Support_Requests_Admin {
 
 	public static function register_submenu() {
 		add_submenu_page(
-			'store-compass-for-woocommerce',
-			__( 'Support & Requests', 'dataviz-ai-for-woocommerce' ),
-			__( 'Support & Requests', 'dataviz-ai-for-woocommerce' ),
+			'unmai-analytix-for-woocommerce',
+			__( 'Support & Requests', 'unmai-analytix-for-woocommerce' ),
+			__( 'Support & Requests', 'unmai-analytix-for-woocommerce' ),
 			'manage_woocommerce',
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' )
@@ -288,10 +288,31 @@ class Dataviz_AI_Support_Requests_Admin {
 			return;
 		}
 		wp_enqueue_style(
-			'dataviz-ai-support-requests',
+			'unmai-analytix-support-requests',
 			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/css/support-requests.css',
 			array(),
 			DATAVIZ_AI_WC_VERSION
+		);
+		wp_enqueue_script(
+			'unmai-analytix-support-requests',
+			DATAVIZ_AI_WC_PLUGIN_URL . 'admin/js/support-requests.js',
+			array(),
+			DATAVIZ_AI_WC_VERSION,
+			true
+		);
+		wp_localize_script(
+			'unmai-analytix-support-requests',
+			'unmaiAnalytixSrModal',
+			array(
+				'question'     => __( 'Question', 'unmai-analytix-for-woocommerce' ),
+				'errorReason'  => __( 'Error / Reason', 'unmai-analytix-for-woocommerce' ),
+				'description'  => __( 'Description', 'unmai-analytix-for-woocommerce' ),
+				'entityType'   => __( 'Entity Type', 'unmai-analytix-for-woocommerce' ),
+				'user'         => __( 'User', 'unmai-analytix-for-woocommerce' ),
+				'created'      => __( 'Created', 'unmai-analytix-for-woocommerce' ),
+				'rawIntent'    => __( 'Raw Intent JSON', 'unmai-analytix-for-woocommerce' ),
+				'noDetails'    => __( 'No details available.', 'unmai-analytix-for-woocommerce' ),
+			)
 		);
 	}
 
@@ -403,24 +424,24 @@ class Dataviz_AI_Support_Requests_Admin {
 		$vendor_email   = Dataviz_AI_Support_Requests::get_vendor_support_email();
 		?>
 		<div class="wrap dataviz-sr-wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Support & Requests', 'dataviz-ai-for-woocommerce' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Support & Requests', 'unmai-analytix-for-woocommerce' ); ?></h1>
 			<hr class="wp-header-end">
 
 			<?php if ( isset( $_GET['sr_updated'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
-					<p><?php esc_html_e( 'Request(s) updated successfully.', 'dataviz-ai-for-woocommerce' ); ?></p>
+					<p><?php esc_html_e( 'Request(s) updated successfully.', 'unmai-analytix-for-woocommerce' ); ?></p>
 				</div>
 			<?php endif; ?>
 
 			<?php if ( isset( $_GET['sr_vendor_saved'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
-					<p><?php esc_html_e( 'Vendor support email saved.', 'dataviz-ai-for-woocommerce' ); ?></p>
+					<p><?php esc_html_e( 'Vendor support email saved.', 'unmai-analytix-for-woocommerce' ); ?></p>
 				</div>
 			<?php endif; ?>
 
 			<?php if ( isset( $_GET['sr_emailed'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
-					<p><?php esc_html_e( 'Request was emailed to the vendor address.', 'dataviz-ai-for-woocommerce' ); ?></p>
+					<p><?php esc_html_e( 'Request was emailed to the vendor address.', 'unmai-analytix-for-woocommerce' ); ?></p>
 				</div>
 			<?php endif; ?>
 
@@ -441,7 +462,7 @@ class Dataviz_AI_Support_Requests_Admin {
 						echo esc_html(
 							sprintf(
 								/* translators: 1: number of emails sent, 2: number of failures */
-								__( 'Email to vendor: %1$d sent, %2$d failed (only pending rows are sent).', 'dataviz-ai-for-woocommerce' ),
+								__( 'Email to vendor: %1$d sent, %2$d failed (only pending rows are sent).', 'unmai-analytix-for-woocommerce' ),
 								$bulk_ok,
 								$bulk_bad
 							)
@@ -452,37 +473,37 @@ class Dataviz_AI_Support_Requests_Admin {
 			<?php endif; ?>
 
 			<div class="dataviz-sr-vendor-email card" style="max-width: 720px; margin: 1rem 0 1.5rem; padding: 1rem 1.25rem;">
-				<h2 style="margin-top: 0;"><?php esc_html_e( 'Vendor support inbox', 'dataviz-ai-for-woocommerce' ); ?></h2>
+				<h2 style="margin-top: 0;"><?php esc_html_e( 'Vendor support inbox', 'unmai-analytix-for-woocommerce' ); ?></h2>
 				<p class="description">
-					<?php esc_html_e( 'When store staff use “Email to vendor” on a pending request, WordPress sends the details to this address (for example your plugin support team). It includes the question, site URL, and admin context. Use an SMTP or mail plugin if outbound email is unreliable.', 'dataviz-ai-for-woocommerce' ); ?>
+					<?php esc_html_e( 'When store staff use “Email to vendor” on a pending request, WordPress sends the details to this address (for example your plugin support team). It includes the question, site URL, and admin context. Use an SMTP or mail plugin if outbound email is unreliable.', 'unmai-analytix-for-woocommerce' ); ?>
 				</p>
 				<form method="post" action="">
 					<?php wp_nonce_field( 'dataviz_sr_vendor_email', '_wpnonce_vendor_email' ); ?>
-					<label for="dataviz_vendor_support_email"><strong><?php esc_html_e( 'Email address', 'dataviz-ai-for-woocommerce' ); ?></strong></label>
+					<label for="dataviz_vendor_support_email"><strong><?php esc_html_e( 'Email address', 'unmai-analytix-for-woocommerce' ); ?></strong></label>
 					<input type="email" class="regular-text" id="dataviz_vendor_support_email" name="dataviz_vendor_support_email" value="<?php echo esc_attr( $vendor_email ); ?>" placeholder="support@example.com" style="margin: 0.35rem 0 0.75rem; display: block;" />
-					<button type="submit" name="dataviz_sr_vendor_email_submit" class="button button-primary" value="1"><?php esc_html_e( 'Save email', 'dataviz-ai-for-woocommerce' ); ?></button>
+					<button type="submit" name="dataviz_sr_vendor_email_submit" class="button button-primary" value="1"><?php esc_html_e( 'Save email', 'unmai-analytix-for-woocommerce' ); ?></button>
 				</form>
 			</div>
 
 			<div class="dataviz-sr-summary">
 				<div class="dataviz-sr-summary__card">
 					<span class="dataviz-sr-summary__number"><?php echo esc_html( $total_pending ); ?></span>
-					<span class="dataviz-sr-summary__label"><?php esc_html_e( 'Pending', 'dataviz-ai-for-woocommerce' ); ?></span>
+					<span class="dataviz-sr-summary__label"><?php esc_html_e( 'Pending', 'unmai-analytix-for-woocommerce' ); ?></span>
 				</div>
 				<div class="dataviz-sr-summary__card">
 					<span class="dataviz-sr-summary__number"><?php echo esc_html( $total_features ); ?></span>
-					<span class="dataviz-sr-summary__label"><?php esc_html_e( 'Feature Requests', 'dataviz-ai-for-woocommerce' ); ?></span>
+					<span class="dataviz-sr-summary__label"><?php esc_html_e( 'Feature Requests', 'unmai-analytix-for-woocommerce' ); ?></span>
 				</div>
 				<div class="dataviz-sr-summary__card">
 					<span class="dataviz-sr-summary__number"><?php echo esc_html( $total_failed ); ?></span>
-					<span class="dataviz-sr-summary__label"><?php esc_html_e( 'Failed Questions', 'dataviz-ai-for-woocommerce' ); ?></span>
+					<span class="dataviz-sr-summary__label"><?php esc_html_e( 'Failed Questions', 'unmai-analytix-for-woocommerce' ); ?></span>
 				</div>
 			</div>
 
 			<form method="get">
 				<input type="hidden" name="page" value="<?php echo esc_attr( self::MENU_SLUG ); ?>" />
 				<?php
-				$table->search_box( __( 'Search Requests', 'dataviz-ai-for-woocommerce' ), 'dataviz-sr-search' );
+				$table->search_box( __( 'Search Requests', 'unmai-analytix-for-woocommerce' ), 'dataviz-sr-search' );
 				$table->display();
 				?>
 			</form>
@@ -492,58 +513,12 @@ class Dataviz_AI_Support_Requests_Admin {
 			<div class="dataviz-sr-modal__backdrop"></div>
 			<div class="dataviz-sr-modal__content">
 				<div class="dataviz-sr-modal__header">
-					<h2><?php esc_html_e( 'Request Details', 'dataviz-ai-for-woocommerce' ); ?></h2>
+					<h2><?php esc_html_e( 'Request Details', 'unmai-analytix-for-woocommerce' ); ?></h2>
 					<button type="button" class="dataviz-sr-modal__close">&times;</button>
 				</div>
 				<div class="dataviz-sr-modal__body dataviz-sr-detail-body"></div>
 			</div>
 		</div>
-
-		<script>
-		(function(){
-			function escHtml(s) {
-				var d = document.createElement('div');
-				d.textContent = s;
-				return d.innerHTML;
-			}
-			function buildSection(label, value, isCode) {
-				if (!value) return '';
-				var content;
-				if (isCode) {
-					try { content = '<pre class="dataviz-sr-detail-code">' + escHtml(JSON.stringify(JSON.parse(value), null, 2)) + '</pre>'; }
-					catch(_) { content = '<pre class="dataviz-sr-detail-code">' + escHtml(value) + '</pre>'; }
-				} else {
-					content = '<p class="dataviz-sr-detail-text">' + escHtml(value) + '</p>';
-				}
-				return '<div class="dataviz-sr-detail-section"><strong>' + escHtml(label) + '</strong>' + content + '</div>';
-			}
-
-			document.querySelectorAll('.dataviz-sr-view-details').forEach(function(el){
-				el.addEventListener('click', function(e){
-					e.preventDefault();
-					var modal = document.getElementById('dataviz-sr-detail-modal');
-					var body  = modal.querySelector('.dataviz-sr-detail-body');
-					var data  = JSON.parse(this.dataset.detail);
-					var html  = '';
-					html += buildSection('<?php echo esc_js( __( 'Question', 'dataviz-ai-for-woocommerce' ) ); ?>', data.question);
-					html += buildSection('<?php echo esc_js( __( 'Error / Reason', 'dataviz-ai-for-woocommerce' ) ); ?>', data.error_reason);
-					html += buildSection('<?php echo esc_js( __( 'Description', 'dataviz-ai-for-woocommerce' ) ); ?>', data.description);
-					html += buildSection('<?php echo esc_js( __( 'Entity Type', 'dataviz-ai-for-woocommerce' ) ); ?>', data.entity_type);
-					html += buildSection('<?php echo esc_js( __( 'User', 'dataviz-ai-for-woocommerce' ) ); ?>', data.user_name);
-					html += buildSection('<?php echo esc_js( __( 'Created', 'dataviz-ai-for-woocommerce' ) ); ?>', data.created_at);
-					html += buildSection('<?php echo esc_js( __( 'Raw Intent JSON', 'dataviz-ai-for-woocommerce' ) ); ?>', data.raw_intent, true);
-					body.innerHTML = html || '<p><?php echo esc_js( __( 'No details available.', 'dataviz-ai-for-woocommerce' ) ); ?></p>';
-					modal.style.display = 'flex';
-				});
-			});
-
-			var modal = document.getElementById('dataviz-sr-detail-modal');
-			if (modal) {
-				modal.querySelector('.dataviz-sr-modal__close').addEventListener('click', function(){ modal.style.display = 'none'; });
-				modal.querySelector('.dataviz-sr-modal__backdrop').addEventListener('click', function(){ modal.style.display = 'none'; });
-			}
-		})();
-		</script>
 		<?php
 	}
 }

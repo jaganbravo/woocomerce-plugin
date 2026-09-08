@@ -54,7 +54,7 @@ exit
 
 Alternatively, import `dummy-data.xml` via `Tools → Import → WordPress`.
 
-## 5. Install the Dataviz AI sample plugin
+## 5. Install Unmai Analytix for WooCommerce
 
 ### Initial Setup
 ```bash
@@ -62,7 +62,7 @@ Alternatively, import `dummy-data.xml` via `Tools → Import → WordPress`.
 ./sync-plugin.sh
 
 # Activate the plugin
-docker compose exec wpcli bash -c "wp plugin activate dataviz-ai-for-woocommerce"
+docker compose exec wpcli bash -c "wp plugin activate unmai-analytix-for-woocommerce"
 ```
 
 ### Updating Plugin Files (after making changes)
@@ -74,7 +74,7 @@ docker compose exec wpcli bash -c "wp plugin activate dataviz-ai-for-woocommerce
 docker compose restart wordpress
 ```
 
-Refresh `wp-admin`; the **Dataviz AI** menu should appear.
+Refresh `wp-admin`; the **Unmai Analytix** menu should appear.
 
 ## 6. Stop / teardown
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Loader for Dataviz AI WooCommerce plugin.
+ * Loader for Unmai Analytix WooCommerce plugin.
  *
  * @package Dataviz_AI_WooCommerce
  */
@@ -50,7 +50,7 @@ class Dataviz_AI_Loader {
 	 *
 	 * @var string
 	 */
-	protected $plugin_name = 'dataviz-ai-for-woocommerce';
+	protected $plugin_name = 'unmai-analytix-for-woocommerce';
 
 	/**
 	 * Plugin version.
@@ -156,7 +156,6 @@ class Dataviz_AI_Loader {
 		add_action( 'admin_menu', array( 'Dataviz_AI_Chat_Feedback_Admin', 'register_submenu' ) );
 		add_action( 'admin_menu', array( $this->digest_admin, 'register_submenu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_assets' ) );
-		add_action( 'admin_notices', array( $this->admin, 'hide_woocommerce_incompatibility_notice' ), 999 );
 		add_action( 'admin_enqueue_scripts', array( 'Dataviz_AI_Support_Requests_Admin', 'enqueue_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( 'Dataviz_AI_Chat_Feedback_Admin', 'enqueue_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $this->digest_admin, 'enqueue_assets' ) );

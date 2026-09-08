@@ -1,7 +1,7 @@
 {
   "name": "store-compass-test-agent",
   "version": "1.0.0",
-  "description": "AI-powered test agent for Store Compass WooCommerce plugin",
+  "description": "AI-powered test agent for Unmai Analytix WooCommerce plugin",
   "main": "ai-chat-test-agent.js",
   "scripts": {
     "test": "node ai-chat-test-agent.js",

@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * API client for Dataviz AI backend.
+ * API client for Unmai Analytix backend.
  */
 class Dataviz_AI_API_Client {
 
@@ -50,27 +50,25 @@ class Dataviz_AI_API_Client {
 
 	/**
 	 * Return configured API URL.
-	 * 
+	 *
 	 * Priority order:
-	 * 1. Environment variable: DATAVIZ_AI_API_BASE_URL
-	 * 2. Config constant: DATAVIZ_AI_API_BASE_URL
+	 * 1. Environment: UNMAI_ANALYTIX_API_BASE_URL, then DATAVIZ_AI_API_BASE_URL (legacy)
+	 * 2. Constant: UNMAI_ANALYTIX_API_BASE_URL, then DATAVIZ_AI_API_BASE_URL (legacy)
 	 * 3. WordPress option (for backward compatibility)
 	 *
 	 * @return string
 	 */
 	public function get_api_url() {
-		// Check environment variable first
-		$env_url = getenv( 'DATAVIZ_AI_API_BASE_URL' );
-		if ( false !== $env_url && ! empty( $env_url ) ) {
+		$env_url = $this->first_nonempty_env( array( 'UNMAI_ANALYTIX_API_BASE_URL', 'DATAVIZ_AI_API_BASE_URL' ) );
+		if ( '' !== $env_url ) {
 			return esc_url_raw( $env_url );
 		}
 
-		// Check config constant
-		if ( defined( 'DATAVIZ_AI_API_BASE_URL' ) && ! empty( DATAVIZ_AI_API_BASE_URL ) ) {
-			return esc_url_raw( DATAVIZ_AI_API_BASE_URL );
+		$const_url = $this->first_nonempty_constant( array( 'UNMAI_ANALYTIX_API_BASE_URL', 'DATAVIZ_AI_API_BASE_URL' ) );
+		if ( '' !== $const_url ) {
+			return esc_url_raw( $const_url );
 		}
 
-		// Fall back to WordPress option (backward compatibility)
 		$settings = $this->get_settings();
 		return isset( $settings['api_url'] ) ? esc_url_raw( $settings['api_url'] ) : '';
 	}
@@ -86,32 +84,61 @@ class Dataviz_AI_API_Client {
 
 	/**
 	 * Return configured API key.
-	 * 
+	 *
 	 * Priority order:
-	 * 1. Environment variable: OPENAI_API_KEY or DATAVIZ_AI_API_KEY
-	 * 2. Config constant: DATAVIZ_AI_API_KEY
+	 * 1. Environment: OPENAI_API_KEY, UNMAI_ANALYTIX_API_KEY, then DATAVIZ_AI_API_KEY (legacy)
+	 * 2. Constant: UNMAI_ANALYTIX_API_KEY, then DATAVIZ_AI_API_KEY (legacy)
 	 * 3. WordPress option (for backward compatibility)
 	 *
 	 * @return string
 	 */
 	public function get_api_key() {
-		// Check environment variables first (OpenAI standard, then custom)
-		$env_key = getenv( 'OPENAI_API_KEY' );
-		if ( false === $env_key || empty( $env_key ) ) {
-			$env_key = getenv( 'DATAVIZ_AI_API_KEY' );
-		}
-		if ( false !== $env_key && ! empty( $env_key ) ) {
+		$env_key = $this->first_nonempty_env( array( 'OPENAI_API_KEY', 'UNMAI_ANALYTIX_API_KEY', 'DATAVIZ_AI_API_KEY' ) );
+		if ( '' !== $env_key ) {
 			return sanitize_text_field( $env_key );
 		}
 
-		// Check config constant
-		if ( defined( 'DATAVIZ_AI_API_KEY' ) && ! empty( DATAVIZ_AI_API_KEY ) ) {
-			return sanitize_text_field( DATAVIZ_AI_API_KEY );
+		$const_key = $this->first_nonempty_constant( array( 'UNMAI_ANALYTIX_API_KEY', 'DATAVIZ_AI_API_KEY' ) );
+		if ( '' !== $const_key ) {
+			return sanitize_text_field( $const_key );
 		}
 
-		// Fall back to WordPress option (backward compatibility)
 		$settings = $this->get_settings();
 		return isset( $settings['api_key'] ) ? (string) $settings['api_key'] : '';
+	}
+
+	/**
+	 * First non-empty environment variable from a list of names.
+	 *
+	 * @param string[] $names Environment variable names.
+	 * @return string
+	 */
+	protected function first_nonempty_env( array $names ) {
+		foreach ( $names as $name ) {
+			$val = getenv( $name );
+			if ( false !== $val && '' !== $val ) {
+				return $val;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * First non-empty defined PHP constant from a list of names.
+	 *
+	 * @param string[] $names Constant names.
+	 * @return string
+	 */
+	protected function first_nonempty_constant( array $names ) {
+		foreach ( $names as $name ) {
+			if ( defined( $name ) ) {
+				$val = constant( $name );
+				if ( is_string( $val ) && '' !== $val ) {
+					return $val;
+				}
+			}
+		}
+		return '';
 	}
 
 	/**
@@ -129,7 +156,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $base_url ) || empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_config',
-				__( 'Please configure the Dataviz AI API URL and key before making requests.', 'dataviz-ai-for-woocommerce' )
+				__( 'Please configure the Unmai Analytix API URL and key before making requests.', 'unmai-analytix-for-woocommerce' )
 			);
 		}
 
@@ -158,7 +185,7 @@ class Dataviz_AI_API_Client {
 				'dataviz_ai_api_error',
 				sprintf(
 					/* translators: %d status code from API. */
-					__( 'Dataviz AI API responded with status %d.', 'dataviz-ai-for-woocommerce' ),
+					__( 'Unmai Analytix API responded with status %d.', 'unmai-analytix-for-woocommerce' ),
 					(int) $status_code
 				),
 				$data
@@ -182,7 +209,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_api_key',
-				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-for-woocommerce' )
+				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'unmai-analytix-for-woocommerce' )
 			);
 		}
 
@@ -224,7 +251,7 @@ class Dataviz_AI_API_Client {
 		// Check for JSON decode errors
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
 			$error_msg = 'Failed to parse OpenAI API response: ' . json_last_error_msg();
-			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] %s. Raw body: %s', $error_msg, wp_remote_retrieve_body( $response ) ) );
+			dataviz_ai_wc_debug_log( sprintf( '[Unmai Analytix] %s. Raw body: %s', $error_msg, wp_remote_retrieve_body( $response ) ) );
 			return new WP_Error(
 				'dataviz_ai_json_error',
 				$error_msg,
@@ -258,7 +285,7 @@ class Dataviz_AI_API_Client {
 		// Validate response has expected structure
 		if ( ! isset( $body['choices'] ) || ! is_array( $body['choices'] ) ) {
 			$error_msg = 'Invalid response structure from OpenAI API: missing choices array';
-			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] %s. Response: %s', $error_msg, wp_json_encode( $body ) ) );
+			dataviz_ai_wc_debug_log( sprintf( '[Unmai Analytix] %s. Response: %s', $error_msg, wp_json_encode( $body ) ) );
 			return new WP_Error(
 				'dataviz_ai_invalid_response',
 				$error_msg,
@@ -340,7 +367,7 @@ class Dataviz_AI_API_Client {
 		if ( empty( $api_key ) ) {
 			return new WP_Error(
 				'dataviz_ai_missing_api_key',
-				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'dataviz-ai-for-woocommerce' )
+				__( 'Add an OpenAI-compatible API key to use the chat assistant.', 'unmai-analytix-for-woocommerce' )
 			);
 		}
 
@@ -415,7 +442,7 @@ class Dataviz_AI_API_Client {
 				'dataviz_ai_http_error',
 				sprintf(
 					/* translators: %s: HTTP error message */
-					__( 'Request error: %1$s', 'dataviz-ai-for-woocommerce' ),
+					__( 'Request error: %1$s', 'unmai-analytix-for-woocommerce' ),
 					$response->get_error_message()
 				)
 			);
@@ -427,7 +454,7 @@ class Dataviz_AI_API_Client {
 			$error_buffer = $stream_state['error_buffer'];
 			$has_error    = $stream_state['has_error'];
 			// Try to parse error response
-			$error_message = __( 'The OpenAI API returned an error.', 'dataviz-ai-for-woocommerce' );
+			$error_message = __( 'The OpenAI API returned an error.', 'unmai-analytix-for-woocommerce' );
 			$error_details = array( 'status' => $status_code );
 			
 			if ( ! empty( $error_buffer ) ) {
@@ -452,7 +479,7 @@ class Dataviz_AI_API_Client {
 			}
 			
 			// Log detailed error for debugging
-			dataviz_ai_wc_debug_log( sprintf( '[Dataviz AI] OpenAI Streaming API Error (HTTP %d): %s', $status_code, wp_json_encode( $error_details, JSON_PRETTY_PRINT ) ) );
+			dataviz_ai_wc_debug_log( sprintf( '[Unmai Analytix] OpenAI Streaming API Error (HTTP %d): %s', $status_code, wp_json_encode( $error_details, JSON_PRETTY_PRINT ) ) );
 			
 			return new WP_Error(
 				'dataviz_ai_openai_error',

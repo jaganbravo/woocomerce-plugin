@@ -108,7 +108,7 @@ class Dataviz_AI_Query_Orchestrator {
 				$pipeline_result['raw_intent'] ?? null
 			);
 			$this->stream_handler->send_error(
-				__( 'Unable to process data query. Please try rephrasing your question.', 'dataviz-ai-for-woocommerce' )
+				__( 'Unable to process data query. Please try rephrasing your question.', 'unmai-analytix-for-woocommerce' )
 			);
 			return;
 		}
@@ -248,7 +248,7 @@ class Dataviz_AI_Query_Orchestrator {
 						'provider' => 'system',
 					);
 				}
-				return array( 'answer' => __( 'Failed to submit feature request. Please try again later.', 'dataviz-ai-for-woocommerce' ), 'provider' => 'system' );
+				return array( 'answer' => __( 'Failed to submit feature request. Please try again later.', 'unmai-analytix-for-woocommerce' ), 'provider' => 'system' );
 			}
 		}
 
@@ -339,7 +339,7 @@ class Dataviz_AI_Query_Orchestrator {
 
 		$answer = $response['choices'][0]['message']['content'] ?? '';
 		if ( $answer === '' ) {
-			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-for-woocommerce' ) );
+			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'unmai-analytix-for-woocommerce' ) );
 		}
 
 		$interp = Dataviz_AI_Intent_Query_Summary::from_intent( $validated_intent );
@@ -433,7 +433,7 @@ class Dataviz_AI_Query_Orchestrator {
 
 		$answer = $response['choices'][0]['message']['content'] ?? '';
 		if ( $answer === '' ) {
-			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'dataviz-ai-for-woocommerce' ) );
+			return new \WP_Error( 'dataviz_ai_invalid_response', __( 'Unexpected response format from AI.', 'unmai-analytix-for-woocommerce' ) );
 		}
 
 		$pre = Dataviz_AI_Intent_Query_Summary::conversational_preamble();
@@ -486,7 +486,7 @@ class Dataviz_AI_Query_Orchestrator {
 			return;
 		}
 
-		$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'dataviz-ai-for-woocommerce' );
+		$answer = isset( $response['answer'] ) ? $response['answer'] : __( 'Response received.', 'unmai-analytix-for-woocommerce' );
 		$pre    = Dataviz_AI_Intent_Query_Summary::custom_backend_preamble();
 		$full   = ( $pre !== '' ? $pre . "\n\n" : '' ) . (string) $answer;
 		$mid    = $this->chat_history->save_message( 'ai', $full, $this->session_id, array( 'provider' => 'custom_backend', 'streaming' => true ) );
@@ -675,23 +675,23 @@ class Dataviz_AI_Query_Orchestrator {
 		}
 
 		if ( $entity_type === 'comparisons' ) {
-			$message = __( 'Comparisons across periods (for example, January vs February) are not currently supported in this version.', 'dataviz-ai-for-woocommerce' );
+			$message = __( 'Comparisons across periods (for example, January vs February) are not currently supported in this version.', 'unmai-analytix-for-woocommerce' );
 		} elseif ( $entity_type === 'conversion_rate' ) {
-			$message = __( 'Conversion rate is not currently supported because this store is not connected to traffic/session analytics data yet.', 'dataviz-ai-for-woocommerce' );
+			$message = __( 'Conversion rate is not currently supported because this store is not connected to traffic/session analytics data yet.', 'unmai-analytix-for-woocommerce' );
 		} elseif ( $low_confidence ) {
-			$message = __( 'I am not fully confident I understood that question, so I did not run a WooCommerce data query yet.', 'dataviz-ai-for-woocommerce' );
+			$message = __( 'I am not fully confident I understood that question, so I did not run a WooCommerce data query yet.', 'unmai-analytix-for-woocommerce' );
 		} else {
-			$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'dataviz-ai-for-woocommerce' );
+			$message = __( 'I was not able to understand this request well enough to fetch WooCommerce data for it yet.', 'unmai-analytix-for-woocommerce' );
 		}
-		$feature_prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'dataviz-ai-for-woocommerce' );
-		$clarify_prompt = __( 'Please try again with one clear target and timeframe, for example: "Show pending orders for this week" or "List out-of-stock products".', 'dataviz-ai-for-woocommerce' );
+		$feature_prompt = __( 'Would you like to request this feature? Just say "yes" and I will submit a feature request to the administrators so we can support questions like this.', 'unmai-analytix-for-woocommerce' );
+		$clarify_prompt = __( 'Please try again with one clear target and timeframe, for example: "Show pending orders for this week" or "List out-of-stock products".', 'unmai-analytix-for-woocommerce' );
 
 		$answer = $message;
 
 		$suggestions = Dataviz_AI_Question_Suggestions::get_lines( $intent_snapshot );
 		$examples    = Dataviz_AI_Question_Suggestions::format_for_chat( $suggestions );
 		if ( $examples !== '' ) {
-			$answer .= "\n\n" . __( 'Examples you can try:', 'dataviz-ai-for-woocommerce' ) . "\n" . $examples;
+			$answer .= "\n\n" . __( 'Examples you can try:', 'unmai-analytix-for-woocommerce' ) . "\n" . $examples;
 		}
 
 		$answer .= "\n\n" . ( $low_confidence ? $clarify_prompt : $feature_prompt );

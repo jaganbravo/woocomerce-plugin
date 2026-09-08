@@ -26,7 +26,7 @@ These items block a safe public release and will draw plugin-review feedback if 
 ## Phase 2 — Repository & legal metadata
 
 - [x] Add a **GPLv2 (or later)** file to the plugin root, e.g. `license.txt`, with the standard license text (same as `readme.txt` claims).
-- [x] Replace **placeholder URLs** in `dataviz-ai-woocommerce.php`: `Plugin URI`, `Author URI` (no `example.com` for final submit).
+- [x] Replace **placeholder URLs** in `unmai-analytix-for-woocommerce.php`: `Plugin URI`, `Author URI` (no `example.com` for final submit).
 - [ ] Set **`Contributors:`** in `readme.txt` to your **real** WordPress.org username(s) (comma-separated; must match an existing account, e.g. `https://profiles.wordpress.org/*yourname*/`). *Removed a bad placeholder (`datavizai`); add this line when you have registered on WordPress.org. Until then the readme omits the field; keep **`Author URI`** in the main plugin file pointed at a valid URL (currently the plugin’s directory URL — you may change `Author URI` to your profile if you prefer).*
 - [x] Align **`Stable tag`** in `readme.txt` with the **`Version:`** header in the main plugin file.
 
@@ -36,7 +36,7 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 - [x] Match **API key instructions** in `readme.txt` to real behavior (env vars, `config.php`, `wp-config.php` constants — **Settings/DB** documented only as *when a future build provides it*; see `docs/API-KEY-MANAGEMENT.md`).
 - [x] In **Privacy / data**, state clearly that questions and **aggregates or limited result sets** may be sent to the AI provider; link to the provider’s privacy policy if required.
-- [x] Document **external scripts**: Chart.js **bundled** in `admin/js/vendor/chart.umd.min.js` (4.4.4); documented in `readme.txt` (no CDN).
+- [x] Document **external scripts**: Chart.js **bundled** in `admin/js/vendor/chart.umd.min.js` (4.5.1); documented in `readme.txt` (no CDN).
 
 ---
 
@@ -51,13 +51,13 @@ These items block a safe public release and will draw plugin-review feedback if 
 
 - [x] Install **[Plugin Check](https://wordpress.org/plugins/plugin-check/)** on staging (e.g. Docker) and fix **errors** (0 errors in recent runs).
 - [ ] **Re-run Plugin Check** after latest sync and confirm **0 warnings** (privacy-export SQL fixes applied; confirm in UI).
-- [x] **Release ZIP** builds: `bash bin/build-release.sh` → `dist/dataviz-ai-for-woocommerce-1.0.0.zip` (folder slug **`dataviz-ai-for-woocommerce`**, matches **Text Domain**).
+- [x] **Release ZIP** builds: `bash bin/build-release.sh` → `dist/unmai-analytix-for-woocommerce-1.0.0.zip` (folder slug **`unmai-analytix-for-woocommerce`**, matches **Text Domain**).
 
 **Release ZIP (local Docker or any test site):** from the plugin directory, run:
 
 `bash bin/build-release.sh`
 
-The file appears under `dist/` (e.g. `dist/dataviz-ai-for-woocommerce-1.0.0.zip`). The ZIP root folder is **`dataviz-ai-for-woocommerce/`** (must match the `Text Domain:` header in the main plugin file). Upload that ZIP under **Plugins → Add New → Upload**.
+The file appears under `dist/` (e.g. `dist/unmai-analytix-for-woocommerce-1.0.0.zip`). The ZIP root folder is **`unmai-analytix-for-woocommerce/`** (must match the `Text Domain:` header in the main plugin file). Upload that ZIP under **Plugins → Add New → Upload**.
 
 **Free cloud sandboxes** (optional; good for a second environment besides Docker):
 
@@ -83,7 +83,7 @@ Always verify WooCommerce + your plugin on whichever environment matches your ne
 
 ## Phase 7 — Build & SVN
 
-- [ ] Run **`bash bin/build-release.sh`** (from `dataviz-ai-woocommerce-plugin/`), then install the ZIP from **`dist/`** on a fresh site (folder slug **`dataviz-ai-for-woocommerce`**, not `…-plugin`).
+- [ ] Run **`bash bin/build-release.sh`** (from the plugin directory), then install the ZIP from **`dist/`** on a fresh site (folder slug **`unmai-analytix-for-woocommerce`**).
 - [ ] Read **[How to use Subversion](https://developer.wordpress.org/plugins/wordpress-org/how-to-use-subversion/)** for plugins.
 - [ ] Copy `readme.txt` and the main plugin file to **`/trunk`**; tag **`/tags/x.y.z/`** with the same version.
 - [ ] Submit for **review** and respond promptly to feedback.
@@ -97,7 +97,7 @@ Always verify WooCommerce + your plugin on whichever environment matches your ne
 | `nopriv` AJAX | `includes/class-dataviz-ai-loader.php` |
 | Chat capability | `includes/class-dataviz-ai-ajax-handler.php` → `handle_chat_request()` |
 | Shortcode | `includes/class-dataviz-ai-chat-widget.php` |
-| Headers & version | `dataviz-ai-woocommerce.php` |
+| Headers & version | `unmai-analytix-for-woocommerce.php` |
 | Directory readme | `readme.txt` |
 | Uninstall | `uninstall.php` |
 

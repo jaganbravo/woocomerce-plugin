@@ -1,5 +1,5 @@
 <h1>Frequently Asked Questions (FAQ)</h1>
-<h2>Dataviz AI for WooCommerce</h2>
+<h2>Unmai Analytix for WooCommerce</h2>
 
 <hr>
 
@@ -19,8 +19,8 @@
 
 <h2 id="general-questions">General Questions</h2>
 
-<h3>What is Dataviz AI for WooCommerce?</h3>
-<p><strong>Answer:</strong> Dataviz AI for WooCommerce is an AI-powered analytics plugin that allows WooCommerce store owners to ask questions about their store data and receive intelligent, data-driven answers. It provides a ChatGPT-style interface in your WordPress admin dashboard where you can query your orders, products, customers, and other store metrics using natural language.</p>
+<h3>What is Unmai Analytix for WooCommerce?</h3>
+<p><strong>Answer:</strong> Unmai Analytix for WooCommerce is an AI-powered analytics plugin that allows WooCommerce store owners to ask questions about their store data and receive intelligent, data-driven answers. It provides a ChatGPT-style interface in your WordPress admin dashboard where you can query your orders, products, customers, and other store metrics using natural language.</p>
 
 <h3>What are the main features?</h3>
 <p><strong>Answer:</strong> The plugin includes:</p>
@@ -56,10 +56,10 @@
 <h3>How do I install the plugin?</h3>
 <p><strong>Answer:</strong></p>
 <ol>
-<li>From the release ZIP, upload the <code>dataviz-ai-for-woocommerce</code> folder to <code>/wp-content/plugins/</code> (development copies may live in <code>dataviz-ai-woocommerce-plugin/</code> in this repository)</li>
+<li>From the release ZIP, upload the <code>unmai-analytix-for-woocommerce</code> folder to <code>/wp-content/plugins/</code></li>
 <li>Activate the plugin through the 'Plugins' menu in WordPress</li>
 <li>Ensure WooCommerce is installed and activated before activation</li>
-<li>Navigate to the <strong>Dataviz AI</strong> menu in your WordPress admin sidebar</li>
+<li>Navigate to the <strong>Unmai Analytix</strong> menu in your WordPress admin sidebar</li>
 </ol>
 
 <h3>Can I install this if WooCommerce is not active?</h3>
@@ -81,7 +81,7 @@
 <h3>How do I configure the API connection?</h3>
 <p><strong>Answer:</strong></p>
 <ol>
-<li>Go to <strong>Dataviz AI</strong> in your WordPress admin sidebar</li>
+<li>Go to <strong>Unmai Analytix</strong> in your WordPress admin sidebar</li>
 <li>Navigate to the <strong>Settings</strong> page</li>
 <li>Enter your backend API base URL</li>
 <li>Configure your API key (preferably via environment variables for security)</li>
@@ -91,7 +91,7 @@
 <h3>How do I set up the API key using environment variables?</h3>
 <p><strong>Answer:</strong> For security, it's recommended to set your API key as an environment variable:</p>
 <ul>
-<li>Set <code>OPENAI_API_KEY</code> or <code>DATAVIZ_AI_API_KEY</code> in your server's environment variables</li>
+<li>Set <code>OPENAI_API_KEY</code> or <code>UNMAI_ANALYTIX_API_KEY</code> in your server's environment variables (legacy: <code>DATAVIZ_AI_API_KEY</code>)</li>
 <li>The plugin will automatically read from these variables</li>
 <li>This prevents the API key from being stored in the WordPress database</li>
 </ul>
@@ -114,7 +114,7 @@
 <h3>How do I start using the AI chat?</h3>
 <p><strong>Answer:</strong></p>
 <ol>
-<li>Navigate to <strong>Dataviz AI</strong> in your WordPress admin</li>
+<li>Navigate to <strong>Unmai Analytix</strong> in your WordPress admin</li>
 <li>You'll see the chat interface</li>
 <li>Type your question in natural language (e.g., "What are my top-selling products this month?")</li>
 <li>Press Enter or click Send</li>
@@ -136,11 +136,11 @@
 <h3>How do I use the chat widget on the frontend?</h3>
 <p><strong>Answer:</strong></p>
 <ol>
-<li>Use the <code>[dataviz_ai_chat]</code> shortcode on any page or post</li>
+<li>Use the <code>[unmai_analytix_chat]</code> shortcode on any page or post (legacy alias: <code>[dataviz_ai_chat]</code>)</li>
 <li>The shortcode will display a lightweight AI chat widget</li>
-<li>Visitors can interact with the chat widget to ask questions about your store</li>
+<li>Shop managers can interact with the chat widget to ask questions about your store</li>
 </ol>
-<p>Example: <code>[dataviz_ai_chat]</code></p>
+<p>Example: <code>[unmai_analytix_chat]</code></p>
 
 <h3>Can I view my chat history?</h3>
 <p><strong>Answer:</strong> Yes, the plugin saves your chat history. You can view previous conversations in the admin dashboard. The plugin also includes a daily cleanup task that removes old messages to keep the database optimized.</p>
@@ -207,7 +207,7 @@
 <h3>The chat widget isn't appearing on my frontend. Why?</h3>
 <p><strong>Answer:</strong></p>
 <ol>
-<li>Verify you've added the <code>[dataviz_ai_chat]</code> shortcode correctly</li>
+<li>Verify you've added the <code>[unmai_analytix_chat]</code> shortcode correctly</li>
 <li>Check that the plugin's public CSS and JavaScript files are loading</li>
 <li>Clear your browser cache and WordPress cache</li>
 <li>Check browser console for JavaScript errors</li>
@@ -229,7 +229,7 @@
 <p><strong>Answer:</strong></p>
 <ol>
 <li>Deactivate and reactivate WooCommerce</li>
-<li>Deactivate and reactivate the Dataviz AI plugin</li>
+<li>Deactivate and reactivate the Unmai Analytix plugin</li>
 <li>Check that WooCommerce is the correct version (6.0+)</li>
 <li>Clear WordPress cache</li>
 <li>Check for conflicting plugins</li>
@@ -299,7 +299,7 @@
 <li>Generate a <code>.pot</code> file into the <code>languages/</code> directory using <code>wp i18n make-pot</code></li>
 <li>Create translation files for your language</li>
 <li>Load the translations in your WordPress installation</li>
-<li>The plugin uses the text domain <code>dataviz-ai-for-woocommerce</code></li>
+<li>The plugin uses the text domain <code>unmai-analytix-for-woocommerce</code></li>
 </ol>
 
 <h3>What database tables does the plugin create?</h3>

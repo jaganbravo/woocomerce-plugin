@@ -81,9 +81,9 @@ class Dataviz_AI_Email_Digests {
 	 */
 	public static function frequencies() {
 		return array(
-			self::FREQ_DAILY   => __( 'Daily', 'dataviz-ai-for-woocommerce' ),
-			self::FREQ_WEEKLY  => __( 'Weekly', 'dataviz-ai-for-woocommerce' ),
-			self::FREQ_MONTHLY => __( 'Monthly', 'dataviz-ai-for-woocommerce' ),
+			self::FREQ_DAILY   => __( 'Daily', 'unmai-analytix-for-woocommerce' ),
+			self::FREQ_WEEKLY  => __( 'Weekly', 'unmai-analytix-for-woocommerce' ),
+			self::FREQ_MONTHLY => __( 'Monthly', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 
@@ -94,12 +94,12 @@ class Dataviz_AI_Email_Digests {
 	 */
 	public static function available_sections() {
 		return array(
-			'revenue_summary'  => __( 'Revenue Summary', 'dataviz-ai-for-woocommerce' ),
-			'order_breakdown'  => __( 'Order Status Breakdown', 'dataviz-ai-for-woocommerce' ),
-			'top_products'     => __( 'Top-Selling Products', 'dataviz-ai-for-woocommerce' ),
-			'low_stock'        => __( 'Low-Stock Alerts', 'dataviz-ai-for-woocommerce' ),
-			'top_customers'    => __( 'Top Customers', 'dataviz-ai-for-woocommerce' ),
-			'refund_summary'   => __( 'Refund Summary', 'dataviz-ai-for-woocommerce' ),
+			'revenue_summary'  => __( 'Revenue Summary', 'unmai-analytix-for-woocommerce' ),
+			'order_breakdown'  => __( 'Order Status Breakdown', 'unmai-analytix-for-woocommerce' ),
+			'top_products'     => __( 'Top-Selling Products', 'unmai-analytix-for-woocommerce' ),
+			'low_stock'        => __( 'Low-Stock Alerts', 'unmai-analytix-for-woocommerce' ),
+			'top_customers'    => __( 'Top Customers', 'unmai-analytix-for-woocommerce' ),
+			'refund_summary'   => __( 'Refund Summary', 'unmai-analytix-for-woocommerce' ),
 		);
 	}
 
@@ -115,7 +115,7 @@ class Dataviz_AI_Email_Digests {
 
 		$defaults = array(
 			'user_id'      => get_current_user_id(),
-			'digest_name'  => __( 'Weekly Sales Digest', 'dataviz-ai-for-woocommerce' ),
+			'digest_name'  => __( 'Weekly Sales Digest', 'unmai-analytix-for-woocommerce' ),
 			'frequency'    => self::FREQ_WEEKLY,
 			'day_of_week'  => 1,
 			'day_of_month' => 1,

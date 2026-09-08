@@ -1,6 +1,6 @@
-# Test Agent for Store Compass
+# Test Agent for Unmai Analytix
 
-Playwright + OpenAI regression harness for Store Compass (`tests/ai-chat-test-agent.js`).
+Playwright + OpenAI regression harness for Unmai Analytix (`tests/ai-chat-test-agent.js`).
 
 ## Setup
 
@@ -12,7 +12,7 @@ npm install
 2. Configure environment variables in `tests/.env`:
 ```env
 OPENAI_API_KEY=your_api_key_here
-PLUGIN_URL=http://localhost:8080/wp-admin/admin.php?page=store-compass-for-woocommerce
+PLUGIN_URL=http://localhost:8080/wp-admin/admin.php?page=unmai-analytix-for-woocommerce
 WP_ADMIN_USER=admin
 WP_ADMIN_PASS=admin
 ```
